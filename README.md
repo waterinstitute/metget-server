@@ -1,4 +1,4 @@
-![MetGet Logo](https://raw.githubusercontent.com/waterinstitute/metget/main/img/MetGet_logo_blue.png)
+![MetGet Logo](https://raw.githubusercontent.com/waterinstitute/metget-server/main/img/MetGet_logo_blue.png)
 
 MetGet is an application which allows users to query, format, and blend meteorological data from various sources
 to be used in hydrodynamic modeling applications. The application is deployed using Kubernetes and
