@@ -101,10 +101,6 @@ spec:
                         limits:
                           memory: 3Gi
                           ephemeral-storage: 8Gi
-                dnsConfig:
-                  options:
-                    - name: ndots
-                      value: "0"
           parameters:
             - src:
                 dependencyName: metget-build-dependency

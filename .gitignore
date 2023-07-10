@@ -1,2 +1,4 @@
 html
-client/metgetclient/__init__.py
+k8s/download/aws-secret.yaml
+k8s/download/aws-coamps-secret.yaml
+k8s/database/secret.yaml
