@@ -9,6 +9,6 @@ data:
       podGC:
         strategy: OnWorkflowSuccess
       ttlStrategy:
-        secondsAfterCompletion: 60 # Time to live after workflow is completed, replaces  ttlSecondsAfterFinished
-        secondsAfterSuccess: 60    # Time to live after workflow is successful
-        secondsAfterFailure: 3600     # Time to live after workflow fails
+        secondsAfterCompletion: 300 # Time to live after workflow is completed, replaces  ttlSecondsAfterFinished
+        secondsAfterSuccess: 300    # Time to live after workflow is successful
+        secondsAfterFailure: 10800     # Time to live after workflow fails
