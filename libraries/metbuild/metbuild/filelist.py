@@ -665,7 +665,7 @@ class Filelist:
 
     def __query_storm_file_list_single_forecast_ensemble(
         self, table: TableBase
-    ) -> list:
+    ) -> Union[list, None]:
         """
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for meteorology which supports
@@ -709,6 +709,9 @@ class Filelist:
                 .order_by(table.forecastcycle)
                 .first()
             )
+
+            if first_cycle is None:
+                return None
 
             pure_forecast = Filelist.__rows2dicts(
                 session.query(
@@ -856,7 +859,9 @@ class Filelist:
             else:
                 return self.__query_storm_file_list_single_forecast(table)
 
-    def __query_storm_file_list_single_forecast(self, table: TableBase) -> list:
+    def __query_storm_file_list_single_forecast(
+        self, table: TableBase
+    ) -> Union[list, None]:
         """
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for meteorology which supports
@@ -897,6 +902,9 @@ class Filelist:
                 .order_by(table.forecastcycle)
                 .first()
             )
+
+            if first_cycle is None:
+                return None
 
             pure_forecast = Filelist.__rows2dicts(
                 session.query(

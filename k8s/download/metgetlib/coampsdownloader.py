@@ -38,7 +38,7 @@ class CoampsDownloader:
     """
 
     STORM_MIN = 1
-    STORM_MAX = 41
+    STORM_MAX = 99
 
     def __init__(self):
         """
