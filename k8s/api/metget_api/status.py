@@ -898,7 +898,6 @@ class Status:
 
             for storm in unique_storms:
                 storm_name = storm[0]
-                storms[storm_name] = {}
 
                 if ensemble_member == "all":
                     query_filter_ensemble = [
@@ -977,6 +976,7 @@ class Status:
                         else:
                             this_member_max_time = max_time
 
+                    storm_year = this_member_min_time.year
                     this_member["min_forecast_date"] = Status.d2s(this_member_min_time)
                     this_member["max_forecast_date"] = Status.d2s(this_member_max_time)
                     this_member["first_available_cycle"] = this_member_cycles[0][
@@ -999,7 +999,11 @@ class Status:
                     this_member["cycles"] = this_member_cycles
                     this_member["cycles_complete"] = this_member_complete_cycles
 
-                    storms[storm_name][member_name] = this_member
+                    if storm_year not in storms:
+                        storms[storm_year] = {}
+                    if storm_name not in storms[storm_year]:
+                        storms[storm_year][storm_name] = {}
+                    storms[storm_year][storm_name][member_name] = this_member
 
         return storms
 
@@ -1102,6 +1106,8 @@ class Status:
                     else:
                         this_storm_max_time = max_time
 
+                storm_year = min_time.year
+
                 if len(this_storm_cycles) > 0:
                     this_storm["min_forecast_date"] = Status.d2s(this_storm_min_time)
                     this_storm["max_forecast_date"] = Status.d2s(this_storm_max_time)
@@ -1120,18 +1126,10 @@ class Status:
 
                     this_storm["cycles"] = this_storm_cycles
                     this_storm["cycles_complete"] = this_storm_complete_cycles
-                else:
-                    this_storm["min_forecast_date"] = None
-                    this_storm["max_forecast_date"] = None
-                    this_storm["first_available_cycle"] = None
-                    this_storm["latest_available_cycle"] = None
-                    this_storm["latest_available_cycle_length"] = None
-                    this_storm["latest_complete_cycle"] = None
-                    this_storm["complete_cycle_length"] = None
-                    this_storm["cycles"] = None
-                    this_storm["cycles_complete"] = None
 
-                storms[storm_name] = this_storm
+                    if storm_year not in storms.keys():
+                        storms[storm_year] = {}
+                    storms[storm_year][storm_name] = this_storm
 
         return storms
 
