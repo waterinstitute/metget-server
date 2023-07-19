@@ -89,13 +89,16 @@ class S3GribIO:
         result = urlparse(path)
         return result.netloc, result.path.lstrip("/")
 
-    def __try_get_object(self, key: str, byte_range: str = None) -> dict:
+    def __try_get_object(
+        self, key: str, byte_range: str = None, allow_fail=True
+    ) -> Union[None, dict]:
         """
         Try to get an object from a s3 bucket. If the object does not exist, wait 5 seconds and try again.
 
         Args:
             key (str): The key of the object
             byte_range (str): The byte range to get
+            allow_fail (bool): Whether to allow the function to fail
 
         Returns:
             The object from the bucket
@@ -117,14 +120,17 @@ class S3GribIO:
                     return self.__s3_client.get_object(Bucket=self.__s3_bucket, Key=key)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "NoSuchKey":
-                    tries += 1
-                    sleep(sleep_interval)
-                    if tries > max_tries:
-                        raise RuntimeError(
-                            "Could not find key {} in bucket {}".format(
-                                key, self.__s3_bucket
+                    if allow_fail:
+                        return None
+                    else:
+                        tries += 1
+                        sleep(sleep_interval)
+                        if tries > max_tries:
+                            raise RuntimeError(
+                                "Could not find key {} in bucket {}".format(
+                                    key, self.__s3_bucket
+                                )
                             )
-                        )
                 else:
                     raise e
 
@@ -152,7 +158,7 @@ class S3GribIO:
                 return {"name": variable["name"], "start": start_bits, "end": end_bits}
         return None
 
-    def __get_grib_inventory(self, s3_file: str) -> list:
+    def __get_grib_inventory(self, s3_file: str) -> Union[None, list]:
         """
         Gets the inventory for the grib file
 
@@ -162,17 +168,26 @@ class S3GribIO:
         Returns:
             list: The inventory for the grib file
         """
-        inv_obj = self.__try_get_object(s3_file + ".idx")
-        inv_data_tmp = str(inv_obj["Body"].read().decode("utf-8")).split("\n")
-        inv_data = []
-        for line in inv_data_tmp:
-            if not line == "":
-                inv_data.append(line)
-        byte_list = []
-        for v in self.__variable_list:
-            byte_list.append(S3GribIO.__get_inventory_byte_list(inv_data, v))
 
-        return byte_list
+        # Get the inventory object. Sometimes, the inventory object does not exist
+        # so we need to allow the function to fail gracefully. This alerts the
+        # calling function and it will instead download the full file without
+        # subsetting
+        inv_obj = self.__try_get_object(s3_file + ".idx", allow_fail=True)
+
+        if inv_obj is None:
+            return None
+        else:
+            inv_data_tmp = str(inv_obj["Body"].read().decode("utf-8")).split("\n")
+            inv_data = []
+            for line in inv_data_tmp:
+                if not line == "":
+                    inv_data.append(line)
+            byte_list = []
+            for v in self.__variable_list:
+                byte_list.append(S3GribIO.__get_inventory_byte_list(inv_data, v))
+
+            return byte_list
 
     @staticmethod
     def __get_variable_candidates(variable_type: str) -> Union[dict, None]:
@@ -257,29 +272,40 @@ class S3GribIO:
         # ...Parses the grib inventory to the byte ranges for each variable
         inventory = self.__get_grib_inventory(path)
 
-        # ...Select the byte ranges that are actually required to be downloaded
-        inventory_subset = self.__variable_type_to_byte_range(variable_type, inventory)
-
-        if len(inventory_subset) == 0:
-            log.error("No inventory found for file {}".format(path))
-            return False, False
-        elif (
-            len(inventory_subset)
-            < S3GribIO.__get_variable_candidates(variable_type)["length"]
-        ):
-            log.error("Inventory length does not match variable list length")
-            return False, False
-
         if os.path.exists(local_file):
             log.warning("File '{}' already exists, removing".format(local_file))
             os.remove(local_file)
 
-        log.info("Downloading {} to {}".format(s3_file, local_file))
-
-        for var in inventory_subset:
-            byte_range = "bytes={}-{}".format(var["start"], var["end"])
-            obj = self.__try_get_object(path, byte_range)
-            with open(local_file, "ab") as f:
+        if inventory is None:
+            log.info("Downloading full file for {} to {}".format(s3_file, local_file))
+            obj = self.__try_get_object(path)
+            with open(local_file, "wb") as f:
                 f.write(obj["Body"].read())
 
-        return True, False
+            return True, False
+
+        else:
+            # ...Select the byte ranges that are actually required to be downloaded
+            inventory_subset = self.__variable_type_to_byte_range(
+                variable_type, inventory
+            )
+
+            if len(inventory_subset) == 0:
+                log.error("No inventory found for file {}".format(path))
+                return False, False
+            elif (
+                len(inventory_subset)
+                < S3GribIO.__get_variable_candidates(variable_type)["length"]
+            ):
+                log.error("Inventory length does not match variable list length")
+                return False, False
+
+            log.info("Downloading subset for {} to {}".format(s3_file, local_file))
+
+            for var in inventory_subset:
+                byte_range = "bytes={}-{}".format(var["start"], var["end"])
+                obj = self.__try_get_object(path, byte_range)
+                with open(local_file, "ab") as f:
+                    f.write(obj["Body"].read())
+
+            return True, False

@@ -295,6 +295,9 @@ class Filelist:
                 .first()
             )
 
+            if first_cycle is None:
+                return None
+
             pure_forecast = Filelist.__rows2dicts(
                 session.query(
                     table.forecastcycle,
@@ -488,6 +491,9 @@ class Filelist:
                 .order_by(GefsTable.forecastcycle)
                 .first()
             )
+
+            if first_cycle is None:
+                return None
 
             pure_forecast = Filelist.__rows2dicts(
                 session.query(
