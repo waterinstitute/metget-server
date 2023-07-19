@@ -1118,7 +1118,12 @@ class Status:
                     this_storm["latest_available_cycle_length"] = this_storm_cycles[-1][
                         "duration"
                     ]
-                    this_storm["latest_complete_cycle"] = this_storm_complete_cycles[-1]
+
+                    if len(this_storm_complete_cycles) > 0:
+                        this_storm["latest_complete_cycle"] = this_storm_complete_cycles[-1]
+                    else:
+                        this_storm["latest_complete_cycle"] = None
+
                     this_storm["complete_cycle_length"] = cycle_duration
 
                     this_storm_cycles.reverse()
