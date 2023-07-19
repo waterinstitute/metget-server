@@ -631,6 +631,14 @@ class NoaaDownloader:
                     num_download += n
             else:
                 filepath = "s3://{:s}/{:s}".format(self.big_data_bucket(), p["grb"])
+                idx_filepath = "s3://{:s}/{:s}".format(self.big_data_bucket(), p["inv"])
+
+                # ...Check if the index file exists in s3 before considering the
+                # ...file as eligible for download
+                idx_obj_list = list(bucket.objects.filter(Prefix=idx_filepath).all())
+                if len(idx_obj_list) == 0:
+                    continue
+
                 if not self.__database.has(self.mettype(), p):
                     num_download += 1
                     self.__database.add(p, self.mettype(), filepath)
