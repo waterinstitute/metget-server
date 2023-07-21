@@ -64,6 +64,8 @@ class CoampsDownloader:
 
         self.__connect()
 
+        storm_year = datetime.utcnow().year
+
         for st in range(storm_min, storm_max, 1):
             storm_name = "{:02d}L".format(st)
             start_timestamp = int(date_min.timestamp())
@@ -99,13 +101,12 @@ class CoampsDownloader:
                             for f in dd:
                                 local_file = f["filename"]
                                 cycle = f["cycle"]
-                                remote_path = (
-                                    "coamps_tc/"
-                                    + storm_name
-                                    + "/"
-                                    + datetime.strftime(cycle, "%Y%m%d/%H")
-                                    + "/"
-                                    + os.path.basename(f["filename"])
+                                remote_path = "coamps_tc/" "forecasts/" + str(
+                                    storm_year
+                                ) + "/" + storm_name + "/" + datetime.strftime(
+                                    cycle, "%Y%m%d/%H"
+                                ) + "/" + os.path.basename(
+                                    f["filename"]
                                 )
                                 s3.upload_file(local_file, remote_path)
                                 if files == "":
