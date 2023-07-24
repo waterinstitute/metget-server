@@ -201,11 +201,16 @@ class CoampsDownloader:
                             datetime.strftime(key, "%Y-%m-%d %H:%M"),
                         )
                     )
+
+                    storm_year = datetime.strftime(file_list[key][0]["cycle"], "%Y")
+
                     for f in dd:
                         local_file = f["filename"]
                         cycle = f["cycle"]
                         remote_path = os.path.join(
                             "coamps_tc",
+                            "forecast",
+                            storm_year,
                             storm_name,
                             datetime.strftime(cycle, "%Y%m%d"),
                             datetime.strftime(cycle, "%H"),
