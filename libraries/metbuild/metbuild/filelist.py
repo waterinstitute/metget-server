@@ -936,9 +936,7 @@ class Filelist:
         else:
             # Query the fallback data to fill in when we select out the tau
             # forecasts
-            fallback_data = Filelist.__rows2dicts(
-                self.__query_storm_file_list_multiple_forecasts(table)
-            )
+            fallback_data = self.__query_storm_file_list_multiple_forecasts(table)
             return Filelist.__merge_tau_excluded_data(pure_forecast, fallback_data)
 
     def __query_storm_file_list_multiple_forecasts(self, table: TableBase) -> list:

@@ -254,7 +254,7 @@ class BuildRequest:
                         return False
 
                 if not self.__input_obj.multiple_forecasts():
-                    if n_forecasts > 1:
+                    if n_forecasts > 1 and d.tau() == 0:
                         self.__error.append("Multiple forecasts requested")
                         if self.__input_obj.strict():
                             return False
