@@ -1,3 +1,16 @@
+{{ if .Values.config.storage.use_aws_ebs }} 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-database-pv-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-sc
+  resources:
+    requests:
+      storage: 20Gi
+{{ else }} 
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -24,6 +37,7 @@ spec:
   resources:
     requests:
       storage: 20Gi
+{{ end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
