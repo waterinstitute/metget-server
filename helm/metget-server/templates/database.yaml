@@ -59,7 +59,7 @@ spec:
           value: /var/lib/postgresql/data/database-data
         ports:
         - containerPort: 5432
-          name: {{ .Release.Name }}-db-port
+          name: db-port
         volumeMounts:
         - name: {{ .Release.Name }}-database-persistent-storage
           mountPath: /var/lib/postgresql/data
