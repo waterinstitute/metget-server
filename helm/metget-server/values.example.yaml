@@ -81,6 +81,13 @@ s3:
 # Configuration Options
 #####################################################
 config:
+  storage:
+  #####################################################
+  # For the database, use an EBS based storage rather
+  # then a local storage. This is better for production
+  # and you should use this for production deployments
+  #####################################################
+    use_aws_ebs: True
   #####################################################
   # Enabled Meteorology Types
   #
