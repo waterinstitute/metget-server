@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-configmap
+data:
+  database.name: metget
+  database.request_table: requests
+  database.apikey_table: apikeys
+
+  s3.storage_bucket: {{ .Values.s3.storage_bucket }}
+  s3.upload_bucket: {{ .Values.s3.upload_bucket }}
+
+  rabbit.queue: metget-request

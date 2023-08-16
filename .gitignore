@@ -1,4 +1,2 @@
 html
-k8s/download/aws-secret.yaml
-k8s/download/aws-coamps-secret.yaml
-k8s/database/secret.yaml
+helm/metget-server/values.yaml

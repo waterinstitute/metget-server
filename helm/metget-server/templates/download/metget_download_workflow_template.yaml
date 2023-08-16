@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: {{ .Release.Name }}-download-template
+spec:
+  entrypoint: {{ .Release.Name }}-download-runner
+  templates:
+  - name: {{ .Release.Name }}-download-runner
+    inputs:
+      parameters:
+        - name: service
+    container:
+      image: {{ .Values.containers.build.image }}
+      imagePullPolicy: Always
+      env:
+        - name: METGET_DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-database-secret
+              key: username
+        - name: METGET_DATABASE_PASSWORD
+          valueFrom: 
+            secretKeyRef: 
+              name: {{ .Release.Name }}-database-secret
+              key: password
+        - name: METGET_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-configmap
+              key: database.name
+        - name: METGET_REQUEST_TABLE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-configmap
+              key: database.request_table
+        - name: METGET_API_KEY_TABLE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-configmap
+              key: database.apikey_table
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom: 
+            secretKeyRef: 
+              name: aws-credentials
+              key: username
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: password
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: aws-region
+              key: password
+        - name: METGET_S3_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-configmap
+              key: s3.storage_bucket
+        - name: METGET_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-configmap
+              key: database.name
+        - name: COAMPS_S3_BUCKET
+          value: {{ .Values.s3.coamps_storage_bucket }}
+        - name: COAMPS_AWS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-coamps-credentials
+              key: username
+        - name: COAMPS_AWS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: aws-coamps-credentials
+              key: password
+      command: [python3, metget_download.py]
+      args: ["--service", '{{"{{"}}inputs.parameters.service{{"}}"}}']
