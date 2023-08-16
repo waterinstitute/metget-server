@@ -1,0 +1,27 @@
+{{ if .Values.config.meteorology.nhc }}
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ .Release.Name }}-download-nhc
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: "Forbid"
+  startingDeadlineSeconds: 0
+  workflowSpec:
+    entrypoint: runner
+    arguments:
+      parameters:
+        - name: input-service
+          value: nhc
+    templates:
+      - name: runner
+        steps:
+        - - name: download
+            templateRef:
+              name: {{ .Release.Name }}-download-template
+              template: {{ .Release.Name }}-download-runner
+            arguments:
+              parameters:
+                - name: service
+                  value: '{{ "{{" }}workflow.parameters.input-service{{ "}}" }}'
+  {{ end }}

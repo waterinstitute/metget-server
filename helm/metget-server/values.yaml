@@ -1,0 +1,118 @@
+#####################################################
+# MetGet Helm Deployment Values File
+#
+# Author: Zach Cobell
+# Contact: zcobell@thewaterinstitute.org
+#
+# Use this file to supply values for the MetGet
+# server deployment
+#####################################################
+
+
+#####################################################
+# Containers
+#
+# A series of docker containers are required for the
+# various pods. Their paths and versions are specified
+# here. You may change these if you have a development
+# version or if you have forked the code and changed 
+# how the containers operate
+#####################################################
+containers:
+  database:
+    image: zcobell/metget-database:0.0.1
+  download:
+    image: zcobell/metget-download:0.0.1
+  api:
+    image: zcobell/metget-api:0.0.1
+  build:
+    image: zcobell/metget-build:0.0.1
+  key_manager:
+    image: zcobell/metget-keymanager:0.0.1
+
+#####################################################
+# Authentication Information
+# 
+# MetGet will use AWS S3 buckets to store data when
+# required. Supply the AWS credentials to use to
+# upload data to the specified S3 buckets
+#
+# COAMPS data is stored in a specific S3 bucket when
+# posted by NRL. These buckets (may) require specific 
+# access keys for use, and so their values are required
+# here if you want to use either coamps or ctcx data
+#####################################################
+auth:
+  aws_region: aws_region
+  aws_access_key_id: access_key_id
+  aws_secret_access_key: access_key
+  aws_coamps_access_key_id: access_key_id
+  aws_coamps_secret_access_key: access_key
+  database_root_password: default_password
+
+#####################################################
+# HTTP Settings
+#
+# Use these settings to enable an external ingress
+# within AWS. You can disable this if you'd like 
+# to specify your own ingress outside of EKS or
+# on your local k8s cluster
+#####################################################
+http:
+  use_http: False
+  aws_certificate_arn: cert_arn
+  host: dev-api.metget.org
+  project_tag: project_code
+
+#####################################################
+# S3 Configuration
+#
+# The AWS S3 buckets that are used throughout the 
+# code to either download data and store or post
+# data to for outside users
+#####################################################
+s3:
+  storage_bucket: metget-data-store
+  upload_bucket: metget-data-upload
+  coamps_storage_bucket: coamps-tc-data
+
+
+#####################################################
+# Configuration Options
+#####################################################
+config:
+  #####################################################
+  # Enabled Meteorology Types
+  #
+  # The user may enable/disable different types of
+  # meteorology in the deployment. Update the values
+  # below to turn them on/off. Note that this only
+  # disables the meteorology within the download phase.
+  # If a user requests these data they will just be told
+  # that the specified data does exist yet, but not
+  # be alerted that you haven't enabled it in your
+  # metget-server instance
+  #####################################################
+  meteorology:
+    coamps: False
+    ctcx: False
+    era5: False
+    gefs: False
+    gfs: False
+    hrrr: False
+    hrrr_alaska: False
+    hwrf: False
+    nam: False
+    nhc: False
+    wpc: False
+  #####################################################
+  # Ensure that the API enforces credit limits
+  #
+  # Credit limits ensure that users cannot request
+  # large amounts of data unless they've been given
+  # an unlimited credit limit by the administrator.
+  # Note that MetGet will still enforce the usage
+  # of api keys for authentication
+  #####################################################
+  credits:
+    enforce_credit_limits: True

@@ -1,0 +1,108 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: {{ .Release.Name }}-build-sensor
+spec:
+  template:
+    serviceAccountName: operate-workflow-sa
+  dependencies:
+    - name: {{ .Release.Name }}-build-dependency
+      eventSourceName: {{ .Release.Name }}-build-source
+      eventName: {{ .Release.Name }}-queue-source
+  triggers:
+    - template:
+        name: {{ .Release.Name }}-build-workflow
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: {{ .Release.Name }}-build-
+              spec:
+                entrypoint: {{ .Release.Name }}-build
+                arguments:
+                  parameters:
+                    - name: message
+                      # value will get overridden by the event payload
+                      value: hello world
+                templates:
+                  - name: {{ .Release.Name }}-build
+                    inputs:
+                      parameters:
+                        - name: message
+                    container:
+                      image: {{ .Values.containers.build.image }}
+                      imagePullPolicy: Always
+                      env:
+                        - name: METGET_DATABASE_USER
+                          valueFrom:
+                            secretKeyRef:
+                              name: {{ .Release.Name }}-database-secret
+                              key: username
+                        - name: METGET_DATABASE_PASSWORD
+                          valueFrom: 
+                            secretKeyRef: 
+                              name: {{ .Release.Name }}-database-secret 
+                              key: password
+                        - name: AWS_ACCESS_KEY_ID
+                          valueFrom: 
+                            secretKeyRef: 
+                              name: aws-credentials
+                              key: username
+                        - name: AWS_SECRET_ACCESS_KEY
+                          valueFrom:
+                            secretKeyRef:
+                              name: aws-credentials
+                              key: password
+                        - name: AWS_DEFAULT_REGION
+                          valueFrom:
+                            secretKeyRef:
+                              name: aws-region
+                              key: password
+                        - name: METGET_DATABASE
+                          valueFrom:
+                            configMapKeyRef:
+                              name: {{ .Release.Name }}-configmap
+                              key: database.name
+                        - name: METGET_REQUEST_TABLE
+                          valueFrom:
+                            configMapKeyRef:
+                              name: {{ .Release.Name }}-configmap
+                              key: database.request_table
+                        - name: METGET_API_KEY_TABLE
+                          valueFrom:
+                            configMapKeyRef:
+                              name: {{ .Release.Name }}-configmap
+                              key: database.apikey_table
+                        - name: METGET_S3_BUCKET
+                          valueFrom:
+                            configMapKeyRef:
+                              name: {{ .Release.Name }}-configmap
+                              key: s3.storage_bucket
+                        - name: METGET_S3_BUCKET_UPLOAD
+                          valueFrom:
+                            configMapKeyRef:
+                              name: {{ .Release.Name }}-configmap
+                              key: s3.upload_bucket 
+                        - name: METGET_RABBITMQ_QUEUE
+                          valueFrom:
+                            configMapKeyRef:
+                              name: {{ .Release.Name }}-configmap
+                              key: rabbit.queue 
+                        - name: METGET_REQUEST_JSON
+                          value: '{{ "{{" }}inputs.parameters.message{{ "}}" }}'
+                      command: [python3, metget_build.py]
+                      resources:
+                        requests:
+                          memory: 2Gi
+                          ephemeral-storage: 4Gi
+                        limits:
+                          memory: 3Gi
+                          ephemeral-storage: 8Gi
+          parameters:
+            - src:
+                dependencyName: {{ .Release.Name }}-build-dependency
+                dataKey: body
+              dest: spec.arguments.parameters.0.value

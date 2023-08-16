@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Release.Name }}-database-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-database-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-database
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-database
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+      - image: {{ .Values.containers.database.image }}
+        imagePullPolicy: Always
+        name: {{ .Release.Name }}-database
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-database-secret
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-configmap
+              key: database.name
+        - name: PGDATA
+          value: /var/lib/postgresql/data/database-data
+        ports:
+        - containerPort: 5432
+          name: {{ .Release.Name }}-db-port
+        volumeMounts:
+        - name: {{ .Release.Name }}-database-persistent-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: {{ .Release.Name }}-database-persistent-storage
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-database-pv-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metget-database
+  labels: 
+    app: {{ .Release.Name }}-database
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+  selector:
+    app: {{ .Release.Name }}-database
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-database-secret
+type: kubernetes.io/basic-auth
+stringData:
+  username: postgres
+  password: {{ .Values.auth.database_root_password }}

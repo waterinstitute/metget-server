@@ -1,0 +1,27 @@
+{{ if .Values.config.meteorology.era5 }}
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ .Release.Name }}-download-era5
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: "Forbid"
+  startingDeadlineSeconds: 0
+  workflowSpec:
+    entrypoint: runner
+    arguments:
+      parameters:
+        - name: input-service
+          value: era5
+    templates:
+      - name: runner
+        steps:
+        - - name: download
+            templateRef: 
+              name: {{ .Release.Name }}-download-template
+              template: {{ .Release.Name }}-download-runner
+            arguments:
+              parameters:
+                - name: service
+                  value: '{{ "{{" }}workflow.parameters.input-service{{ "}}" }}'
+  {{ end }}

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: metget-server
+description: A deployment of the metget-server instance
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+icon: https://raw.githubusercontent.com/waterinstitute/metget-server/main/img/MetGet_logo_square.png 
