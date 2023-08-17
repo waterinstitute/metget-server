@@ -19,23 +19,61 @@ jobs:
       - name: Checkout metget-server
         uses: actions/checkout@v2
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Login to DockerHub
         run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
 
       - name: Build and push metget-api Docker image
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
         with:
           context: .
           file: ./containers/api/Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: thewaterinstitute/metget-api:${{ inputs.tag }}
-          labels: metget-server
+          labels: org.metget.metget-server
 
       - name: Build and push metget-database Docker image
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
         with:
           context: .
           file: ./containers/database/Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: thewaterinstitute/metget-database:${{ inputs.tag }}
-          labels: metget-server
+          labels: org.metget.metget-server
+
+      - name: Build and push metget-download Docker image
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        with:
+          context: .
+          file: ./containers/download/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: thewaterinstitute/metget-download:${{ inputs.tag }}
+          labels: org.metget.metget-server
+
+      - name: Build and push metget-keymanager Docker image
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        with:
+          context: .
+          file: ./containers/keymanager/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: thewaterinstitute/metget-keymanager:${{ inputs.tag }}
+          labels: org.metget.metget-server
+
+      - name: Build and push metget-build Docker image
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        with:
+          context: .
+          file: ./containers/build/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: thewaterinstitute/metget-build:${{ inputs.tag }}
+          labels: org.metget.metget-server
