@@ -1,0 +1,13 @@
+#...Github Actions workflow to run a nightly build of the containers
+#...and push them to Docker Hub
+name: Nightly Containers Build
+on:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  nightly-build-and-deploy:
+    uses: ./.github/workflows/build_containers.yml
+    with:
+      tag: nightly
+    secrets: inherit
