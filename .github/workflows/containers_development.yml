@@ -7,7 +7,7 @@ on:
       - helm
 
 jobs:
-  nightly-build-and-deploy:
+  development-build-and-deploy:
     uses: ./.github/workflows/build_containers.yml
     with:
       tag: development
