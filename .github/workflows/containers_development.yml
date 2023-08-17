@@ -1,0 +1,14 @@
+#...Github Actions workflow to run a development build of the containers
+#...and push them to Docker Hub
+name: Development Containers Build
+on:
+  push:
+    branches:
+      - helm
+
+jobs:
+  nightly-build-and-deploy:
+    uses: ./.github/workflows/build_containers.yml
+    with:
+      tag: development
+    secrets: inherit

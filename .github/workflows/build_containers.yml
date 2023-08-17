@@ -1,0 +1,51 @@
+# Reusable workflow for building the containers
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_LOGIN_USERNAME:
+        required: true
+      DOCKERHUB_LOGIN_TOKEN:
+        required: true
+
+jobs:
+  build:
+    name: Build metget-server containers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout metget-server
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKERHUB_LOGIN_USERNAME }}
+          password: ${{ secrets.DOCKER_LOGIN_TOKEN }}
+
+      - name: Build metget-server api container
+        run: docker build . --file containers/api/Dockerfile --tag waterinstitute/metget-api:${{ inputs.tag }}
+      - name: Push metget-server api container
+        run: docker push waterinstitute/metget-api:${{ inputs.tag }}
+
+      - name: Build metget-server database container
+        run: docker build . --file containers/database/Dockerfile --tag waterinstitute/metget-database:${{ inputs.tag }}
+      - name: Push metget-server database container
+        run: docker push waterinstitute/metget-database:${{ inputs.tag }}
+
+      - name: Build metget-server download container
+        run: docker build . --file containers/download/Dockerfile --tag waterinstitute/metget-download:${{ inputs.tag }}
+      - name: Push metget-server download container
+        run: docker push waterinstitute/metget-download:${{ inputs.tag }}
+
+      - name: Build metget-server build container
+        run: docker build . --file containers/build/Dockerfile --tag waterinstitute/metget-build:${{ inputs.tag }}
+      - name: Push metget-server build container
+        run: docker push waterinstitute/metget-build:${{ inputs.tag }}
+
+      - name: Build metget-server keymanager container
+        run: docker build . --file containers/keymanager/Dockerfile --tag waterinstitute/metget-keymanager:${{ inputs.tag }}
+      - name: Push metget-server keymanager container
+        run: docker push waterinstitute/metget-keymanager:${{ inputs.tag }}

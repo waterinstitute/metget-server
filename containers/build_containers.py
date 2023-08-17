@@ -30,13 +30,44 @@ def find_root_directory() -> str:
 
 def check_for_docker() -> None:
     """
-    Perform a simple check to see if the docker daemon is running.
-    If not, raise an error
+    Check the process (ps) list to see if docker is running
     """
-    pass
+    import subprocess
+
+    log = logging.getLogger(__name__)
+
+    os_type = get_os_type()
+
+    if os_type == "linux":
+        cmd = ["ps", "-ef"]
+
+        status = subprocess.run(cmd, capture_output=True)
+        if status.returncode != 0:
+            raise RuntimeError("Failed to get process list")
+
+        if "dockerd" not in status.stdout.decode("utf-8"):
+            log.error("Docker daemon is not running")
+            raise RuntimeError("Docker daemon is not running")
+    elif os_type == "macos":
+        cmd = ["docker", "info"]
+
+        status = subprocess.run(cmd, capture_output=True)
+        if status.returncode != 0:
+            raise RuntimeError("Failed to get docker info")
+
+        if "Docker Desktop" not in status.stdout.decode("utf-8"):
+            log.error("Docker daemon is not running")
+            raise RuntimeError("Docker daemon is not running")
 
 
-def get_os_type() -> None:
+def get_os_type() -> str:
+    """
+    Get the type of operating system. Currently only supports
+    linux and MacOS, so raise an error otherwise
+
+    Returns:
+        The type of operating system
+    """
     from sys import platform
 
     if platform == "linux" or platform == "linux2":
@@ -48,6 +79,17 @@ def get_os_type() -> None:
 
 
 def generate_container_name(container: str, repo: str, tag: str) -> Tuple[str, str]:
+    """
+    Generate the name of the container and the path to the Dockerfile
+
+    Args:
+        container: Name of the container
+        repo: Name of the repository where the image will be pushed
+        tag: Tag to use for the container
+
+    Returns:
+        The name of the container and the path to the Dockerfile
+    """
     import os
 
     container_path = os.path.join("containers", container, "Dockerfile")
@@ -71,12 +113,9 @@ def build_container(
     Returns:
         None
     """
-    import os
     import subprocess
 
     log = logging.getLogger(__name__)
-
-    os_type = get_os_type()
 
     container_name, container_path = generate_container_name(container, repo, tag)
 
@@ -86,24 +125,30 @@ def build_container(
         )
     )
 
-    if os_type == "macos":
-        cmd = [
-            "docker",
-            "buildx" "build",
-            "--platform",
-            "linux/amd64",
-            "-f",
-            container_path,
-            "-t",
-            container_name,
-            ".",
-        ]
-    elif os_type == "linux":
-        cmd = ["docker", "build", "-f", container_path, "-t", container_name, "."]
+    cmd = [
+        "docker",
+        "buildx",
+        "build",
+        "--platform",
+        "linux/amd64",
+        "-f",
+        container_path,
+        "-t",
+        container_name,
+        ".",
+    ]
 
     if verbose:
         log.info("Begin Docker log")
     status = subprocess.run(cmd, capture_output=(not verbose))
+
+    # ...Check if the command failed
+    if status.returncode != 0:
+        log.error("Failed to build container")
+        print(status.stdout.decode("utf-8"))
+        print(status.stderr.decode("utf-8"))
+        raise RuntimeError("Failed to build container")
+
     if verbose:
         log.info("End Docker log")
 
@@ -112,6 +157,18 @@ def build_container(
 
 
 def tag_image(container: str, repo: str, current_tag: str, new_tag: str) -> None:
+    """
+    Tag a container with the given tag
+
+    Args:
+        container: Name of the container to tag
+        repo: Name of the repository where the image is pushed
+        current_tag: Current tag of the container
+        new_tag: New tag to apply to the container
+
+    Returns:
+        None
+    """
     import subprocess
 
     log = logging.getLogger(__name__)
@@ -125,9 +182,29 @@ def tag_image(container: str, repo: str, current_tag: str, new_tag: str) -> None
     subprocess.run(cmd, capture_output=False)
 
 
-def push_container(
-    container: str, repo: str, tag: str, alias: list, verbose: bool
+def push_container_tags(
+    container: str,
+    repo: str,
+    tag: str,
+    alias: list,
+    verbose: bool,
 ) -> None:
+    """
+    Push the main container and associated tags to the repo
+
+    Args:
+        container: Name of the container to push
+        repo: Name of the repository where the image is pushed
+        tag: Tag to use for the container
+        alias: Additional tags to apply
+        verbose: show docker logs
+    """
+    push_container(container, repo, tag, verbose)
+    for t in alias:
+        push_container(container, repo, t, verbose)
+
+
+def push_container(container: str, repo: str, tag: str, verbose: bool) -> None:
     """
     Push a container with the given tag
 
@@ -135,9 +212,31 @@ def push_container(
         container: Name of the container to push
         repo: Name of the repository where the image is pushed
         tag: Tag to use for the container
-        latest: If true, tag as latest as well
+        verbose: show docker logs
     """
+    import subprocess
+
     log = logging.getLogger(__name__)
+
+    # ...First, push the main container
+    container_name, _ = generate_container_name(container, repo, tag)
+    log.info("Pushing container {:s}".format(container_name))
+    cmd = ["docker", "push", container_name]
+
+    if verbose:
+        log.info("Begin Docker log")
+
+    status = subprocess.run(cmd, capture_output=(not verbose))
+
+    # ...Check if the command failed
+    if status.returncode != 0:
+        log.error("Failed to push container")
+        print(status.stdout.decode("utf-8"))
+        print(status.stderr.decode("utf-8"))
+        raise RuntimeError("Failed to push container")
+
+    if verbose:
+        log.info("End Docker log")
 
 
 def main():
@@ -206,7 +305,13 @@ def main():
 
         build_container(container, args.repo, args.tag, args.alias, args.verbose)
         if args.push:
-            push_container(container, args.repo, args.tag, args.alias, args.verbose)
+            push_container_tags(
+                container,
+                args.repo,
+                args.tag,
+                args.alias,
+                args.verbose,
+            )
 
 
 if __name__ == "__main__":
