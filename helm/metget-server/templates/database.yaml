@@ -55,7 +55,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 5
       containers:
-      - image: {{ .Values.containers.database.image }}
+      - image: {{ .Values.containers.database.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
         name: {{ .Release.Name }}-database
         env:

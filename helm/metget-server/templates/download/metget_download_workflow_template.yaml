@@ -10,7 +10,7 @@ spec:
       parameters:
         - name: service
     container:
-      image: {{ .Values.containers.build.image }}
+      image: {{ .Values.containers.build.image }}:{{ .Values.containers.version }}
       imagePullPolicy: Always
       env:
         - name: METGET_DATABASE_USER

@@ -19,16 +19,23 @@
 # how the containers operate
 #####################################################
 containers:
+  #...Version of the containers to use. By default,
+  # the TheWaterInstitute registry provides stable
+  # and development tags. Stable releases are also
+  # tagged with semantic versioning, i.e.
+  # "0.1.0-stable". The development tag should be
+  # used at your own risk.
+  version: 0.1.0-stable
   database:
-    image: zcobell/metget-database:0.0.1
+    image: thewaterinstitute/metget-database
   download:
-    image: zcobell/metget-download:0.0.1
+    image: thewaterinstitute/metget-download
   api:
-    image: zcobell/metget-api:0.0.1
+    image: thewaterinstitute/metget-api
   build:
-    image: zcobell/metget-build:0.0.1
+    image: thewaterinstitute/metget-build
   key_manager:
-    image: zcobell/metget-keymanager:0.0.1
+    image: thewaterinstitute/metget-keymanager
 
 #####################################################
 # Authentication Information
@@ -55,7 +62,7 @@ auth:
 #
 # Use these settings to enable an external ingress
 # within AWS. You can disable this if you'd like 
-# to specify your own ingress outside of EKS or
+# to specify your own ingress outside EKS or
 # on your local k8s cluster
 #####################################################
 http:
