@@ -12,8 +12,8 @@ on:
         required: true
 
 jobs:
-  build:
-    name: Build metget-server containers
+  build-metget-api:
+    name: Build metget-server api container
     runs-on: ubuntu-latest
     steps:
       - name: Checkout metget-server
@@ -40,6 +40,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-metget-database:
+    name: Build metget-server database container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout metget-server
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+
       - name: Build and push metget-database Docker image
         uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
         with:
@@ -51,6 +67,22 @@ jobs:
           labels: org.metget.metget-server
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  build-metget-download:
+    name: Build metget-server download container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout metget-server
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
 
       - name: Build and push metget-download Docker image
         uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
@@ -64,6 +96,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-metget-keymanager:
+    name: Build metget-server keymanager container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout metget-server
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+
       - name: Build and push metget-keymanager Docker image
         uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
         with:
@@ -75,6 +123,22 @@ jobs:
           labels: org.metget.metget-server
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  build-metget-build:
+    name: Build metget-server build container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout metget-server
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
 
       - name: Build and push metget-build Docker image
         uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825

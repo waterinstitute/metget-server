@@ -8,7 +8,7 @@ WORKDIR /app
 #...Basic software installation
 RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip \
     openssl build-essential swig cmake libnetcdf-dev git libproj-dev libgmp-dev \
-    libboost-all-dev libpq-dev libeccodes-dev && rm -rf /var/lib/apt/lists/*
+    libboost-iostreams-dev libboost-system-dev libpq-dev libeccodes-dev && rm -rf /var/lib/apt/lists/*
 
 #...Installation of the metbuild c++ library
 #...Note that we do a little tuning for the amd64 chips. We'll assume
