@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}-keymanager
 spec:
   containers:
-  - image: {{ .Values.containers.key_manager.image }}
+  - image: {{ .Values.containers.key_manager.image }}:{{ .Values.containers.version }}
     imagePullPolicy: Always
     name: {{ .Release.Name }}-keymanager
     stdin: true

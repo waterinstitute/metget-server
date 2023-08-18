@@ -16,7 +16,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 5
       containers:
-      - image: {{ .Values.containers.api.image }}
+      - image: {{ .Values.containers.api.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
         name: {{ .Release.Name }}-api
         env:
