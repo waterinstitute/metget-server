@@ -13,5 +13,5 @@ RUN pip install /tmp/metbuild/. && rm -rf /tmp/metbuild
 
 WORKDIR /app
 
-COPY containers/download/metgetlib /app/metgetlib/.
-COPY containers/download/metget_download.py /app/. 
+COPY containers/download/metgetlib /app/metgetlib
+COPY containers/download/metget_download.py /app/metget_download.py
