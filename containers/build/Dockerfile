@@ -39,7 +39,7 @@ COPY containers/build/requirements.txt /tmp/
 RUN pip install --requirement /tmp/requirements.txt && rm -rf /tmp/requirements.txt
 
 #...Install the metbuild python library
-COPY libraries/metbuild /tmp/metbuild/.
+COPY libraries/metbuild /tmp/metbuild
 RUN pip install /tmp/metbuild/. && rm -rf /tmp/metbuild
 
 #...Install the metget-build entrypoint script(s)
