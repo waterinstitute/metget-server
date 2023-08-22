@@ -161,3 +161,7 @@ CREATE INDEX wpc_ncep_forecastcycle_idx ON wpc_ncep USING brin (forecastcycle);
 --
 CREATE INDEX nhc_fcst_basin_idx ON nhc_fcst USING brin (basin);
 CREATE INDEX nhc_btk_basin_idx ON nhc_btk USING brin (basin);
+--
+--Create Brin Index on the api_key for the requests
+--
+CREATE INDEX request_apikey_idx ON requests USING brin (api_key);
