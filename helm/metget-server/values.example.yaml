@@ -116,6 +116,7 @@ config:
     hrrr: False
     hrrr_alaska: False
     hwrf: False
+    hafs: False
     nam: False
     nhc: False
     wpc: False

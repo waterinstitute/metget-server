@@ -163,6 +163,8 @@ class Filelist:
             return self.__query_files_nam_ncep()
         elif self.__service == "hwrf":
             return self.__query_files_hwrf()
+        elif "hafs" in self.__service:
+            return self.__query_files_hafs(self.__service)
         elif self.__service == "coamps-tc":
             return self.__query_files_coamps_tc()
         elif self.__service == "coamps-ctcx":
@@ -623,6 +625,28 @@ class Filelist:
         from .tables import HwrfTable
 
         return self.__query_storm_file_list(HwrfTable)
+
+    def __query_files_hafs(self, hafs_type: str) -> list:
+        """
+        This method is used to query the database for the files that will be used to
+        generate the requested forcing data. It is used for HAFS (A and B).
+
+        Args:
+            hafs_type (str): The type of HAFS (A or B)
+
+        Returns:
+            list: The list of files that will be used to generate the requested forcing
+        """
+        from .tables import HafsATable, HafsBTable
+
+        if hafs_type == "hafs_a" or hafs_type == "hafs":
+            return self.__query_storm_file_list(HafsATable)
+        elif hafs_type == "hafs_b":
+            return self.__query_storm_file_list(HafsBTable)
+        else:
+            self.__error.append("Invalid HAFS type: '{:s}'".format(hafs_type))
+            self.__valid = False
+            return None
 
     def __query_files_coamps_tc(self) -> list:
         """

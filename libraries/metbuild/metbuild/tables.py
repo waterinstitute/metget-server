@@ -245,6 +245,40 @@ class HwrfTable(TableBase):
     accessed = Column(DateTime)
 
 
+class HafsATable(TableBase):
+    """
+    This class is used to create the table that holds the HAFS-A data which has been
+    downloaded from the NCEP server
+    """
+
+    __tablename__ = "hafs_a"
+    index = Column("id", Integer, primary_key=True)
+    forecastcycle = Column(DateTime)
+    stormname = Column(String)
+    forecasttime = Column(DateTime)
+    tau = Column(Integer)
+    filepath = Column(String)
+    url = Column(String)
+    accessed = Column(DateTime)
+
+
+class HafsBTable(TableBase):
+    """
+    This class is used to create the table that holds the HAFS-B data which has been
+    downloaded from the NCEP server
+    """
+
+    __tablename__ = "hafs_b"
+    index = Column("id", Integer, primary_key=True)
+    forecastcycle = Column(DateTime)
+    stormname = Column(String)
+    forecasttime = Column(DateTime)
+    tau = Column(Integer)
+    filepath = Column(String)
+    url = Column(String)
+    accessed = Column(DateTime)
+
+
 class GefsTable(TableBase):
     """
     This class is used to create the table that holds the GEFS data which has been

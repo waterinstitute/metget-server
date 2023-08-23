@@ -42,6 +42,9 @@ VALID_SERVICES = [
     "nhc",
     "hrrr-conus",
     "hrrr-alaska",
+    "hafs",
+    "hafs-a",
+    "hafs-b",
 ]
 
 
@@ -218,6 +221,7 @@ class Domain:
             or self.service() == "coamps-tc"
             or self.service() == "coamps-ctcx"
             or self.service() == "nhc"
+            or "hafs" in self.service()
         ):
             if "storm" in self.__json:
                 self.__storm = str(self.__json["storm"])
