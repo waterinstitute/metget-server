@@ -35,7 +35,8 @@ jobs:
           context: .
           file: ./containers/api/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+#         platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: thewaterinstitute/metget-api:${{ inputs.tag }}
           labels: org.metget.metget-server
           cache-from: type=gha
@@ -63,7 +64,8 @@ jobs:
           context: .
           file: ./containers/database/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+#         platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: thewaterinstitute/metget-database:${{ inputs.tag }}
           labels: org.metget.metget-server
           cache-from: type=gha
@@ -91,7 +93,8 @@ jobs:
           context: .
           file: ./containers/download/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+#         platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: thewaterinstitute/metget-download:${{ inputs.tag }}
           labels: org.metget.metget-server
           cache-from: type=gha
@@ -119,7 +122,8 @@ jobs:
           context: .
           file: ./containers/keymanager/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+#         platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: thewaterinstitute/metget-keymanager:${{ inputs.tag }}
           labels: org.metget.metget-server
           cache-from: type=gha
@@ -147,7 +151,8 @@ jobs:
           context: .
           file: ./containers/build/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+#         platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: thewaterinstitute/metget-build:${{ inputs.tag }}
           labels: org.metget.metget-server
           cache-from: type=gha
