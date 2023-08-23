@@ -160,6 +160,8 @@ class Metdb:
         """
         if datatype == "hwrf":
             return self.__has_hwrf(metadata)
+        elif "hafs" in datatype:
+            return self.__has_hafs(datatype, metadata)
         elif datatype == "coamps":
             return self.__has_coamps(metadata)
         elif datatype == "ctcx":
@@ -195,6 +197,45 @@ class Metdb:
                 HwrfTable.forecastcycle == cdate,
                 HwrfTable.forecasttime == fdate,
                 HwrfTable.stormname == name,
+            )
+            .first()
+        )
+
+        if v is not None:
+            return True
+        else:
+            return False
+
+    def __has_hafs(self, datatype: str, metadata: dict):
+        """
+        Check if a hafs file exists in the database
+
+        Args:
+            datatype (str): The type of hafs file to check for
+            metadata (dict): The metadata to check for
+
+        Returns:
+            bool: True if the file exists in the database, False otherwise
+        """
+        from metbuild.tables import HafsATable, HafsBTable
+
+        if datatype == "hafs_a" or datatype == "hafs":
+            table = HafsATable
+        elif datatype == "hafs_b":
+            table = HafsBTable
+        else:
+            raise ValueError("Invalid datatype: " + datatype)
+
+        cdate = metadata["cycledate"]
+        fdate = metadata["forecastdate"]
+        name = metadata["name"]
+
+        v = (
+            self.__session.query(table.index)
+            .filter(
+                table.forecastcycle == cdate,
+                table.forecasttime == fdate,
+                table.stormname == name,
             )
             .first()
         )
