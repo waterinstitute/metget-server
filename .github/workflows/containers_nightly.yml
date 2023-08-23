@@ -3,7 +3,7 @@
 name: Nightly Containers Build
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 5 * * *'
 
 jobs:
   nightly-build-and-deploy:
