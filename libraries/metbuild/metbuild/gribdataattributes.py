@@ -27,12 +27,15 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from typing import Union, List
+
+
 class GribDataAttributes:
     def __init__(
         self,
         name: str,
         table: str,
-        bucket: str,
+        bucket: Union[str, None],
         variables: dict,
         cycles: list,
         ensemble_members: list = None,
@@ -61,7 +64,7 @@ class GribDataAttributes:
     def bucket(self) -> str:
         return self.__bucket
 
-    def variables(self) -> dict:
+    def variables(self) -> List[dict]:
         return self.__variables
 
     def cycles(self) -> list:
@@ -177,6 +180,36 @@ NCEP_WPC = GribDataAttributes(
     None,
     {
         "accumulated_precip": "APCP",
+    },
+    [0, 6, 12, 18],
+)
+
+NCEP_HAFS_A = GribDataAttributes(
+    "HAFS-A",
+    "hafs_a",
+    None,
+    {
+        "uvel": "UGRD:10 m above ground",
+        "vvel": "VGRD:10 m above ground",
+        "press": "PRMSL",
+        "precip_rate": "PRATE",
+        "humidity": "RH:2 m above ground",
+        "temperature": "TMP:2 m above ground",
+    },
+    [0, 6, 12, 18],
+)
+
+NCEP_HAFS_B = GribDataAttributes(
+    "HAFS-B",
+    "hafs_b",
+    None,
+    {
+        "uvel": "UGRD:10 m above ground",
+        "vvel": "VGRD:10 m above ground",
+        "press": "PRMSL",
+        "precip_rate": "PRATE",
+        "humidity": "RH:2 m above ground",
+        "temperature": "TMP:2 m above ground",
     },
     [0, 6, 12, 18],
 )
