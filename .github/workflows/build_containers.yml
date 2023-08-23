@@ -1,4 +1,5 @@
 # Reusable workflow for building the containers
+name: Build Containers Workflow Template
 on:
   workflow_call:
     inputs:
