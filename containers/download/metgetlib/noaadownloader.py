@@ -33,6 +33,7 @@ from .s3file import S3file
 from .metdb import Metdb
 from datetime import datetime, timedelta
 from typing import Tuple, Union, List
+from requests.packages.urllib3.util.retry import Retry
 
 
 class NoaaDownloader:
@@ -78,6 +79,17 @@ class NoaaDownloader:
             self.__s3file = S3file()
         else:
             self.__s3file = None
+
+    @staticmethod
+    def http_retry_strategy() -> Retry:
+        # ...Note: Status 302 is NOAA speak for "chill out", not a redirect as in normal http
+        return Retry(
+            total=5,
+            redirect=6,
+            backoff_factor=1,
+            status_forcelist=[302, 429, 500, 502, 503, 504],
+            method_whitelist=["HEAD", "GET", "OPTIONS"],
+        )
 
     def do_archive(self):
         """
@@ -440,20 +452,11 @@ class NoaaDownloader:
         import requests
         import tempfile
         from requests.adapters import HTTPAdapter
-        from requests.packages.urllib3.util.retry import Retry
         import logging
 
         logger = logging.getLogger(__name__)
 
-        # ...Note: Status 302 is NOAA speak for "chill out", not a redirect as in normal http
-        retry_strategy = Retry(
-            total=20,
-            redirect=6,
-            backoff_factor=1.0,
-            status_forcelist=[302, 429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "OPTIONS"],
-        )
-        adaptor = HTTPAdapter(max_retries=retry_strategy)
+        adaptor = HTTPAdapter(max_retries=NoaaDownloader.http_retry_strategy())
 
         try:
             with requests.Session() as http:
