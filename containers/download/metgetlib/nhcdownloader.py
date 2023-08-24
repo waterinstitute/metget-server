@@ -529,11 +529,13 @@ class NhcDownloader:
             if "Forecast Advisory" in e["title"]:
                 adv_number_str = e["title"].split()[-1]
                 adv_lines = e["description"].split("\n")
-                id_str = (adv_lines[7].split()[-1]).lstrip()
-                basin_str = str(id_str[0:2]).lower()
-                storm_str = id_str[2:4]
-                if storm_str == storm and basin_str == basin:
-                    return NhcDownloader.generate_advisory_number(adv_number_str)
+                adv_lines_split = adv_lines[7].split()
+                if len(adv_lines_split) > 0:
+                    id_str = (adv_lines[7].split()[-1]).lstrip()
+                    basin_str = str(id_str[0:2]).lower()
+                    storm_str = id_str[2:4]
+                    if storm_str == storm and basin_str == basin:
+                        return NhcDownloader.generate_advisory_number(adv_number_str)
         return None
 
     @staticmethod
@@ -701,6 +703,12 @@ class NhcDownloader:
                     basin = f[0:2]
                     storm = f[2:4]
                     current_advisory = self.get_current_advisory_from_rss(basin, storm)
+                    if not current_advisory:
+                        logger.warning(
+                            "No current advisory found for storm {:s} in basin {:s}".format(
+                                storm, basin
+                            )
+                        )
 
                     if current_advisory:
 
@@ -788,8 +796,11 @@ class NhcDownloader:
                                 self.__database.add(data, "nhc_fcst", filepath)
                             n += 1
             except Exception as e:
-                logger.error("The following exception was thrown: " + str(e))
-                raise
+                logger.error(
+                    "The following exception was thrown for file {:s}: {:s}".format(
+                        f, str(e)
+                    )
+                )
         return n
 
     def __position_to_float(self, position: str):
