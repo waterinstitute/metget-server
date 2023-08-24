@@ -87,7 +87,7 @@ class HafsDownloader(NoaaDownloader):
             if fpaths:
                 num_download = num_download + n
                 filepath_join = ",".join(fpaths)
-                self.__database.add(grib_metadata, self.mettype(), filepath_join)
+                self.database().add(grib_metadata, self.mettype(), filepath_join)
 
         return num_download
 
@@ -159,28 +159,31 @@ class HafsDownloader(NoaaDownloader):
 
                     for r in retlist:
                         headers = {
-                            "Range": "bytes={:d}-{:d}".format(r["start"], r["end"]),
+                            "Range": "bytes=" + str(r["start"]) + "-" + str(r["end"])
                         }
-                        total_size += r["end"] - r["start"] + 1
+                        total_size += int(r["end"]) - int(r["start"]) + 1
                         with http.get(grb, headers=headers, timeout=30) as req:
                             req.raise_for_status()
                             got_size += len(req.content)
                             with open(file_location, "ab") as f:
                                 for chunk in req.iter_content(chunk_size=8192):
                                     f.write(chunk)
-            delta_size = got_size - total_size
-            if delta_size != 0 and got_size > 0:
-                logger.error("Did not get the full file from NOAA. Trying again later.")
-                os.remove(file_location)
-                return None, 0, 0
 
-            file_size = os.path.getsize(file_location)
-            remote_file = os.path.join(destination_folder, filename)
-            if file_size > 0:
-                self.s3file().upload_file(file_location, remote_file)
-                remote_file_list.append(remote_file)
-                n += 1
-            os.remove(file_location)
+                    delta_size = got_size - total_size
+                    if delta_size != 0 and got_size > 0:
+                        logger.error(
+                            "Did not get the full file from NOAA. Trying again later."
+                        )
+                        os.remove(file_location)
+                        return None, 0, 0
+
+                    file_size = os.path.getsize(file_location)
+                    remote_file = os.path.join(destination_folder, filename)
+                    if file_size > 0:
+                        self.s3file().upload_file(file_location, remote_file)
+                        remote_file_list.append(remote_file)
+                        n += 1
+                    os.remove(file_location)
 
         return remote_file_list, n, 0
 
