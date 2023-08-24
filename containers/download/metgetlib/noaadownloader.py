@@ -44,9 +44,7 @@ class RetryLogger(Retry):
 
     def __init__(self, *args, **kwargs):
         logger = logging.getLogger(__name__)
-        logger.info(
-            "Request got status code {}. Retrying...".format(kwargs["status_code"])
-        )
+        logger.warning("Request failed. Retrying...")
         super().__init__(*args, **kwargs)
 
 
