@@ -186,7 +186,7 @@ NCEP_WPC = GribDataAttributes(
 
 NCEP_HAFS_A = GribDataAttributes(
     "HAFS-A",
-    "hafs_a",
+    "ncep_hafs_a",
     None,
     {
         "uvel": "UGRD:10 m above ground",
@@ -201,7 +201,7 @@ NCEP_HAFS_A = GribDataAttributes(
 
 NCEP_HAFS_B = GribDataAttributes(
     "HAFS-B",
-    "hafs_b",
+    "ncep_hafs_b",
     None,
     {
         "uvel": "UGRD:10 m above ground",
