@@ -219,9 +219,9 @@ class Metdb:
         """
         from metbuild.tables import HafsATable, HafsBTable
 
-        if datatype == "hafs_a" or datatype == "hafs":
+        if datatype == "ncep_hafs_a" or datatype == "hafs":
             table = HafsATable
-        elif datatype == "hafs_b":
+        elif datatype == "ncep_hafs_b":
             table = HafsBTable
         else:
             raise ValueError("Invalid datatype: " + datatype)
@@ -479,6 +479,8 @@ class Metdb:
         """
         if datatype == "hwrf":
             self.__add_record_hwrf(filepath, metadata)
+        elif "hafs" in datatype:
+            self.__add_record_hafs(datatype, filepath, metadata)
         elif datatype == "coamps":
             self.__add_record_coamps(filepath, metadata)
         elif datatype == "ctcx":
@@ -719,6 +721,59 @@ class Metdb:
             record.advisory_duration_hr = duration
             record.geometry_data = geojson
             record.md5 = md5
+
+    def __add_record_hafs(self, datatype: str, filepath: str, metadata: dict) -> None:
+        """
+        Adds a HAFS file listing to the database
+
+        Args:
+            datatype (str): data type
+            filepath (str): File location
+            metadata (dict): dict containing the metadata for the file
+
+        Returns:
+            None
+        """
+        from metbuild.tables import HafsATable, HafsBTable
+        import math
+
+        if not self.__has_hafs(datatype, metadata):
+            cdate = metadata["cycledate"]
+            fdate = metadata["forecastdate"]
+            url = ",".join(metadata["grb"])
+            name = metadata["name"]
+            tau = int(
+                math.floor(
+                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                    / 3600.0
+                )
+            )
+
+            if datatype == "ncep_hafs_a":
+                record = HafsATable(
+                    forecastcycle=cdate,
+                    stormname=name,
+                    forecasttime=fdate,
+                    tau=tau,
+                    filepath=filepath,
+                    url=url,
+                    accessed=datetime.now(),
+                )
+            elif datatype == "ncep_hafs_b":
+                record = HafsBTable(
+                    forecastcycle=cdate,
+                    stormname=name,
+                    forecasttime=fdate,
+                    tau=tau,
+                    filepath=filepath,
+                    url=url,
+                    accessed=datetime.now(),
+                )
+            else:
+                raise RuntimeError("Invalid Type: {:s}".format(datatype))
+
+            self.__session.add(record)
+            self.__session.commit()
 
     def __add_record_hwrf(self, filepath: str, metadata: dict) -> None:
         """

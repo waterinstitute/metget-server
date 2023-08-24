@@ -251,7 +251,7 @@ class HafsATable(TableBase):
     downloaded from the NCEP server
     """
 
-    __tablename__ = "hafs_a"
+    __tablename__ = "ncep_hafs_a"
     index = Column("id", Integer, primary_key=True)
     forecastcycle = Column(DateTime)
     stormname = Column(String)
@@ -268,7 +268,7 @@ class HafsBTable(TableBase):
     downloaded from the NCEP server
     """
 
-    __tablename__ = "hafs_b"
+    __tablename__ = "ncep_hafs_b"
     index = Column("id", Integer, primary_key=True)
     forecastcycle = Column(DateTime)
     stormname = Column(String)
