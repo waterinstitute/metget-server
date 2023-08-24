@@ -96,19 +96,11 @@ class HafsDownloader(NoaaDownloader):
         import requests
         import tempfile
         from requests.adapters import HTTPAdapter
-        from requests.packages.urllib3.util.retry import Retry
         import logging
 
         logger = logging.getLogger(__name__)
 
-        retry_strategy = Retry(
-            total=20,
-            redirect=6,
-            backoff_factor=1,
-            status_forcelist=[302, 429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "OPTIONS"],
-        )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
+        adapter = HTTPAdapter(max_retries=NoaaDownloader.http_retry_strategy())
 
         remote_file_list = []
         n = 0
@@ -119,7 +111,7 @@ class HafsDownloader(NoaaDownloader):
 
             for i, grb in enumerate(info["grb"]):
                 inventory_file = info["inv"][i]
-                inv = http.get(inventory_file, timeout=30)
+                inv = http.get(inventory_file, timeout=5)
                 if inv.status_code == 302:
                     logger.error("Inventory file response: {:s}", inv.text)
                     return None, 0, 1
