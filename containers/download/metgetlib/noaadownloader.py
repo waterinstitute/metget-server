@@ -29,11 +29,25 @@
 ###################################################################################################
 
 import boto3
+import logging
 from .s3file import S3file
 from .metdb import Metdb
 from datetime import datetime, timedelta
 from typing import Tuple, Union, List
 from requests.packages.urllib3.util.retry import Retry
+
+
+class RetryLogger(Retry):
+    """
+    A retry class that logs the retries
+    """
+
+    def __init__(self, *args, **kwargs):
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "Request got status code {}. Retrying...".format(kwargs["status_code"])
+        )
+        super().__init__(*args, **kwargs)
 
 
 class NoaaDownloader:
@@ -83,8 +97,8 @@ class NoaaDownloader:
     @staticmethod
     def http_retry_strategy() -> Retry:
         # ...Note: Status 302 is NOAA speak for "chill out", not a redirect as in normal http
-        return Retry(
-            total=5,
+        return RetryLogger(
+            total=30,
             redirect=6,
             backoff_factor=1,
             status_forcelist=[302, 429, 500, 502, 503, 504],
