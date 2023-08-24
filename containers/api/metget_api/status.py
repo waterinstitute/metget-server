@@ -36,6 +36,7 @@ AVAILABLE_MET_MODELS = [
     "gefs",
     "nam",
     "hwrf",
+    "hafs",
     "hrrr",
     "hrrr-alaska",
     "nhc",
@@ -49,6 +50,7 @@ MET_MODEL_FORECAST_DURATION = {
     "gefs": 240,
     "nam": 84,
     "hwrf": 126,
+    "hafs": 126,
     "hrrr": 48,
     "hrrr-alaska": 48,
     "coamps": 126,
@@ -93,6 +95,7 @@ class Status:
             - gfs
             - nam
             - hwrf
+            - hafs
             - hrrr
             - hrrr-alaska
             - wpc
@@ -183,6 +186,14 @@ class Status:
         elif status_type == "hwrf":
             s = Status.__get_status_hwrf(
                 MET_MODEL_FORECAST_DURATION["hwrf"],
+                time_limit,
+                start_dt,
+                end_dt,
+                storm,
+            )
+        elif status_type == "hafs":
+            s = Status.__get_status_hafs(
+                MET_MODEL_FORECAST_DURATION["hafs"],
                 time_limit,
                 start_dt,
                 end_dt,
@@ -777,6 +788,38 @@ class Status:
         )
 
     @staticmethod
+    def __get_status_hafs(
+        cycle_duration: int,
+        limit: timedelta,
+        start: datetime,
+        end: datetime,
+        storm: str,
+    ) -> dict:
+        """
+        This method is used to generate the status for the HAFS model
+
+        Args:
+            cycle_duration: The duration of the cycle in hours
+            limit: The limit in days to use when generating the status
+            start: The start date to use when generating the status
+            end: The end date to use when generating the status
+            storm: The storm to use when generating the status
+
+        Returns:
+            Dictionary containing the status information and the HTTP status code
+        """
+        from metbuild.tables import HafsATable
+
+        return Status.__get_status_deterministic_storm_type(
+            HafsATable,
+            cycle_duration,
+            limit,
+            start,
+            end,
+            storm,
+        )
+
+    @staticmethod
     def __get_status_coamps(
         cycle_duration: int,
         limit: timedelta,
@@ -1120,7 +1163,9 @@ class Status:
                     ]
 
                     if len(this_storm_complete_cycles) > 0:
-                        this_storm["latest_complete_cycle"] = this_storm_complete_cycles[-1]
+                        this_storm[
+                            "latest_complete_cycle"
+                        ] = this_storm_complete_cycles[-1]
                     else:
                         this_storm["latest_complete_cycle"] = None
 
