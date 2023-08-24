@@ -126,8 +126,8 @@ class HafsDownloader(NoaaDownloader):
                 inv_lines = str(inv.text).split("\n")
                 retlist = []
                 for v in self.variables():
-                    retlist.append(self.__get_inventory_byte_list(inv_lines, v))
-                if not len(retlist) == len(self.__variables):
+                    retlist.append(NoaaDownloader.get_inventory_byte_list(inv_lines, v))
+                if not len(retlist) == len(self.variables()):
                     logger.error(
                         "Could not gather the inventory or missing variables detected. Trying again later."
                     )
@@ -145,7 +145,7 @@ class HafsDownloader(NoaaDownloader):
                     "cycledate": info["cycledate"],
                     "forecastdate": info["forecastdate"],
                 }
-                pathfound = self.__database.has(self.mettype(), metadata)
+                pathfound = self.database().has(self.mettype(), metadata)
                 if not pathfound:
                     logger.info(
                         "Downloading File: {:s} (F: {:s}, T: {:s})".format(
@@ -177,7 +177,7 @@ class HafsDownloader(NoaaDownloader):
             file_size = os.path.getsize(file_location)
             remote_file = os.path.join(destination_folder, filename)
             if file_size > 0:
-                self.__s3file.upload_file(file_location, remote_file)
+                self.s3file().upload_file(file_location, remote_file)
                 remote_file_list.append(remote_file)
                 n += 1
             os.remove(file_location)

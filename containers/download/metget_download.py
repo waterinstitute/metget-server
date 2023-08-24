@@ -28,6 +28,7 @@
 #
 ###################################################################################################
 
+
 def generate_default_date_range():
     from datetime import datetime
     from datetime import timedelta
@@ -107,6 +108,25 @@ def hwrf_download():
     )
     n = hwrf.download()
     logger.info("HWRF complete. {:d} files downloaded".format(n))
+    return n
+
+
+def hafs_download():
+    from metgetlib.hafsdownloader import HafsDownloader
+    from metbuild.gribdataattributes import NCEP_HAFS_A, NCEP_HAFS_B
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    start, end = generate_default_date_range()
+    hafs = HafsDownloader(start, end, NCEP_HAFS_A)
+    logger.info(
+        "Beginning to run HAFS from {:s} to {:s}".format(
+            start.isoformat(), end.isoformat()
+        )
+    )
+    n = hafs.download()
+    logger.info("HAFS complete. {:d} files downloaded".format(n))
     return n
 
 
@@ -220,6 +240,8 @@ def main():
         n = gefs_download()
     elif args.service == "hwrf":
         n = hwrf_download()
+    elif args.service == "hafs":
+        n = hafs_download()
     elif args.service == "nhc":
         n = nhc_download()
     elif args.service == "coamps":

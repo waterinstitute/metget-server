@@ -30,7 +30,7 @@ CREATE TABLE hwrf(
   url VARCHAR(256) NOT NULL, 
   accessed TIMESTAMP NOT NULL
 );
- CREATE TABLE hafs_a(
+ CREATE TABLE ncep_hafs_a(
   id SERIAL PRIMARY KEY,
   stormname VARCHAR(256) NOT NULL,
   forecastcycle TIMESTAMP NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE hwrf(
   url VARCHAR(256) NOT NULL,
   accessed TIMESTAMP NOT NULL
 );
- CREATE TABLE hafs_b(
+ CREATE TABLE ncep_hafs_b(
   id SERIAL PRIMARY KEY,
   stormname VARCHAR(256) NOT NULL,
   forecastcycle TIMESTAMP NOT NULL,
@@ -170,8 +170,8 @@ CREATE TABLE requests(
 CREATE INDEX gfs_ncep_forecastcycle_idx ON gfs_ncep USING brin (forecastcycle);
 CREATE INDEX gefs_fcst_forecastcycle_idx ON gefs_fcst USING brin (forecastcycle);
 CREATE INDEX hwrf_forecastcycle_idx ON hwrf USING brin (forecastcycle);
-CREATE INDEX hafsa_forecastcycle_idx ON hafs_a USING brin (forecastcycle);
-CREATE INDEX hafsb_forecastcycle_idx ON hafs_b USING brin (forecastcycle);
+CREATE INDEX hafsa_forecastcycle_idx ON ncep_hafs_a USING brin (forecastcycle);
+CREATE INDEX hafsb_forecastcycle_idx ON ncep_hafs_b USING brin (forecastcycle);
 CREATE INDEX nam_ncep_forecastcycle_idx ON nam_ncep USING brin (forecastcycle);
 CREATE INDEX coamps_tc_forecastcycle_idx ON coamps_tc USING brin (forecastcycle);
 CREATE INDEX ctcx_forecastcycle_idx ON ctcx USING brin (forecastcycle);

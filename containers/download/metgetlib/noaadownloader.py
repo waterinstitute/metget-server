@@ -260,7 +260,7 @@ class NoaaDownloader:
             return self.__get_grib_noaa_servers(info)
 
     @staticmethod
-    def __get_inventory_byte_list(
+    def get_inventory_byte_list(
         inventory_data: list, variable: dict
     ) -> Union[dict, None]:
         """
@@ -346,7 +346,7 @@ class NoaaDownloader:
                 inv_data.append(line)
         byte_list = []
         for v in self.variables():
-            byte_list.append(NoaaDownloader.__get_inventory_byte_list(inv_data, v))
+            byte_list.append(NoaaDownloader.get_inventory_byte_list(inv_data, v))
         return byte_list
 
     def __get_grib_big_data(
@@ -467,9 +467,7 @@ class NoaaDownloader:
                 inv_lines = str(inv.text).split("\n")
                 retlist = []
                 for v in self.variables():
-                    retlist.append(
-                        NoaaDownloader.__get_inventory_byte_list(inv_lines, v)
-                    )
+                    retlist.append(NoaaDownloader.get_inventory_byte_list(inv_lines, v))
 
                 if not len(retlist) == len(self.__variables):
                     logger.error(
