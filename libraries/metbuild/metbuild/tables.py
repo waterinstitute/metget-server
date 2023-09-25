@@ -67,6 +67,7 @@ class RequestEnum(enum.Enum):
     running = 1
     error = 2
     completed = 3
+    restore = 4
 
 
 class RequestTable(TableBase):

@@ -29,7 +29,7 @@
 ###################################################################################################
 
 import logging
-from .windgrid import WindGrid
+from .output.outputgrid import OutputGrid
 
 VALID_SERVICES = [
     "gfs-ncep",
@@ -53,7 +53,7 @@ class Domain:
     request
     """
 
-    def __init__(self, name, service, json, no_construct=False):
+    def __init__(self, name: str, service: str, json: dict):
         """
         Constructor for the Domain class
 
@@ -61,8 +61,8 @@ class Domain:
             name: The name of the domain
             service: The service used to generate the domain
             json: The json object containing the domain information
-            no_construct: If True, do not construct the WindGrid object
         """
+        from output.gridfactory import grid_factory
 
         log = logging.getLogger(__name__)
 
@@ -73,7 +73,6 @@ class Domain:
         self.__advisory = None
         self.__storm_year = None
         self.__tau = None
-        self.__no_construct = no_construct
         if self.__service not in VALID_SERVICES:
             log.warning(
                 "Domain invalid because {:s} is not a valid service".format(
@@ -83,12 +82,7 @@ class Domain:
             self.__valid = False
         self.__json = json
         try:
-            self.__grid = WindGrid(self.__json, self.__no_construct)
-            if not self.__grid.valid():
-                log.warning(
-                    "Domain invalid because a valid WindGrid object could not be constructed"
-                )
-                self.__valid = False
+            self.__grid = grid_factory(self.__json)
         except Exception as e:
             log.warning(
                 "Domain invalid because exception was thrown: {:s}".format(str(e))
@@ -181,7 +175,7 @@ class Domain:
         """
         return self.__service
 
-    def grid(self) -> WindGrid:
+    def grid(self) -> OutputGrid:
         """
         Returns the grid for the domain
 

@@ -28,22 +28,39 @@
 #
 ###################################################################################################
 
-from setuptools import setup
+from datetime import datetime
+from outputfile import OutputFile
+from outputtypes import OutputTypes
+from owiascii import OwiAsciiOutput
 
-setup(
-    name="metbuild",
-    version="0.0.1",
-    description="MetBuild Internal Library",
-    author="Zach Cobell",
-    author_email="zcobell@thewaterinstitute.org",
-    url="https://www.thewaterinstitute.org/",
-    packages=[
-        "metbuild",
-        "metbuild.output",
-    ],
-    install_requires=[
-        "sqlalchemy",
-        "psycopg2",
-        "python-dateutil",
-    ],
-)
+
+class OutputFileFactory:
+    """
+    A class to represent a factory for creating output files.
+    """
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def create_output_file(
+        output_format: str, start_time: datetime, end_time: datetime, time_step: int
+    ) -> OutputFile:
+        """
+        Create an output file.
+
+        Args:
+            output_format (str): The format of the output file.
+            start_time (datetime): The start time of the meteorological field.
+            end_time (datetime): The end time of the meteorological field.
+            time_step (int): The time step of the meteorological field.
+
+        Returns:
+            OutputFile: The output file.
+        """
+        output_type = OutputTypes.from_string(output_format)
+
+        if output_type == OutputTypes.OWI_ASCII:
+            return OwiAsciiOutput(start_time, end_time, time_step)
+        else:
+            raise ValueError("Invalid output format: " + output_format)

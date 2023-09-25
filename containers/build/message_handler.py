@@ -32,13 +32,15 @@ import os
 from datetime import datetime, timedelta
 from typing import Tuple
 
-import pymetbuild
 from metbuild.domain import Domain
 from metbuild.filelist import Filelist
 from metbuild.input import Input
 from metbuild.s3file import S3file
 from metbuild.tables import RequestTable
 from metbuild.s3gribio import S3GribIO
+from metbuild.output.outputfile import OutputFile
+from metbuild.variabletype import VariableType
+from metbuild.meteorologicalsource import MeteorologicalSource
 
 
 class MessageHandler:
@@ -68,6 +70,7 @@ class MessageHandler:
             True if the message was processed successfully, False otherwise
         """
         import json
+        from metbuild.tables import RequestEnum.restore
 
         filelist_name = "filelist.json"
 
@@ -81,15 +84,13 @@ class MessageHandler:
         )
 
         start_date = self.__input.start_date()
-        start_date_pmb = self.__input.start_date_pmb()
         end_date = self.__input.end_date()
-        end_date_pmb = self.__input.end_date_pmb()
         time_step = self.__input.time_step()
 
         met_field = MessageHandler.__generate_met_field(
             self.__input.format(),
-            start_date_pmb,
-            end_date_pmb,
+            start_date,
+            end_date,
             time_step,
             self.__input.filename(),
             self.__input.compression(),
@@ -142,11 +143,12 @@ class MessageHandler:
             log.info("Request is currently in restore status")
             RequestTable.update_request(
                 self.__input.request_id(),
-                "restore",
+                RequestEnum.restore,
                 self.__message["api_key"],
                 self.__message["source_ip"],
                 self.__message,
                 "Job is in archive restore status",
+                0,
             )
             if met_field:
                 ff = met_field.filenames()
@@ -225,9 +227,9 @@ class MessageHandler:
             current_date += delta
 
     @staticmethod
-    def __generate_datatype_key(data_type: str) -> int:
+    def __generate_datatype_key(data_type: str) -> VariableType:
         """
-        Generate the key for the data type from the pymetbuild library
+        Generate the key for the data type key
 
         Args:
             data_type: The data type to generate the key for
@@ -235,27 +237,12 @@ class MessageHandler:
         Returns:
             The key for the data type
         """
-        if data_type == "wind_pressure":
-            return pymetbuild.WIND_PRESSURE
-        elif data_type == "pressure":
-            return pymetbuild.PRESSURE
-        elif data_type == "wind":
-            return pymetbuild.WIND
-        elif data_type == "rain":
-            return pymetbuild.RAINFALL
-        elif data_type == "humidity":
-            return pymetbuild.HUMIDITY
-        elif data_type == "temperature":
-            return pymetbuild.TEMPERATURE
-        elif data_type == "ice":
-            return pymetbuild.ICE
-        else:
-            raise RuntimeError("Invalid data type requested")
+        return VariableType.from_string(data_type)
 
     @staticmethod
-    def __generate_data_source_key(data_source: str) -> int:
+    def __generate_data_source_key(data_source: str) -> MeteorologicalSource:
         """
-        Generate the key for the data source from the pymetbuild library
+        Generate the key for the data source key
 
         Args:
             data_source: The data source to generate the key for
@@ -263,24 +250,7 @@ class MessageHandler:
         Returns:
             The key for the data source
         """
-        if data_source == "gfs-ncep":
-            return pymetbuild.Meteorology.GFS
-        elif data_source == "gefs-ncep":
-            return pymetbuild.Meteorology.GEFS
-        elif data_source == "nam-ncep":
-            return pymetbuild.Meteorology.NAM
-        elif data_source == "hwrf":
-            return pymetbuild.Meteorology.HWRF
-        elif data_source == "hrrr-ncep":
-            return pymetbuild.Meteorology.HRRR_CONUS
-        elif data_source == "hrrr-alaska-ncep":
-            return pymetbuild.Meteorology.HRRR_ALASKA
-        elif data_source == "wpc-ncep":
-            return pymetbuild.Meteorology.WPC
-        elif data_source == "coamps-tc" or data_source == "coamps-ctcx":
-            return pymetbuild.Meteorology.COAMPS
-        else:
-            raise RuntimeError("Invalid data source")
+        return MeteorologicalSource.from_string(data_source)
 
     @staticmethod
     def __generate_met_field(
@@ -290,9 +260,9 @@ class MessageHandler:
         time_step: int,
         filename: str,
         compression: bool,
-    ):
+    ) -> OutputFile:
         """
-        Generate the met field object from the pymetbuild library
+        Generate the met field object
 
         Args:
             output_format: The output format to generate the met field object for
@@ -302,21 +272,23 @@ class MessageHandler:
             filename: The filename to write to
             compression: Whether to compress the output
         """
+        from metbuild.output.owiasciioutput import OwiAsciiOutput
 
         if (
             output_format == "ascii"
             or output_format == "owi-ascii"
             or output_format == "adcirc-ascii"
         ):
-            return pymetbuild.OwiAscii(start, end, time_step, compression)
-        elif output_format == "owi-netcdf" or output_format == "adcirc-netcdf":
-            return pymetbuild.OwiNetcdf(start, end, time_step, filename)
-        elif output_format == "hec-netcdf":
-            return pymetbuild.RasNetcdf(start, end, time_step, filename)
-        elif output_format == "delft3d":
-            return pymetbuild.DelftOutput(start, end, time_step, filename)
-        elif output_format == "raw":
-            return None
+
+            return OwiAsciiOutput(start, end, time_step, compression)
+        # elif output_format == "owi-netcdf" or output_format == "adcirc-netcdf":
+        #     return pymetbuild.OwiNetcdf(start, end, time_step, filename)
+        # elif output_format == "hec-netcdf":
+        #     return pymetbuild.RasNetcdf(start, end, time_step, filename)
+        # elif output_format == "delft3d":
+        #     return pymetbuild.DelftOutput(start, end, time_step, filename)
+        # elif output_format == "raw":
+        #     return None
         else:
             raise RuntimeError(
                 "Invalid output format selected: {:s}".format(output_format)
@@ -359,10 +331,10 @@ class MessageHandler:
                 for i, s in enumerate(fns):
                     fns[i] = s + ".gz"
 
-            met_object.addDomain(d.grid().grid_object(), fns)
+            met_object.addDomain(d.grid(), fns)
         elif output_format == "owi-netcdf":
             group = d.name()
-            met_object.addDomain(d.grid().grid_object(), [group])
+            met_object.addDomain(d.grid(), [group])
         elif output_format == "hec-netcdf":
             if input_data.data_type() == "wind_pressure":
                 variables = ["wind_u", "wind_v", "mslp"]
@@ -376,7 +348,7 @@ class MessageHandler:
                 variables = ["ice"]
             else:
                 raise RuntimeError("Invalid variable requested")
-            met_object.addDomain(d.grid().grid_object(), variables)
+            met_object.addDomain(d.grid(), variables)
         elif output_format == "delft3d":
             if input_data.data_type() == "wind_pressure":
                 variables = ["wind_u", "wind_v", "mslp"]
@@ -390,7 +362,7 @@ class MessageHandler:
                 variables = ["ice"]
             else:
                 raise RuntimeError("Invalid variable requested")
-            met_object.addDomain(d.grid().grid_object(), variables)
+            met_object.addDomain(d.grid(), variables)
         else:
             raise RuntimeError("Invalid output format selected: " + output_format)
 
@@ -408,7 +380,6 @@ class MessageHandler:
 
         Returns:
             The output file
-
         """
 
         from datetime import datetime, timedelta
@@ -481,7 +452,7 @@ class MessageHandler:
         Args:
             input_data (Input): The input data
             met_field (Meteorology): The meteorology object
-            data_type_key (int): The data type key
+            data_type_key (VariableType): The data type key
             domain_data (list): The list of domain data
             start_date (datetime): The start date
             end_date (datetime): The end date
@@ -491,8 +462,11 @@ class MessageHandler:
             Tuple[list, dict]: The list of output files and the list of files used
         """
         from datetime import timedelta
+        from metbuild.meteorology import Meteorology
 
         log = logging.getLogger(__name__)
+
+        log.info("Starting to interpolate meteorological fields")
 
         files_used_list = {}
 
@@ -504,14 +478,13 @@ class MessageHandler:
                 raise RuntimeError("NHC to gridded data no implemented")
 
             source_key = MessageHandler.__generate_data_source_key(d.service())
-            met = pymetbuild.Meteorology(
-                d.grid().grid_object(),
+            met = Meteorology(
+                d.grid(),
                 source_key,
                 data_type_key,
                 input_data.backfill(),
                 input_data.epsg(),
             )
-
             t0 = domain_data[i][0]["time"]
 
             domain_files_used = []

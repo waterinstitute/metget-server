@@ -189,39 +189,6 @@ class Input:
         """
         return self.__operator
 
-    @staticmethod
-    def date_to_pmb(date: datetime):
-        """
-        Converts a date into the pymetbuild date object
-
-        Args:
-            datetime object
-
-        Returns:
-            pymetbuild.Date object
-        """
-        import pymetbuild
-
-        return pymetbuild.Date(date.year, date.month, date.day, date.hour, date.minute)
-
-    def start_date_pmb(self):
-        """
-        Returns the start date as a pymetbuild object
-
-        Returns:
-            start date as a pymetbuild object
-        """
-        return Input.date_to_pmb(self.__start_date)
-
-    def end_date_pmb(self):
-        """
-        Returns the end date as a pymetbuild object
-
-        Returns:
-            end date as a pymetbuild object
-        """
-        return Input.date_to_pmb(self.__end_date)
-
     def start_date(self):
         """
         Returns the start date of the input data
@@ -365,7 +332,9 @@ class Input:
                 name = self.__json["domains"][i]["name"]
                 service = self.__json["domains"][i]["service"]
                 d = Domain(
-                    name, service, self.__json["domains"][i], self.__no_construct
+                    name,
+                    service,
+                    self.__json["domains"][i],
                 )
                 if d.valid():
                     self.__domains.append(d)
