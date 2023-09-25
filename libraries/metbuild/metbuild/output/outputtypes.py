@@ -28,22 +28,40 @@
 #
 ###################################################################################################
 
-from setuptools import setup
+from enum import Enum
 
-setup(
-    name="metbuild",
-    version="0.0.1",
-    description="MetBuild Internal Library",
-    author="Zach Cobell",
-    author_email="zcobell@thewaterinstitute.org",
-    url="https://www.thewaterinstitute.org/",
-    packages=[
-        "metbuild",
-        "metbuild.output",
-    ],
-    install_requires=[
-        "sqlalchemy",
-        "psycopg2",
-        "python-dateutil",
-    ],
-)
+
+class OutputTypes(Enum):
+    """
+    Enumerated type for output formats
+    """
+
+    OWI_ASCII = 1
+    OWI_NETCDF = 2
+    CF_NETCDF = 3
+    DELFT_ASCII = 4
+    RAW = 5
+
+    @staticmethod
+    def from_string(s: str):
+        """
+        Get the output type from a string.
+
+        Args:
+            s (str): The string to convert to an output type.
+
+        Returns:
+            OutputTypes: The output type.
+        """
+        if s == "ascii" or s == "owi-ascii" or s == "adcirc-ascii":
+            return OutputTypes.OWI_ASCII
+        elif s == "owi-netcdf" or s == "adcirc-netcdf":
+            return OutputTypes.OWI_NETCDF
+        elif s == "hec-netcdf" or s == "cf-netcdf":
+            return OutputTypes.CF_NETCDF
+        elif s == "delft3d":
+            return OutputTypes.DELFT_ASCII
+        elif s == "raw":
+            return OutputTypes.RAW
+        else:
+            raise ValueError("Invalid output type: {:s}".format(s))

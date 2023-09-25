@@ -1,3 +1,6 @@
+import numpy as np
+from output.outputgrid import OutputGrid
+
 #!/usr/bin/env python3
 ###################################################################################################
 # MIT License
@@ -28,22 +31,39 @@
 #
 ###################################################################################################
 
-from setuptools import setup
+class Dataset:
+    """
+    A class that represents interpolated meteorological data.
+    """
 
-setup(
-    name="metbuild",
-    version="0.0.1",
-    description="MetBuild Internal Library",
-    author="Zach Cobell",
-    author_email="zcobell@thewaterinstitute.org",
-    url="https://www.thewaterinstitute.org/",
-    packages=[
-        "metbuild",
-        "metbuild.output",
-    ],
-    install_requires=[
-        "sqlalchemy",
-        "psycopg2",
-        "python-dateutil",
-    ],
-)
+    def __init__(self, n_params: int, grid: OutputGrid):
+        """
+        Construct a Dataset object.
+
+        Args:
+            grid (OutputGrid): The grid of the dataset.
+
+        Returns:
+            None
+        """
+        self.__grid = grid
+        self.__n_params = n_params
+        self.__values = np.zeros((n_params, grid.ni(), grid.nj()), dtype=float)
+
+    def n_parameters(self) -> int:
+        """
+        Get the number of parameters in the dataset.
+        """
+        return self.__n_params
+
+    def values(self) -> np.ndarray:
+        """
+        Get the values of the dataset.
+
+        Args:
+            None
+
+        Returns:
+            np.ndarray: The values of the dataset.
+        """
+        return self.__values
