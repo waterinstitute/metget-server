@@ -439,9 +439,12 @@ class MessageHandler:
         start_date = btk_lines[0]["date"]
         start_date_str = datetime.strftime(start_date, "%Y%m%d%H")
 
+        time_list = []
+
         with open(output_file, "w") as merge:
             for line in btk_lines:
-                if line["date"] < fcst_lines[0]["date"]:
+                if line["date"] <= fcst_lines[0]["date"]:
+                    time_list.append(line["date"])
                     dt = int((line["date"] - start_date).total_seconds() / 3600.0)
                     dt_str = "{:4d}".format(dt)
                     sub1 = line["line"][:8]
@@ -451,13 +454,14 @@ class MessageHandler:
                     merge.write(line_new + "\n")
 
             for line in fcst_lines:
-                dt = int((line["date"] - start_date).total_seconds() / 3600.0)
-                dt_str = "{:4d}".format(dt)
-                sub1 = line["line"][:8]
-                sub2 = line["line"][18:29]
-                sub3 = line["line"][33:]
-                line_new = sub1 + start_date_str + sub2 + dt_str + sub3
-                merge.write(line_new + "\n")
+                if line["date"] not in time_list:
+                    dt = int((line["date"] - start_date).total_seconds() / 3600.0)
+                    dt_str = "{:4d}".format(dt)
+                    sub1 = line["line"][:8]
+                    sub2 = line["line"][18:29]
+                    sub3 = line["line"][33:]
+                    line_new = sub1 + start_date_str + sub2 + dt_str + sub3
+                    merge.write(line_new + "\n")
 
         return output_file
 
