@@ -28,22 +28,54 @@
 #
 ###################################################################################################
 
-from setuptools import setup
+from outputfile import OutputFile
+from outputgrid import OutputGrid
+from owiasciidomain import OwiAsciiDomain
+from dataset import Dataset
+from typing import List
 
-setup(
-    name="metbuild",
-    version="0.0.1",
-    description="MetBuild Internal Library",
-    author="Zach Cobell",
-    author_email="zcobell@thewaterinstitute.org",
-    url="https://www.thewaterinstitute.org/",
-    packages=[
-        "metbuild",
-        "metbuild.output",
-    ],
-    install_requires=[
-        "sqlalchemy",
-        "psycopg2",
-        "python-dateutil",
-    ],
-)
+
+class OwiAsciiOutput(OutputFile):
+    """
+    A class to represent an OWI ASCII output file.
+    """
+
+    def __init__(self, start_time, end_time, time_step, compression: bool = False):
+        """
+        Construct an OWI ASCII output file.
+        """
+        super().__init__(start_time, end_time, time_step)
+        self.__compression = compression
+
+    def compression(self) -> bool:
+        """
+        Get the compression flag of the OWI ASCII output file.
+        """
+        return self.__compression
+
+    def add_domain(self, grid: OutputGrid, filename: str):
+        """
+        Add a domain to the OWI ASCII output file.
+        """
+        domain = OwiAsciiDomain(
+            grid,
+            self.start_time(),
+            self.end_time(),
+            self.time_step(),
+            filename,
+            self.compression(),
+        )
+        self._add_domain(domain, filename)
+
+    def write(self, index: int, dataset: Dataset):
+        """
+        Write the OWI ASCII output file.
+
+        Args:
+            index (int): The index of the time step.
+            dataset (Dataset): The dataset to write.
+
+        Returns:
+            None
+        """
+        raise NotImplementedError("OwiAsciiOutput.write() is not implemented")

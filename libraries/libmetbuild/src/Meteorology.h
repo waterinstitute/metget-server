@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -44,7 +44,17 @@ namespace MetBuild {
 
 class Meteorology {
  public:
-  enum SOURCE { GFS, GEFS, NAM, HWRF, COAMPS, HRRR_CONUS, HRRR_ALASKA, WPC };
+  enum SOURCE {
+    GFS,
+    GEFS,
+    NAM,
+    HWRF,
+    COAMPS,
+    HRRR_CONUS,
+    HRRR_ALASKA,
+    WPC,
+    HAFS
+  };
 
   METBUILD_EXPORT explicit Meteorology(const MetBuild::Grid *grid,
                                        Meteorology::SOURCE source_type,
@@ -76,11 +86,9 @@ class Meteorology {
   }
 
   static std::unique_ptr<GriddedData> gridded_data_factory(
-      const std::vector<std::string> &filenames,
-      Meteorology::SOURCE source);
+      const std::vector<std::string> &filenames, Meteorology::SOURCE source);
 
-  MetBuild::Grid::grid reproject_grid(
-      MetBuild::Grid::grid g) const;
+  MetBuild::Grid::grid reproject_grid(MetBuild::Grid::grid g) const;
 
   std::tuple<double, double> getScalingRates(
       const GriddedDataTypes::VARIABLES &variable) const;

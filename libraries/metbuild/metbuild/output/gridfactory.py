@@ -28,22 +28,61 @@
 #
 ###################################################################################################
 
-from setuptools import setup
+from .outputgrid import OutputGrid
 
-setup(
-    name="metbuild",
-    version="0.0.1",
-    description="MetBuild Internal Library",
-    author="Zach Cobell",
-    author_email="zcobell@thewaterinstitute.org",
-    url="https://www.thewaterinstitute.org/",
-    packages=[
-        "metbuild",
-        "metbuild.output",
-    ],
-    install_requires=[
-        "sqlalchemy",
-        "psycopg2",
-        "python-dateutil",
-    ],
-)
+PREDEFINED_DOMAINS = {
+    "wnat": {
+        "x_init": -126.0,
+        "y_init": 23.0,
+        "x_end": -66.0,
+        "y_end": 50.0,
+        "di": 0.25,
+        "dj": 0.25,
+    },
+    "gom": {
+        "x_init": -98.0,
+        "y_init": 10.0,
+        "x_end": -75.0,
+        "y_end": 30.0,
+        "di": 0.25,
+        "dj": 0.25,
+    },
+    "global": {
+        "x_init": -180.0,
+        "y_init": -90.0,
+        "x_end": 180.0,
+        "y_end": 90.0,
+        "di": 0.25,
+        "dj": 0.25,
+    },
+}
+
+
+def grid_factory(json_data: dict) -> OutputGrid:
+    """
+    A factory to create a meteorological output grid.
+
+    Args:
+        json_data (dict): The json data of the meteorological output grid.
+
+    Returns:
+        OutputGrid: The meteorological output grid.
+    """
+
+    if "predefined_domain" in json_data.keys():
+        domain_data = PREDEFINED_DOMAINS[json_data["predefined_domain"]]
+        x_init = domain_data["x_init"]
+        y_init = domain_data["y_init"]
+        x_end = domain_data["x_end"]
+        y_end = domain_data["y_end"]
+        dx = domain_data["di"]
+        dy = domain_data["dj"]
+    else:
+        x_init = json_data["x_init"]
+        y_init = json_data["y_init"]
+        x_end = json_data["x_end"]
+        y_end = json_data["y_end"]
+        dx = json_data["di"]
+        dy = json_data["dj"]
+
+    return OutputGrid(x_init, y_init, x_end, y_end, dx, dy)

@@ -32,7 +32,7 @@
 namespace MetBuild {
 
 namespace GriddedDataTypes {
-enum SOURCE_SUBTYPE { GRIB, COAMPS };
+enum SOURCE_SUBTYPE { GRIB, COAMPS, HAFS };
 enum TYPE { WIND_PRESSURE, TEMPERATURE, HUMIDITY, RAINFALL, ICE };
 enum VARIABLES {
   VAR_PRESSURE,
