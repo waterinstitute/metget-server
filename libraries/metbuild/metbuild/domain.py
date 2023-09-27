@@ -40,8 +40,8 @@ VALID_SERVICES = [
     "coamps-tc",
     "coamps-ctcx",
     "nhc",
-    "hrrr-conus",
-    "hrrr-alaska",
+    "hrrr-ncep",
+    "hrrr-alaska-ncep",
 ]
 
 

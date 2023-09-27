@@ -167,9 +167,9 @@ class Filelist:
             return self.__query_files_coamps_tc()
         elif self.__service == "coamps-ctcx":
             return self.__query_files_coamps_ctcx()
-        elif self.__service == "hrrr-conus":
+        elif self.__service == "hrrr-ncep":
             return self.__query_files_hrrr_conus()
-        elif self.__service == "hrrr-alaska":
+        elif self.__service == "hrrr-alaska-ncep":
             return self.__query_files_hrrr_alaska()
         elif self.__service == "gefs-ncep":
             return self.__query_files_gefs_ncep()
