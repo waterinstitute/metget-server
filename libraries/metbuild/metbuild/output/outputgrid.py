@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -28,21 +27,14 @@
 #
 ###################################################################################################
 
+from typing import List, Tuple
+
 import numpy as np
-from typing import Tuple, List
+from geopandas import GeoSeries
 
 
 class OutputGrid:
-    def __init__(
-        self,
-        x_lower_left: float,
-        y_lower_left: float,
-        x_upper_right: float,
-        y_upper_right: float,
-        x_resolution: float,
-        y_resolution: float,
-        epsg: int = 4326,
-    ):
+    def __init__(self, **kwargs):
         """
         A class to represent a meteorological grid
 
@@ -58,6 +50,41 @@ class OutputGrid:
         Returns:
             None
         """
+        required_args = [
+            "x_lower_left",
+            "y_lower_left",
+            "x_upper_right",
+            "y_upper_right",
+            "x_resolution",
+            "y_resolution",
+        ]
+        missing_args = [arg for arg in required_args if arg not in kwargs]
+
+        if missing_args:
+            msg = f"Missing required arguments: {', '.join(missing_args)}"
+            raise ValueError(msg)
+
+        x_lower_left = float(kwargs.get("x_lower_left", 0))
+        y_lower_left = float(kwargs.get("y_lower_left", 0))
+        x_upper_right = float(kwargs.get("x_upper_right", 0))
+        y_upper_right = float(kwargs.get("y_upper_right", 0))
+        x_resolution = float(kwargs.get("x_resolution", 0))
+        y_resolution = float(kwargs.get("y_resolution", 0))
+        epsg = int(kwargs.get("epsg", 4326))
+
+        if not all(
+            isinstance(arg, (float, int))
+            for arg in [
+                x_lower_left,
+                y_lower_left,
+                x_upper_right,
+                y_upper_right,
+                x_resolution,
+                y_resolution,
+            ]
+        ) or not isinstance(epsg, int):
+            msg = "Invalid type for one or more arguments"
+            raise TypeError(msg)
 
         if x_lower_left > x_upper_right:
             x_lower_left, x_upper_right = x_upper_right, x_lower_left
@@ -65,24 +92,26 @@ class OutputGrid:
         if y_lower_left > y_upper_right:
             y_lower_left, y_upper_right = y_upper_right, y_lower_left
 
-        if x_lower_left == x_upper_right:
-            raise ValueError("x_lower_left == x_upper_right")
+        if x_lower_left == x_upper_right or y_lower_left == y_upper_right:
+            msg = "x_lower_left and y_lower_left must not be equal to x_upper_right and y_upper_right, respectively"
+            raise ValueError(msg)
 
-        if y_lower_left == y_upper_right:
-            raise ValueError("y_lower_left == y_upper_right")
+        if x_resolution <= 0 or y_resolution <= 0:
+            msg = "x_resolution and y_resolution must be greater than 0"
+            raise ValueError(msg)
 
-        if x_resolution <= 0:
-            raise ValueError("x_resolution <= 0")
+        min_grid_cells = 3
 
-        if y_resolution <= 0:
-            raise ValueError("y_resolution <= 0")
-
-        # ...Check that there will be at least 3 grid points in each direction
-        if (x_upper_right - x_lower_left) / x_resolution < 3:
-            raise ValueError("x_upper_right - x_lower_left) / x_resolution < 3")
-
-        if (y_upper_right - y_lower_left) / y_resolution < 3:
-            raise ValueError("y_upper_right - y_lower_left) / y_resolution < 3")
+        # Check that there will be at least min_grid_cells grid points in each direction
+        if any(
+            (x - y) / z < min_grid_cells
+            for x, y, z in [
+                (x_upper_right, x_lower_left, x_resolution),
+                (y_upper_right, y_lower_left, y_resolution),
+            ]
+        ):
+            msg = f"Grid resolution too coarse, must have at least {min_grid_cells} grid points in each direction"
+            raise ValueError(msg)
 
         self.__x_lower_left = x_lower_left
         self.__y_lower_left = y_lower_left
@@ -92,14 +121,12 @@ class OutputGrid:
         self.__y_resolution = y_resolution
         self.__epsg = epsg
         self.__grid_points = None
+        self.__geoseries = None
         self.__construct_grid()
 
     def x_lower_left(self) -> float:
         """
         Get the x coordinate of the lower left corner of the grid.
-
-        Args:
-            None
 
         Returns:
             float: The x coordinate of the lower left corner of the grid.
@@ -110,9 +137,6 @@ class OutputGrid:
         """
         Get the y coordinate of the lower left corner of the grid.
 
-        Args:
-            None
-
         Returns:
             float: The y coordinate of the lower left corner of the grid.
         """
@@ -121,9 +145,6 @@ class OutputGrid:
     def x_upper_right(self) -> float:
         """
         Get the x coordinate of the upper right corner of the grid.
-
-        Args:
-            None
 
         Returns:
             float: The x coordinate of the upper right corner of the grid.
@@ -134,9 +155,6 @@ class OutputGrid:
         """
         Get the y coordinate of the upper right corner of the grid.
 
-        Args:
-            None
-
         Returns:
             float: The y coordinate of the upper right corner of the grid.
         """
@@ -145,9 +163,6 @@ class OutputGrid:
     def x_resolution(self) -> float:
         """
         Get the x resolution of the grid.
-
-        Args:
-            None
 
         Returns:
             float: The x resolution of the grid.
@@ -158,9 +173,6 @@ class OutputGrid:
         """
         Get the y resolution of the grid.
 
-        Args:
-            None
-
         Returns:
             float: The y resolution of the grid.
         """
@@ -169,9 +181,6 @@ class OutputGrid:
     def epsg(self) -> int:
         """
         Get the EPSG code of the grid.
-
-        Args:
-            None
 
         Returns:
             int: The EPSG code of the grid.
@@ -182,9 +191,6 @@ class OutputGrid:
         """
         Get the grid points of the grid.
 
-        Args:
-            None
-
         Returns:
             np.ndarray: The grid points of the grid.
         """
@@ -194,24 +200,25 @@ class OutputGrid:
         """
         Construct the grid points of the grid.
 
-        Args:
-            None
-
         Returns:
             None
         """
+        from geopandas import points_from_xy
+
         x = np.arange(self.__x_lower_left, self.__x_upper_right, self.__x_resolution)
         y = np.arange(self.__y_lower_left, self.__y_upper_right, self.__y_resolution)
         self.__x_points = x
         self.__y_points = y
         self.__grid_points = np.meshgrid(x, y)
+        self.__geoseries = GeoSeries(
+            points_from_xy(
+                self.__grid_points[0].flatten(), self.__grid_points[1].flatten()
+            )
+        )
 
     def x(self) -> np.ndarray:
         """
         Get the x coordinates of the grid.
-
-        Args:
-            None
 
         Returns:
             np.ndarray: The x coordinates of the grid.
@@ -221,9 +228,6 @@ class OutputGrid:
     def y(self) -> np.ndarray:
         """
         Get the y coordinates of the grid.
-
-        Args:
-            None
 
         Returns:
             np.ndarray: The y coordinates of the grid.
@@ -240,17 +244,16 @@ class OutputGrid:
         Returns:
             np.ndarray: The x coordinates of the grid.
         """
-        x = self.__x_points
         if convert_360:
+            x = self.__x_points.copy()
             x[x < 0] += 360
+        else:
+            x = self.__x_points
         return x
 
     def y_column(self) -> np.ndarray:
         """
         Get the y coordinates of the grid.
-
-        Args:
-            None
 
         Returns:
             np.ndarray: The y coordinates of the grid.
@@ -269,10 +272,12 @@ class OutputGrid:
             Tuple[float, float]: The corner of the grid.
         """
         if i < 0 or i >= self.__grid_points[0].shape[0]:
-            raise IndexError("i index out of bounds")
+            msg = f"i index out of bounds: {i:d}"
+            raise IndexError(msg)
 
         if j < 0 or j >= self.__grid_points[0].shape[1]:
-            raise IndexError("j index out of bounds")
+            msg = f"j index out of bounds: {j:d}"
+            raise IndexError(msg)
 
         return self.__grid_points[0][i, j], self.__grid_points[1][i, j]
 
@@ -288,10 +293,12 @@ class OutputGrid:
             Tuple[float, float]: The center of the grid.
         """
         if i < 0 or i >= self.__grid_points[0].shape[0]:
-            raise IndexError("i index out of bounds")
+            msg = f"i index out of bounds: {i:d}"
+            raise IndexError(msg)
 
         if j < 0 or j >= self.__grid_points[0].shape[1]:
-            raise IndexError("j index out of bounds")
+            msg = f"j index out of bounds: {j:d}"
+            raise IndexError(msg)
 
         return (
             self.__grid_points[0][i, j] + self.__x_resolution / 2,
@@ -339,9 +346,6 @@ class OutputGrid:
         """
         Get the number of i indices of the grid.
 
-        Args:
-            None
-
         Returns:
             int: The number of i indices of the grid.
         """
@@ -350,9 +354,6 @@ class OutputGrid:
     def nj(self) -> int:
         """
         Get the number of j indices of the grid.
-
-        Args:
-            None
 
         Returns:
             int: The number of j indices of the grid.
@@ -363,9 +364,6 @@ class OutputGrid:
         """
         Get the number of grid points of the grid.
 
-        Args:
-            None
-
         Returns:
             int: The number of grid points of the grid.
         """
@@ -374,9 +372,6 @@ class OutputGrid:
     def width(self) -> float:
         """
         Get the width of the grid.
-
-        Args:
-            None
 
         Returns:
             float: The width of the grid.
@@ -387,9 +382,6 @@ class OutputGrid:
         """
         Get the height of the grid.
 
-        Args:
-            None
-
         Returns:
             float: The height of the grid.
         """
@@ -398,9 +390,6 @@ class OutputGrid:
     def centroid(self) -> Tuple[float, float]:
         """
         Get the centroid of the grid.
-
-        Args:
-            None
 
         Returns:
             Tuple[float, float]: The centroid of the grid.
@@ -413,9 +402,6 @@ class OutputGrid:
     def corners(self) -> List[Tuple[float, float]]:
         """
         Get the corners of the grid.
-
-        Args:
-            None
 
         Returns:
             List[Tuple[float, float]]: The corners of the grid.
@@ -442,3 +428,12 @@ class OutputGrid:
             self.__x_lower_left <= x <= self.__x_upper_right
             and self.__y_lower_left <= y <= self.__y_upper_right
         )
+
+    def geoseries(self) -> GeoSeries:
+        """
+        Get the GeoSeries of the grid.
+
+        Returns:
+            GeoSeries: The GeoSeries of the grid.
+        """
+        return self.__geoseries

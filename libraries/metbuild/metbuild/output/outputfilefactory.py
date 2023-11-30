@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -29,9 +28,10 @@
 ###################################################################################################
 
 from datetime import datetime
-from outputfile import OutputFile
-from outputtypes import OutputTypes
-from owiascii import OwiAsciiOutput
+
+from ..enum import OutputTypes
+from .outputfile import OutputFile
+from .owiasciioutput import OwiAsciiOutput
 
 
 class OutputFileFactory:

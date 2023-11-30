@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -27,8 +26,11 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
 from datetime import datetime
+
+from schema import And, Optional, Or, Schema, SchemaError, Use
+
+from .domain import VALID_SERVICES
 
 VALID_DATA_TYPES = ["wind_pressure", "rain", "ice", "humidity", "temperature"]
 
@@ -39,6 +41,45 @@ class Input:
     for use in the MetBuild process
     """
 
+    METGET_DOMAIN_SCHEMA = Schema(
+        {
+            "name": str,
+            "service": Or(*VALID_SERVICES),
+            "x_init": And(Use(float), lambda n: -180 <= n <= 180),  # noqa: PLR2004
+            "y_init": And(Use(float), lambda n: -90 <= n <= 90),  # noqa: PLR2004
+            "x_end": And(Use(float), lambda n: -180 <= n <= 180),  # noqa: PLR2004
+            "y_end": And(Use(float), lambda n: -90 <= n <= 90),  # noqa: PLR2004
+            "di": And(Use(float), lambda n: n > 0),
+            "dj": And(Use(float), lambda n: n > 0),
+            Optional("basin"): Or("al", "ep", "wp"),
+            Optional("advisory"): And(Use(int), lambda n: n > 0),
+            Optional("storm_year"): And(Use(int), lambda n: n > 1990),  # noqa: PLR2004
+            Optional("tau"): And(Use(int), lambda n: n >= 0),
+        }
+    )
+
+    METGET_SCHEMA = Schema(
+        {
+            "version": str,
+            "creator": str,
+            Optional("request_id"): str,
+            "start_date": datetime.fromisoformat,
+            "end_date": datetime.fromisoformat,
+            "time_step": And(Use(int), lambda n: n > 0),
+            "filename": str,
+            "format": Or("netcdf", "ascii", "owi-netcdf", "hec-netcdf", "raw"),
+            "domains": [METGET_DOMAIN_SCHEMA],
+            Optional("data_type"): Or(*VALID_DATA_TYPES),
+            Optional("dry_run"): bool,
+            Optional("compression"): bool,
+            Optional("backfill"): bool,
+            Optional("epsg"): And(Use(int), lambda n: n > 0),
+            Optional("nowcast"): bool,
+            Optional("multiple_forecasts"): bool,
+            Optional("strict"): bool,
+        }
+    )
+
     def __init__(self, json_data, no_construct: bool = False):
         """
         Constructor for Input
@@ -47,6 +88,16 @@ class Input:
             json_data: A dictionary containing the json data for the input
 
         """
+
+        # ....Validate the input json data
+        try:
+            self.__json = Input.METGET_SCHEMA.validate(json_data)
+        except SchemaError as e:
+            self.__json = json_data
+            self.__error = [str(e)]
+            self.__valid = False
+            return
+
         self.__json = json_data
         self.__data_type = "wind_pressure"
         self.__no_construct = no_construct
@@ -275,7 +326,10 @@ class Input:
         """
         Parses the input data
         """
+        import os
+
         import dateutil.parser
+
         from .domain import Domain
 
         try:
@@ -290,35 +344,26 @@ class Input:
             self.__filename = self.__json["filename"]
             self.__format = self.__json["format"]
 
-            if self.__format == "owi-netcdf" or self.__format == "hec-netcdf":
-                if not self.__filename[-3:-1] == "nc":
-                    self.__filename = self.__filename + ".nc"
+            extension = os.path.splitext(self.__filename)[1]
+            if self.__format in ("owi-netcdf", "hec-netcdf") and extension != ".nc":
+                self.__filename += ".nc"
 
-            if "data_type" in self.__json.keys():
-                self.__data_type = self.__json["data_type"]
-                if self.__data_type not in VALID_DATA_TYPES:
-                    raise RuntimeError("Invalid data type specified")
+            self.__data_type = self.__json.get("data_type", None)
+            if self.__data_type and self.__data_type not in VALID_DATA_TYPES:
+                msg = f"Invalid data type: {self.__data_type}"
+                raise RuntimeError(msg)
 
-            if "dry_run" in self.__json.keys():
-                self.__dry_run = self.__json["dry_run"]
+            self.__dry_run = self.__json.get("dry_run", None)
+            self.__compression = self.__json.get("compression", None)
+            self.__backfill = self.__json.get("backfill", None)
+            self.__epsg = self.__json.get("epsg", None)
+            self.__nowcast = self.__json.get("nowcast", None)
+            self.__multiple_forecasts = self.__json.get("multiple_forecasts", None)
+            self.__strict = self.__json.get("strict", None)
 
-            if "compression" in self.__json.keys():
-                self.__compression = self.__json["compression"]
-
-            if "backfill" in self.__json.keys():
-                self.__backfill = self.__json["backfill"]
-
-            if "epsg" in self.__json.keys():
-                self.__epsg = self.__json["epsg"]
-
-            if "nowcast" in self.__json.keys():
-                self.__nowcast = self.__json["nowcast"]
-
-            if "multiple_forecasts" in self.__json.keys():
-                self.__multiple_forecasts = self.__json["multiple_forecasts"]
-
-            if "strict" in self.__json.keys():
-                self.__strict = self.__json["strict"]
+            if self.__data_type is None and "data_type" in self.__json:
+                msg = "Missing required field: data_type"
+                raise RuntimeError(msg)
 
             # ... Sanity check
             if self.__start_date >= self.__end_date:
@@ -327,7 +372,8 @@ class Input:
 
             ndomain = len(self.__json["domains"])
             if ndomain == 0:
-                raise RuntimeError("You must specify one or more wind domains")
+                msg = "You must specify one or more domains"
+                raise RuntimeError(msg)
             for i in range(ndomain):
                 name = self.__json["domains"][i]["name"]
                 service = self.__json["domains"][i]["service"]
@@ -364,9 +410,8 @@ class Input:
             if d.service() != "nhc" and self.format() != "raw":
                 num_cells = d.grid().nx() * d.grid().ny()
                 credit_usage += num_cells * num_time_steps
+            elif d.service() == "nhc":
+                credit_usage += 100 * 100 * 24
             else:
-                if d.service() == "nhc":
-                    credit_usage += 100 * 100 * 24
-                else:
-                    credit_usage += 100 * 100 * 24 * num_time_steps
+                credit_usage += 100 * 100 * 24 * num_time_steps
         return credit_usage

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -29,10 +28,11 @@
 ###################################################################################################
 
 from datetime import datetime
-from typing import Tuple, List
-from outputdomain import OutputDomain
-from outputgrid import OutputGrid
-from dataset import Dataset
+from typing import List, Tuple, Union
+
+from .dataset import Dataset
+from .outputdomain import OutputDomain
+from .outputgrid import OutputGrid
 
 
 class OutputFile:
@@ -51,8 +51,8 @@ class OutputFile:
         self.__start_time = start_time
         self.__end_time = end_time
         self.__time_step = time_step
-        self.__domains = []
-        self.__filenames = []
+        self.__domains: List[OutputDomain] = []
+        self.__filenames: Union[List[str], str] = []
 
     def write(self, index: int, dataset: List[Dataset]) -> None:
         """
@@ -65,12 +65,14 @@ class OutputFile:
         Returns:
             None
         """
-        raise NotImplementedError("OutputFile.write() is not implemented")
+        msg = "OutputFile.write() is not implemented"
+        raise NotImplementedError(msg)
 
-    def add_domain(self, grid: OutputGrid, filename: str) -> None:
-        raise NotImplementedError("OutputFile.add_domain() is not implemented")
+    def add_domain(self, grid: OutputGrid, filename: Union[List[str], str]) -> None:
+        msg = "OutputFile.add_domain() is not implemented"
+        raise NotImplementedError(msg)
 
-    def _add_domain(self, domain, filename: str) -> None:
+    def _add_domain(self, domain, filename: Union[List[str], str]) -> None:
         """
         Add a domain to the meteorological field.
 
@@ -88,9 +90,6 @@ class OutputFile:
         """
         Get the start time of the meteorological field.
 
-        Args:
-            None
-
         Returns:
             datetime: The start time of the meteorological field.
         """
@@ -100,9 +99,6 @@ class OutputFile:
         """
         Get the end time of the meteorological field.
 
-        Args:
-            None
-
         Returns:
             datetime: The end time of the meteorological field.
         """
@@ -111,9 +107,6 @@ class OutputFile:
     def time_step(self) -> int:
         """
         Get the time step of the meteorological field.
-
-        Args:
-            None
 
         Returns:
             int: The time step of the meteorological field.
@@ -136,9 +129,6 @@ class OutputFile:
         """
         Get the number of domains in the meteorological field.
 
-        Args:
-            None
-
         Returns:
             int: The number of domains in the meteorological field.
         """
@@ -147,9 +137,6 @@ class OutputFile:
     def domains(self) -> Tuple[List[OutputDomain], List[str]]:
         """
         Get the domains in the meteorological field.
-
-        Args:
-            None
 
         Returns:
             Tuple[List[Domain], List[str]]: The domains in the meteorological field.
