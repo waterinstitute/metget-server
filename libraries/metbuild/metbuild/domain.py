@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -29,6 +28,7 @@
 ###################################################################################################
 
 import logging
+
 from .output.outputgrid import OutputGrid
 
 VALID_SERVICES = [
@@ -75,18 +75,14 @@ class Domain:
         self.__tau = None
         if self.__service not in VALID_SERVICES:
             log.warning(
-                "Domain invalid because {:s} is not a valid service".format(
-                    self.__service
-                )
+                f"Domain invalid because {self.__service:s} is not a valid service"
             )
             self.__valid = False
         self.__json = json
         try:
             self.__grid = grid_factory(self.__json)
         except Exception as e:
-            log.warning(
-                "Domain invalid because exception was thrown: {:s}".format(str(e))
-            )
+            log.warning(f"Domain invalid because exception was thrown: {e!s:s}")
             self.__valid = False
             raise
         self.__storm = None
@@ -277,10 +273,7 @@ class Domain:
         Returns:
             None
         """
-        if "tau" in self.__json:
-            self.__tau = self.__json["tau"]
-        else:
-            self.__tau = 0
+        self.__tau = self.__json.get("tau", 0)
 
     def __get_ensemble_member(self) -> None:
         """

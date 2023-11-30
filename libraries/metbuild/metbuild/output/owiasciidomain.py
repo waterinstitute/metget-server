@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -28,12 +27,14 @@
 #
 ###################################################################################################
 
-from outputdomain import OutputDomain
-from outputgrid import OutputGrid
 from datetime import datetime
-from dataset import Dataset
-from typing import Union, List, TextIO
+from typing import List, TextIO, Union
+
 import numpy as np
+from dataset import Dataset
+
+from .outputdomain import OutputDomain
+from .outputgrid import OutputGrid
 
 
 class OwiAsciiDomain(OutputDomain):
@@ -41,15 +42,7 @@ class OwiAsciiDomain(OutputDomain):
     A class to represent an OWI ASCII output domain and write it to a file.
     """
 
-    def __init__(
-        self,
-        grid_obj: OutputGrid,
-        start_date: datetime,
-        end_date: datetime,
-        time_step: int,
-        filename: Union[str, List[str]],
-        compression: bool = False,
-    ):
+    def __init__(self, **kwargs):
         """
         Construct an OWI ASCII output domain.
 
@@ -58,15 +51,63 @@ class OwiAsciiDomain(OutputDomain):
             start_date (datetime): The start time of the meteorological output domain.
             end_date (datetime): The end time of the meteorological output domain.
             time_step (int): The time step of the meteorological output domain.
-            filename (str): The filename of the meteorological output domain.
+            filename (Union[str, List[str]]): The filename of the meteorological output domain.
             compression (bool): The compression flag of the meteorological output domain.
 
         Returns:
             None
         """
-        super().__init__(grid_obj, start_date, end_date, time_step)
+        required_args = ["grid_obj", "start_date", "end_date", "time_step", "filename"]
+        missing_args = [arg for arg in required_args if arg not in kwargs]
+
+        if missing_args:
+            msg = f"Missing required arguments: {', '.join(missing_args)}"
+            raise ValueError(msg)
+
+        grid_obj = kwargs.get("grid_obj")
+        start_date = kwargs.get("start_date")
+        end_date = kwargs.get("end_date")
+        time_step = kwargs.get("time_step")
+        filename = kwargs.get("filename")
+        compression = kwargs.get("compression", False)
+
+        # Type checking
+        if not isinstance(grid_obj, OutputGrid):
+            msg = "grid_obj must be of type OutputGrid"
+            raise TypeError(msg)
+        if not isinstance(start_date, datetime):
+            msg = "start_date must be of type datetime"
+            raise TypeError(msg)
+        if not isinstance(end_date, datetime):
+            msg = "end_date must be of type datetime"
+            raise TypeError(msg)
+        if not isinstance(time_step, int):
+            msg = "time_step must be of type int"
+            raise TypeError(msg)
+        if not isinstance(filename, (str, list)):
+            msg = "filename must be of type Union[str, List[str]]"
+            raise TypeError(msg)
+        if not isinstance(compression, bool):
+            msg = "compression must be of type bool"
+            raise TypeError(msg)
+
+        super().__init__(
+            grid_obj=grid_obj,
+            start_date=start_date,
+            end_date=end_date,
+            time_step=time_step,
+        )
         self.__filename = filename
         self.__compression = compression
+
+    def __del__(self):
+        """
+        Destructor for the OWI ASCII output domain.
+
+        Returns:
+            None
+        """
+        self.close()
 
     def open(self) -> None:
         """
@@ -79,16 +120,17 @@ class OwiAsciiDomain(OutputDomain):
 
         if self.__compression:
             if isinstance(self.__filename, str):
-                fid = open(self.__filename, "w")
+                fid = open(self.__filename, "w")  # noqa: SIM115
                 self._set_fid(fid)
             elif isinstance(self.__filename, list):
                 fid = []
                 for filename in self.__filename:
-                    fid.append(open(filename, "w"))
+                    fid.append(open(filename, "w"))  # noqa: SIM115
                 self._set_fid(fid)
             else:
-                raise TypeError("Invalid filename type")
-        else:
+                msg = f"Invalid filename type: {type(self.__filename)}"
+                raise TypeError(msg)
+        else:  # noqa: PLR5501
             if isinstance(self.__filename, str):
                 fid = gzip.open(self.__filename, "wt")
                 self._set_fid(fid)
@@ -98,9 +140,26 @@ class OwiAsciiDomain(OutputDomain):
                     fid.append(gzip.open(filename, "wt"))
                 self._set_fid(fid)
             else:
-                raise TypeError("Invalid filename type")
+                msg = f"Invalid filename type: {type(self.__filename)}"
+                raise TypeError(msg)
 
         self.__write_ascii_header()
+
+    def close(self) -> None:
+        """
+        Close the meteorological output domain.
+
+        Returns:
+            None
+        """
+        if isinstance(self.fid(), TextIO):
+            self.fid().close()
+        elif isinstance(self.fid(), list):
+            for fid in self.fid():
+                fid.close()
+        else:
+            msg = f"Invalid file id type: {type(self.fid())}"
+            raise TypeError(msg)
 
     def filename(self) -> Union[str, List[str]]:
         """
@@ -148,12 +207,12 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             str: The formatted value.
         """
-        if value <= -100.0:
-            return "{:8.3f}".format(value)
-        elif value < 0.0 or value >= 100.0:
-            return "{:8.4f}".format(value)
+        if value <= -100.0:  # noqa: PLR2004
+            return f"{value:8.3f}"
+        elif value < 0.0 or value >= 100.0:  # noqa: PLR2004
+            return f"{value:8.4f}"
         else:
-            return "{:8.5f}".format(value)
+            return f"{value:8.5f}"
 
     @staticmethod
     def __generate_record_header(date: datetime, grid: OutputGrid) -> str:
@@ -198,9 +257,9 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-        for i in range(0, values.shape[0]):
-            for j in range(0, values.shape[1]):
-                fid.write("{:10.4f}".format(values[i, j]))
+        for i in range(values.shape[0]):
+            for j in range(values.shape[1]):
+                fid.write(f"{values[i, j]:10.4f}")
                 if (j + 1) % 8 == 0:
                     fid.write("\n")
             fid.write("\n")
@@ -217,18 +276,21 @@ class OwiAsciiDomain(OutputDomain):
         """
         if isinstance(self.fid(), TextIO):
             self.fid().write(
-                OwiAsciiDomain.__generate_record_header(self.start_date(), self.grid())
+                OwiAsciiDomain.__generate_record_header(
+                    self.start_date(), self.grid_obj()
+                )
             )
             OwiAsciiDomain.__write_record(self.fid(), data.values()[0, :, :])
         elif isinstance(self.fid(), list):
-            for i in range(0, data.n_parameters()):
+            for i in range(data.n_parameters()):
                 header = OwiAsciiDomain.__generate_record_header(
-                    self.start_date(), self.grid()
+                    self.start_date(), self.grid_obj()
                 )
                 self.fid().write(header)
                 OwiAsciiDomain.__write_record(self.fid(), data.values()[0, :, :])
                 for fid in self.fid():
                     fid.write(header)
                     OwiAsciiDomain.__write_record(fid, data.values()[i, :, :])
-                else:
-                    raise TypeError("Invalid file id type")
+        else:
+            msg = f"Invalid file id type: {type(self.fid())}"
+            raise TypeError(msg)

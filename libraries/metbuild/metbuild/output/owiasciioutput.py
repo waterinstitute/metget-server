@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -28,11 +27,11 @@
 #
 ###################################################################################################
 
-from outputfile import OutputFile
-from outputgrid import OutputGrid
-from owiasciidomain import OwiAsciiDomain
 from dataset import Dataset
-from typing import List
+
+from .outputfile import OutputFile
+from .outputgrid import OutputGrid
+from .owiasciidomain import OwiAsciiDomain
 
 
 class OwiAsciiOutput(OutputFile):
@@ -78,4 +77,5 @@ class OwiAsciiOutput(OutputFile):
         Returns:
             None
         """
-        raise NotImplementedError("OwiAsciiOutput.write() is not implemented")
+        msg = "OwiAsciiOutput.write() is not implemented"
+        raise NotImplementedError(msg)

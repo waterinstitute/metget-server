@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -28,11 +27,13 @@
 #
 ###################################################################################################
 
-from sqlalchemy import func
 from datetime import datetime
 from typing import Union
-from metbuild.tables import TableBase
-from metbuild.database import Database
+
+from sqlalchemy import func
+
+from .database import Database
+from .tables import TableBase
 
 
 class Filelist:
@@ -41,21 +42,7 @@ class Filelist:
     requested forcing data.
     """
 
-    def __init__(
-        self,
-        service: str,
-        param: str,
-        start: datetime,
-        end: datetime,
-        tau: int,
-        storm_year: int,
-        storm: int,
-        basin: str,
-        advisory: int,
-        nowcast: bool,
-        multiple_forecasts: bool,
-        ensemble_member: str,
-    ):
+    def __init__(self, **kwargs):
         """
         Constructor for the Filelist class
 
@@ -65,30 +52,75 @@ class Filelist:
             start (datetime): The start date of the request
             end (datetime): The end date of the request
             tau (int): The forecast lead time
-            storm_year(int): The year of the storm
+            storm_year (int): The year of the storm
             storm (int): The storm number
             basin (str): The basin of the storm
             advisory (int): The advisory number
             nowcast (bool): Whether this is a nowcast
             multiple_forecasts (bool): Whether multiple forecasts are being requested
             ensemble_member (str): The ensemble member that is being requested
-
         """
-        self.__service = service
-        self.__param = param
-        self.__start = start
-        self.__end = end
-        self.__tau = tau
-        self.__storm_year = storm_year
-        self.__storm = storm
-        self.__basin = basin
-        self.__advisory = advisory
-        self.__nowcast = nowcast
-        self.__multiple_forecasts = multiple_forecasts
-        self.__ensemble_member = ensemble_member
+        required_args = [
+            "service",
+            "param",
+            "start",
+            "end",
+            "tau",
+            "storm_year",
+            "storm",
+            "basin",
+            "advisory",
+            "nowcast",
+            "multiple_forecasts",
+            "ensemble_member",
+        ]
+        missing_args = [arg for arg in required_args if arg not in kwargs]
+
+        if missing_args:
+            msg = f"Missing required arguments: {', '.join(missing_args)}"
+            raise ValueError(msg)
+
+        self.__service = kwargs.get("service", None)
+        self.__param = kwargs.get("param", None)
+        self.__start = kwargs.get("start", None)
+        self.__end = kwargs.get("end", None)
+        self.__tau = kwargs.get("tau", None)
+        self.__storm_year = kwargs.get("storm_year", None)
+        self.__storm = kwargs.get("storm", None)
+        self.__basin = kwargs.get("basin", None)
+        self.__advisory = kwargs.get("advisory", None)
+        self.__nowcast = kwargs.get("nowcast", None)
+        self.__multiple_forecasts = kwargs.get("multiple_forecasts", None)
+        self.__ensemble_member = kwargs.get("ensemble_member", None)
         self.__error = []
         self.__valid = False
         self.__files = self.__query_files()
+
+        # Type checking
+        if not isinstance(self.__start, datetime):
+            msg = "start must be of type datetime"
+            raise TypeError(msg)
+        if not isinstance(self.__end, datetime):
+            msg = "end must be of type datetime"
+            raise TypeError(msg)
+        if not isinstance(self.__tau, int):
+            msg = "tau must be of type int"
+            raise TypeError(msg)
+        if not isinstance(self.__storm_year, int):
+            msg = "storm_year must be of type int"
+            raise TypeError(msg)
+        if not isinstance(self.__storm, int):
+            msg = "storm must be of type int"
+            raise TypeError(msg)
+        if not isinstance(self.__advisory, int):
+            msg = "advisory must be of type int"
+            raise TypeError(msg)
+        if not isinstance(self.__nowcast, bool):
+            msg = "nowcast must be of type bool"
+            raise TypeError(msg)
+        if not isinstance(self.__multiple_forecasts, bool):
+            msg = "multiple_forecasts must be of type bool"
+            raise TypeError(msg)
 
     @staticmethod
     def __rows2dicts(data: list) -> list:
@@ -118,10 +150,7 @@ class Filelist:
         Returns:
             bool: True if the time is found, False otherwise
         """
-        for row in data:
-            if row[key] == time:
-                return True
-        return False
+        return any(row[key] == time for row in data)
 
     @staticmethod
     def __merge_tau_excluded_data(data_single: list, data_tau: list) -> list:
@@ -142,9 +171,7 @@ class Filelist:
             ):
                 data_single.append(row)
 
-        data_single = sorted(data_single, key=lambda k: k["forecasttime"])
-
-        return data_single
+        return sorted(data_single, key=lambda k: k["forecasttime"])
 
     def __query_files(self) -> Union[list, dict, None]:
         """
@@ -154,35 +181,36 @@ class Filelist:
         Returns:
             list: The list of files that will be used to generate the requested forcing
         """
-        import sys
 
         self.__valid = True
+        result = None
         if self.__service == "gfs-ncep":
-            return self.__query_files_gfs_ncep()
+            result = self.__query_files_gfs_ncep()
         elif self.__service == "nam-ncep":
-            return self.__query_files_nam_ncep()
+            result = self.__query_files_nam_ncep()
         elif self.__service == "hwrf":
-            return self.__query_files_hwrf()
+            result = self.__query_files_hwrf()
         elif "hafs" in self.__service:
-            return self.__query_files_hafs(self.__service)
+            result = self.__query_files_hafs(self.__service)
         elif self.__service == "coamps-tc":
-            return self.__query_files_coamps_tc()
+            result = self.__query_files_coamps_tc()
         elif self.__service == "coamps-ctcx":
-            return self.__query_files_coamps_ctcx()
-        elif self.__service == "hrrr-ncep":
-            return self.__query_files_hrrr_conus()
-        elif self.__service == "hrrr-alaska-ncep":
-            return self.__query_files_hrrr_alaska()
+            result = self.__query_files_coamps_ctcx()
+        elif self.__service == "hrrr-conus":
+            result = self.__query_files_hrrr_conus()
+        elif self.__service == "hrrr-alaska":
+            result = self.__query_files_hrrr_alaska()
         elif self.__service == "gefs-ncep":
-            return self.__query_files_gefs_ncep()
+            result = self.__query_files_gefs_ncep()
         elif self.__service == "wpc-ncep":
-            return self.__query_files_wpc_ncep()
+            result = self.__query_files_wpc_ncep()
         elif self.__service == "nhc":
-            return self.__query_files_nhc()
+            result = self.__query_files_nhc()
         else:
-            self.__error.append("Invalid service: '{:s}'".format(self.__service))
+            self.__error.append(f"Invalid service: '{self.__service:s}'")
             self.__valid = False
-            return None
+            result = None
+        return result
 
     def files(self) -> list:
         """
@@ -208,11 +236,10 @@ class Filelist:
         """
         if self.__nowcast:
             return self.__query_generic_file_list_nowcast(table)
+        elif self.__multiple_forecasts:
+            return self.__query_generic_file_list_multiple_forecasts(table)
         else:
-            if self.__multiple_forecasts:
-                return self.__query_generic_file_list_multiple_forecasts(table)
-            else:
-                return self.__query_generic_file_list_single_forecast(table)
+            return self.__query_generic_file_list_single_forecast(table)
 
     def __query_generic_file_list_nowcast(self, table: TableBase) -> list:
         """
@@ -445,11 +472,10 @@ class Filelist:
         """
         if self.__nowcast:
             return self.__query_gefs_file_list_nowcast()
+        elif self.__multiple_forecasts:
+            return self.__query_gefs_file_list_multiple_forecasts()
         else:
-            if self.__multiple_forecasts:
-                return self.__query_gefs_file_list_multiple_forecasts()
-            else:
-                return self.__query_gefs_file_list_single_forecast()
+            return self.__query_gefs_file_list_single_forecast()
 
     def __query_gefs_file_list_single_forecast(self):
         """
@@ -639,12 +665,12 @@ class Filelist:
         """
         from .tables import HafsATable, HafsBTable
 
-        if hafs_type == "hafs_a" or hafs_type == "hafs":
+        if hafs_type in ("hafs_a", "hafs"):
             return self.__query_storm_file_list(HafsATable)
         elif hafs_type == "hafs_b":
             return self.__query_storm_file_list(HafsBTable)
         else:
-            self.__error.append("Invalid HAFS type: '{:s}'".format(hafs_type))
+            self.__error.append(f"Invalid HAFS type: '{hafs_type:s}'")
             self.__valid = False
             return None
 
@@ -687,11 +713,10 @@ class Filelist:
 
         if self.__nowcast:
             return self.__query_storm_file_list_nowcast_ensemble(table)
+        elif self.__multiple_forecasts:
+            return self.__query_storm_file_list_multiple_forecasts_ensemble(table)
         else:
-            if self.__multiple_forecasts:
-                return self.__query_storm_file_list_multiple_forecasts_ensemble(table)
-            else:
-                return self.__query_storm_file_list_single_forecast_ensemble(table)
+            return self.__query_storm_file_list_single_forecast_ensemble(table)
 
     def __query_storm_file_list_single_forecast_ensemble(
         self, table: TableBase
@@ -883,11 +908,10 @@ class Filelist:
 
         if self.__nowcast:
             return self.__query_storm_file_list_nowcast(table)
+        elif self.__multiple_forecasts:
+            return self.__query_storm_file_list_multiple_forecasts(table)
         else:
-            if self.__multiple_forecasts:
-                return self.__query_storm_file_list_multiple_forecasts(table)
-            else:
-                return self.__query_storm_file_list_single_forecast(table)
+            return self.__query_storm_file_list_single_forecast(table)
 
     def __query_storm_file_list_single_forecast(
         self, table: TableBase
