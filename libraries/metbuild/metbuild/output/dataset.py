@@ -1,7 +1,3 @@
-import numpy as np
-from output.outputgrid import OutputGrid
-
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -30,6 +26,10 @@ from output.outputgrid import OutputGrid
 # Organization: The Water Institute
 #
 ###################################################################################################
+import numpy as np
+
+from .outputgrid import OutputGrid
+
 
 class Dataset:
     """
@@ -59,9 +59,6 @@ class Dataset:
     def values(self) -> np.ndarray:
         """
         Get the values of the dataset.
-
-        Args:
-            None
 
         Returns:
             np.ndarray: The values of the dataset.

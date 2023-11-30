@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -69,7 +68,7 @@ def grid_factory(json_data: dict) -> OutputGrid:
         OutputGrid: The meteorological output grid.
     """
 
-    if "predefined_domain" in json_data.keys():
+    if "predefined_domain" in json_data:
         domain_data = PREDEFINED_DOMAINS[json_data["predefined_domain"]]
         x_init = domain_data["x_init"]
         y_init = domain_data["y_init"]
