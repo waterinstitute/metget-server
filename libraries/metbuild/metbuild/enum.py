@@ -11,6 +11,9 @@ class MetDataType(Enum):
     PRECIPITATION = 6
     ICE = 7
 
+    def __str__(self):
+        return self.name.lower()
+
 
 class MetFileFormat(Enum):
     GRIB = 1
