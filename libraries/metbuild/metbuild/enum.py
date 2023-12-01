@@ -1,4 +1,34 @@
+###################################################################################################
+# MIT License
+#
+# Copyright (c) 2023 The Water Institute
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# Author: Zach Cobell
+# Contact: zcobell@thewaterinstitute.org
+# Organization: The Water Institute
+#
+###################################################################################################
+
 from enum import Enum
+from typing import List
 
 
 class MetDataType(Enum):
@@ -10,6 +40,13 @@ class MetDataType(Enum):
     HUMIDITY = 5
     PRECIPITATION = 6
     ICE = 7
+    SURFACE_STRESS_U = 8
+    SURFACE_STRESS_V = 9
+    SURFACE_LATENT_HEAT_FLUX = 10
+    SURFACE_SENSIBLE_HEAT_FLUX = 11
+    SURFACE_LONGWAVE_FLUX = 12
+    SURFACE_SOLAR_FLUX = 13
+    SURFACE_NET_RADIATION_FLUX = 14
 
     def __str__(self):
         return self.name.lower()
@@ -110,13 +147,14 @@ class VariableType(Enum):
     """Enum class for the type of meteorological variable"""
 
     UNKNOWN = 0
-    WIND_PRESSURE = 1
-    PRESSURE = 2
-    WIND = 3
-    PRECIPITATION = 4
-    TEMPERATURE = 5
-    HUMIDITY = 6
-    ICE = 7
+    ALL_VARIABLES = 1
+    WIND_PRESSURE = 2
+    PRESSURE = 3
+    WIND = 4
+    PRECIPITATION = 5
+    TEMPERATURE = 6
+    HUMIDITY = 7
+    ICE = 8
 
     @staticmethod
     def from_string(data_type: str):
@@ -129,7 +167,6 @@ class VariableType(Enum):
         Returns:
             The VariableType corresponding to the string
         """
-        ret_value = None
         if data_type == "wind_pressure":
             ret_value = VariableType.WIND_PRESSURE
         elif data_type == "pressure":
@@ -148,3 +185,33 @@ class VariableType(Enum):
             msg = f"Invalid data type: {data_type:s}"
             raise ValueError(msg)
         return ret_value
+
+    def select(self) -> List[MetDataType]:
+        """
+        Get a list of the variables (MetDataType) for the type of meteorological data
+
+        Returns:
+            List[MetDataType]: The list of variables (MetDataType) for the type of meteorological data
+        """
+        if self == VariableType.WIND_PRESSURE:
+            selection = [MetDataType.PRESSURE, MetDataType.WIND_U, MetDataType.WIND_V]
+        elif self == VariableType.PRESSURE:
+            selection = [MetDataType.PRESSURE]
+        elif self == VariableType.WIND:
+            selection = [MetDataType.WIND_U, MetDataType.WIND_V]
+        elif self == VariableType.PRECIPITATION:
+            selection = [MetDataType.PRECIPITATION]
+        elif self == VariableType.TEMPERATURE:
+            selection = [MetDataType.TEMPERATURE]
+        elif self == VariableType.HUMIDITY:
+            selection = [MetDataType.HUMIDITY]
+        elif self == VariableType.ICE:
+            selection = [MetDataType.ICE]
+        elif self == VariableType.ALL_VARIABLES:
+            v = list(MetDataType)
+            v.remove(MetDataType.UNKNOWN)
+            selection = v
+        else:
+            msg = f"Invalid data type: {self:s}"
+            raise ValueError(msg)
+        return selection

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -28,11 +27,13 @@
 #
 ###################################################################################################
 
+import logging
+from datetime import datetime
+from typing import Optional
+
 import boto3
 import botocore
 from botocore.exceptions import ClientError
-import logging
-from datetime import datetime
 
 
 class S3file:
@@ -69,14 +70,16 @@ class S3file:
                     local_file, self.__bucket, remote_path
                 )
             )
-            response = self.__client.upload_file(local_file, self.__bucket, remote_path)
+            self.__client.upload_file(local_file, self.__bucket, remote_path)
         except ClientError as e:
             log.error(e)
             return False
 
         return True
 
-    def download(self, remote_path: str, service: str, time: datetime = None) -> str:
+    def download(
+        self, remote_path: str, service: str, time: Optional[datetime] = None
+    ) -> str:
         """
         Download a file from Amazon S3
 
@@ -87,8 +90,8 @@ class S3file:
         Returns:
             Returns the path to the downloaded file
         """
-        import tempfile
         import os
+        import tempfile
 
         log = logging.getLogger(__name__)
         tempdir = tempfile.gettempdir()
@@ -100,9 +103,7 @@ class S3file:
             local_path = os.path.join(tempdir, fn)
 
         log.info(
-            "Downloading from s3://{:s}/{:s} to {:s}".format(
-                self.__bucket, remote_path, local_path
-            )
+            f"Downloading from s3://{self.__bucket:s}/{remote_path:s} to {local_path:s}"
         )
         self.__client.download_file(self.__bucket, remote_path, local_path)
 
@@ -139,17 +140,11 @@ class S3file:
             bool: True if file exists in S3 or is in glacier storage, else False
         """
         log = logging.getLogger(__name__)
-        log.info(
-            "Checking glacier status for {:s} in bucket {:s}".format(
-                path, self.__bucket
-            )
-        )
+        log.info(f"Checking glacier status for {path:s} in bucket {self.__bucket:s}")
         metadata = self.__client.head_object(Bucket=self.__bucket, Key=path)
-        if "x-amz-archive-status" in metadata["ResponseMetadata"]["HTTPHeaders"].keys():
+        if "x-amz-archive-status" in metadata["ResponseMetadata"]["HTTPHeaders"]:
             log.info(
-                "File {:s} in bucket {:s} was found in Amazon Glacier".format(
-                    path, self.__bucket
-                )
+                f"File {path:s} in bucket {self.__bucket:s} was found in Amazon Glacier"
             )
             return True
         else:
@@ -166,12 +161,9 @@ class S3file:
             bool: True if file is currently being restored, else False
         """
         metadata = self.__client.head_object(Bucket=self.__bucket, Key=path)
-        if "x-amz-restore" in metadata["ResponseMetadata"]["HTTPHeaders"].keys():
+        if "x-amz-restore" in metadata["ResponseMetadata"]["HTTPHeaders"]:
             ongoing = metadata["ResponseMetadata"]["HTTPHeaders"]["x-amz-restore"]
-            if ongoing == 'ongoing-request="true"':
-                return True
-            else:
-                return False
+            return ongoing == 'ongoing-request="true"'
         else:
             return False
 
@@ -192,7 +184,7 @@ class S3file:
                 Key=path,
                 RestoreRequest={"GlacierJobParameters": {"Tier": "Standard"}},
             )
-            log.info("Restore request initiated for {:s}".format(path))
+            log.info(f"Restore request initiated for {path:s}")
 
     def check_archive_initiate_restore(self, path: str) -> bool:
         """

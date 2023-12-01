@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -84,7 +83,8 @@ class Database:
         Initialize the database engine and return it.
         """
         import os
-        from sqlalchemy import create_engine, URL
+
+        from sqlalchemy import URL, create_engine
 
         db_host = os.environ["METGET_DATABASE_SERVICE_HOST"]
         db_password = os.environ["METGET_DATABASE_PASSWORD"]

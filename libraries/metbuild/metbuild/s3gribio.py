@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -28,8 +27,8 @@
 #
 ###################################################################################################
 
-from typing import Union, List, Tuple
 import logging
+from typing import List, Optional, Tuple, Union
 
 
 class S3GribIO:
@@ -90,7 +89,7 @@ class S3GribIO:
         return result.netloc, result.path.lstrip("/")
 
     def __try_get_object(
-        self, key: str, byte_range: str = None, allow_fail=True
+        self, key: str, byte_range: Optional[str] = None, allow_fail=True
     ) -> Union[None, dict]:
         """
         Try to get an object from a s3 bucket. If the object does not exist, wait 5 seconds and try again.
@@ -103,8 +102,9 @@ class S3GribIO:
         Returns:
             The object from the bucket
         """
-        from botocore.exceptions import ClientError
         from time import sleep
+
+        from botocore.exceptions import ClientError
 
         max_tries = 5
         sleep_interval = 5
@@ -126,11 +126,10 @@ class S3GribIO:
                         tries += 1
                         sleep(sleep_interval)
                         if tries > max_tries:
-                            raise RuntimeError(
-                                "Could not find key {} in bucket {}".format(
-                                    key, self.__s3_bucket
-                                )
+                            msg = (
+                                f"Could not find key {key} in bucket {self.__s3_bucket}"
                             )
+                            raise RuntimeError(msg) from e
                 else:
                     raise e
 
@@ -181,7 +180,7 @@ class S3GribIO:
             inv_data_tmp = str(inv_obj["Body"].read().decode("utf-8")).split("\n")
             inv_data = []
             for line in inv_data_tmp:
-                if not line == "":
+                if line != "":
                     inv_data.append(line)
             byte_list = []
             for v in self.__variable_list:
@@ -215,7 +214,8 @@ class S3GribIO:
         elif variable_type == "ice":
             candidate_variables = ["ice"]
         else:
-            raise ValueError("Unknown variable type {}.".format(variable_type))
+            msg = f"Unknown variable type {variable_type}."
+            raise ValueError(msg)
         return {"variables": candidate_variables, "length": length}
 
     @staticmethod
@@ -263,9 +263,7 @@ class S3GribIO:
         bucket, path = self.__parse_path(s3_file)
         if bucket != self.__s3_bucket:
             log.error(
-                "Bucket {} does not match expected bucket {}".format(
-                    bucket, self.__s3_bucket
-                )
+                f"Bucket {bucket} does not match expected bucket {self.__s3_bucket}"
             )
             return False, True
 
@@ -273,11 +271,11 @@ class S3GribIO:
         inventory = self.__get_grib_inventory(path)
 
         if os.path.exists(local_file):
-            log.warning("File '{}' already exists, removing".format(local_file))
+            log.warning(f"File '{local_file}' already exists, removing")
             os.remove(local_file)
 
         if inventory is None:
-            log.info("Downloading full file for {} to {}".format(s3_file, local_file))
+            log.info(f"Downloading full file for {s3_file} to {local_file}")
             obj = self.__try_get_object(path)
             with open(local_file, "wb") as f:
                 f.write(obj["Body"].read())
@@ -291,7 +289,7 @@ class S3GribIO:
             )
 
             if len(inventory_subset) == 0:
-                log.error("No inventory found for file {}".format(path))
+                log.error(f"No inventory found for file {path}")
                 return False, False
             elif (
                 len(inventory_subset)
@@ -300,7 +298,7 @@ class S3GribIO:
                 log.error("Inventory length does not match variable list length")
                 return False, False
 
-            log.info("Downloading subset for {} to {}".format(s3_file, local_file))
+            log.info(f"Downloading subset for {s3_file} to {local_file}")
 
             for var in inventory_subset:
                 byte_range = "bytes={}-{}".format(var["start"], var["end"])
