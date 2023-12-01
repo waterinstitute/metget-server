@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -29,9 +28,11 @@
 ###################################################################################################
 
 from datetime import datetime
-from .outputgrid import OutputGrid
+from typing import List, TextIO, Union
+
 from dataset import Dataset
-from typing import Union, List, TextIO
+
+from .outputgrid import OutputGrid
 
 
 class OutputDomain:
@@ -124,7 +125,8 @@ class OutputDomain:
         Returns:
             None
         """
-        raise NotImplementedError("OutputDomain.open() is not implemented")
+        msg = "OutputDomain.open() is not implemented"
+        raise NotImplementedError(msg)
 
     def close(self):
         """
@@ -133,10 +135,12 @@ class OutputDomain:
         Returns:
             None
         """
-        raise NotImplementedError("OutputDomain.close() is not implemented")
+        msg = "OutputDomain.close() is not implemented"
+        raise NotImplementedError(msg)
 
     def write(self, data: Dataset):
         """
         Write the meteorological field.
         """
-        raise NotImplementedError("OutputDomain.write() is not implemented")
+        msg = "OutputDomain.write() is not implemented"
+        raise NotImplementedError(msg)

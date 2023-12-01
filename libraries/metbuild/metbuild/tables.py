@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -28,11 +27,12 @@
 #
 ###################################################################################################
 
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, BigInteger
+import enum
+
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-import enum
+from sqlalchemy.orm import declarative_base
 
 # This is the base class for all the tables
 TableBase = declarative_base()
@@ -93,19 +93,14 @@ class RequestTable(TableBase):
     message = Column(MutableDict.as_mutable(JSONB))
 
     @staticmethod
-    def add_request(
-        request_id: str,
-        request_status: RequestEnum,
-        api_key: str,
-        source_ip: str,
-        input_data: dict,
-        message: str,
-        credit: int,
-    ) -> None:
+    def add_request(**kwargs) -> None:
         """
         This method is used to add a new request to the database
 
         Args:
+            **kwargs: The keyword arguments for the request table
+
+        The keyword arguments are:
             request_id (str): The request ID
             request_status (RequestEnum): The status of the request
             api_key (str): The API key used to authenticate the request
@@ -118,7 +113,39 @@ class RequestTable(TableBase):
             None
         """
         from datetime import datetime
+
         from metbuild.database import Database
+
+        request_id = kwargs.get("request_id")
+        request_status = kwargs.get("request_status")
+        api_key = kwargs.get("api_key")
+        source_ip = kwargs.get("source_ip")
+        input_data = kwargs.get("input_data")
+        message = kwargs.get("message")
+        credit = kwargs.get("credit")
+
+        # ...Check that all the required arguments are present
+        if request_id is None:
+            msg = "request_id is required"
+            raise ValueError(msg)
+        if request_status is None:
+            msg = "request_status is required"
+            raise ValueError(msg)
+        if api_key is None:
+            msg = "api_key is required"
+            raise ValueError(msg)
+        if source_ip is None:
+            msg = "source_ip is required"
+            raise ValueError(msg)
+        if input_data is None:
+            msg = "input_data is required"
+            raise ValueError(msg)
+        if message is None:
+            msg = "message is required"
+            raise ValueError(msg)
+        if credit is None:
+            msg = "credit is required"
+            raise ValueError(msg)
 
         record = RequestTable(
             request_id=request_id,
@@ -142,20 +169,14 @@ class RequestTable(TableBase):
                 session.commit()
 
     @staticmethod
-    def update_request(
-        request_id: str,
-        request_status: RequestEnum,
-        api_key: str,
-        source_ip: str,
-        input_data: dict,
-        message: str,
-        credit: int,
-        increment_try: bool = False,
-    ) -> None:
+    def update_request(**kwargs) -> None:
         """
         This method is used to update a request in the database
 
         Args:
+            **kwargs: The keyword arguments for the request table
+
+        The keyword arguments are:
             request_id (str): The request ID
             request_status (RequestEnum): The status of the request
             api_key (str): The API key used to authenticate the request
@@ -169,7 +190,40 @@ class RequestTable(TableBase):
             None
         """
         from datetime import datetime
+
         from metbuild.database import Database
+
+        request_id = kwargs.get("request_id")
+        request_status = kwargs.get("request_status")
+        api_key = kwargs.get("api_key")
+        source_ip = kwargs.get("source_ip")
+        input_data = kwargs.get("input_data")
+        message = kwargs.get("message")
+        credit = kwargs.get("credit")
+        increment_try = kwargs.get("increment_try", False)
+
+        # ...Check that all the required arguments are present
+        if request_id is None:
+            msg = "request_id is required"
+            raise ValueError(msg)
+        if request_status is None:
+            msg = "request_status is required"
+            raise ValueError(msg)
+        if api_key is None:
+            msg = "api_key is required"
+            raise ValueError(msg)
+        if source_ip is None:
+            msg = "source_ip is required"
+            raise ValueError(msg)
+        if input_data is None:
+            msg = "input_data is required"
+            raise ValueError(msg)
+        if message is None:
+            msg = "message is required"
+            raise ValueError(msg)
+        if credit is None:
+            msg = "credit is required"
+            raise ValueError(msg)
 
         with Database() as db, db.session() as session:
             record = (
@@ -180,13 +234,13 @@ class RequestTable(TableBase):
 
             if record is None:
                 RequestTable.add_request(
-                    request_id,
-                    request_status,
-                    api_key,
-                    source_ip,
-                    input_data,
-                    message,
-                    credit,
+                    request_id=request_id,
+                    request_status=request_status,
+                    api_key=api_key,
+                    source_ip=source_ip,
+                    input_data=input_data,
+                    message=message,
+                    credit=credit,
                 )
             else:
                 if increment_try:
@@ -384,7 +438,7 @@ class NhcBtkTable(TableBase):
     downloaded from the NHC ftp server
     """
 
-    from sqlalchemy import Column, Integer, String, DateTime
+    from sqlalchemy import Column, DateTime, Integer, String
 
     __tablename__ = "nhc_btk"
 
@@ -407,7 +461,7 @@ class NhcFcstTable(TableBase):
     processed from the NHC RSS feed
     """
 
-    from sqlalchemy import Column, Integer, String, DateTime
+    from sqlalchemy import Column, DateTime, Integer, String
 
     __tablename__ = "nhc_fcst"
 

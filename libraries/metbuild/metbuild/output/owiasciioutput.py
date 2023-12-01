@@ -57,12 +57,12 @@ class OwiAsciiOutput(OutputFile):
         Add a domain to the OWI ASCII output file.
         """
         domain = OwiAsciiDomain(
-            grid,
-            self.start_time(),
-            self.end_time(),
-            self.time_step(),
-            filename,
-            self.compression(),
+            grid_obj=grid,
+            start_date=self.start_time(),
+            end_date=self.end_time(),
+            time_step=self.time_step(),
+            filename=filename,
+            compression=self.compression(),
         )
         self._add_domain(domain, filename)
 
