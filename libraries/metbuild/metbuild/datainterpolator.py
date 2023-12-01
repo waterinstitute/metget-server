@@ -1,10 +1,11 @@
-from typing import Tuple, Union
+from typing import List, Union
 
 import numpy as np
 import xarray as xr
 from shapely import Polygon
 
-from .enum import MetDataType, MetFileFormat
+from .enum import MetFileFormat
+from .interpdata import InterpData
 from .output.outputgrid import OutputGrid
 
 
@@ -61,7 +62,6 @@ class DataInterpolator:
         Args:
             **kwargs: Keyword arguments for input data, including:
                 - file_list (list): List of files to interpolate.
-                - variable_type (MetDataType): Type of the variable.
                 - boundary_polygons (list): List of boundary polygons.
                 - smoothing_points (list): List of smoothing points.
                 - apply_filter (bool): Flag to apply filtering.
@@ -72,12 +72,11 @@ class DataInterpolator:
         """
         # Check and retrieve the first three required arguments
         file_list = kwargs.get("file_list")
-        variable_type = kwargs.get("variable_type")
         boundary_polygons = kwargs.get("boundary_polygons", None)
 
         # Check for missing required arguments
-        if file_list is None or variable_type is None:
-            required_args = ["file_list", "variable_type"]
+        if file_list is None:
+            required_args = ["file_list"]
             missing_args = [arg for arg in required_args if arg not in kwargs]
             msg = f"Missing required arguments: {', '.join(missing_args)}"
             raise ValueError(msg)
@@ -86,9 +85,7 @@ class DataInterpolator:
         if not isinstance(file_list, list):
             msg = "file_list must be of type list"
             raise TypeError(msg)
-        if not isinstance(variable_type, MetDataType):
-            msg = "variable_type must be of type MetDataType"
-            raise TypeError(msg)
+
         if not isinstance(boundary_polygons, list) and boundary_polygons is not None:
             msg = "boundary_polygons must be of type list"
             raise TypeError(msg)
@@ -98,16 +95,16 @@ class DataInterpolator:
         apply_filter = kwargs.get("apply_filter", False)
 
         # ...Read the datasets from the various files into a list of dictionaries
-        data = self.__read_datasets(file_list, variable_type, boundary_polygons)
+        data = self.__read_datasets(file_list, boundary_polygons)
 
         # ...If smoothing points are provided, then use them
         if smoothing_points is not None:
             for i, data_item in enumerate(data):
-                data_item["smoothing_points"] = smoothing_points[i]
+                data_item.set_smoothing_points(smoothing_points[i])
 
         # Sort the data by the resolution. The assumption is that the higher
         # resolution data has the highest priority
-        data.sort(key=lambda gb: gb["res"], reverse=False)
+        data.sort(key=lambda gb: gb.resolution(), reverse=False)
 
         # ...Interpolate the data to the user-specified grid
         data = self.__interpolate_fields(data)
@@ -119,12 +116,9 @@ class DataInterpolator:
         boundary_polygon_list = []
         for filename in file_list:
             for data_item in data:
-                if data_item["filename"] == filename["filename"]:
-                    if "smoothing_points" not in data_item:
-                        smoothing_point_list.append(None)
-                    else:
-                        smoothing_point_list.append(data_item["smoothing_points"])
-                    boundary_polygon_list.append(data_item["polygon"])
+                if data_item.filename() == filename["filename"]:
+                    smoothing_point_list.append(data_item.smoothing_points())
+                    boundary_polygon_list.append(data_item.polygon())
                     break
 
         return {
@@ -146,13 +140,14 @@ class DataInterpolator:
             None
         """
         for data_item in data:
-            data_item["values"] = data_item["dataset"].interp(
+            interp_data = data_item.dataset().interp(
                 latitude=self.__y, longitude=self.__x, method="linear"
             )
+            data_item.set_interp_dataset(interp_data)
 
         return data
 
-    def __merge_data(self, data: list, apply_filter: bool) -> np.ndarray:
+    def __merge_data(self, data: List[InterpData], apply_filter: bool) -> xr.Dataset:
         """
         Merge the data from the various files into a single array.
 
@@ -165,38 +160,37 @@ class DataInterpolator:
             np.ndarray: The merged data.
         """
 
-        out_array = None
-        for i, data_item in enumerate(data):
-            if i == 0:
-                out_array = (
-                    data_item["values"][data_item["variable_name"]].to_numpy()
-                    * data_item["scale"]
-                )
-            else:
-                out_array[np.isnan(out_array)] = (
-                    data_item["values"][data_item["variable_name"]].to_numpy()[
-                        np.isnan(out_array)
-                    ]
-                    * data_item["scale"]
+        out_data = data[0].interp_dataset().copy(deep=True)
+        for var in out_data:
+            out_data[var].where(False, np.nan)
+
+        for var_obj in data[0].file_type().variables():
+            for data_item in data:
+                var_name = str(data_item.file_type().variable(var_obj)["type"])
+                out_data[var_name] = xr.where(
+                    np.isnan(out_data[var_name]),
+                    data_item.interp_dataset()[var_name],
+                    out_data[var_name],
                 )
 
         check_outer_polygons = self.__check_polygons_to_be_used(data)
 
         # ...Generate buffering boundaries for the polygons
         for data_item in data:
-            poly = data_item["polygon"]
-            data_item["inner_polygon"] = poly.buffer(-5.0 * data_item["res"])
-            data_item["outer_polygon"] = poly.buffer(5.0 * data_item["res"])
+            poly = data_item.polygon()
+            inner_polygon = poly.buffer(-5.0 * data_item.resolution())
+            outer_polygon = poly.buffer(5.0 * data_item.resolution())
+
+            # ...Set the polygon to the difference between the outer and inner polygons
+            data_item.set_polygon(outer_polygon.difference(inner_polygon))
 
         # ...Apply the Gaussian smoothing where the polygons overlap for all
         # except the last polygon
         if apply_filter:
             self.__compute_smoothing_points(data, check_outer_polygons)
-            out_array = self.__apply_gaussian_filter(
-                data, out_array, check_outer_polygons
-            )
+            self.__apply_gaussian_filter(data, out_data, check_outer_polygons)
 
-        return out_array
+        return out_data
 
     @staticmethod
     def __check_polygons_to_be_used(data: list) -> np.ndarray:
@@ -212,9 +206,9 @@ class DataInterpolator:
         """
         check_outer_polygons = np.full(len(data), dtype=bool, fill_value=False)
         for i, data_item_i in enumerate(data):
-            poly_i = data_item_i["polygon"]
+            poly_i = data_item_i.polygon()
             for j, data_item_j in enumerate(data):
-                poly_j = data_item_j["polygon"]
+                poly_j = data_item_j.polygon()
                 if i == j:
                     continue
                 if (
@@ -242,30 +236,27 @@ class DataInterpolator:
         for i, data_item in enumerate(data[:-1]):
             # ...If not using the polygon or the smoothing points have
             # already been computed, then skip
-            if not use_polygon[i] or "smoothing_points" in data_item:
+            if not use_polygon[i] or data_item.smoothing_points() is not None:
                 continue
 
-            inner_polygon = data_item["inner_polygon"]
-            outer_polygon = data_item["outer_polygon"]
-
+            # ...Select the points that are within the polygon ring
             smoothing_points = self.__grid.geoseries()[
-                self.__grid.geoseries().within(outer_polygon)
-                & ~self.__grid.geoseries().within(inner_polygon)
+                self.__grid.geoseries().within(data_item.polygon())
             ]
 
             # ...Get the 2D index of the smoothing points from the 1D index using ravel
-            smoothing_points_index = np.unravel_index(
-                smoothing_points.index.values, (self.__grid.ni(), self.__grid.nj())
+            data_item.set_smoothing_points(
+                np.unravel_index(
+                    smoothing_points.index.values, (self.__grid.ni(), self.__grid.nj())
+                )
             )
-
-            data_item["smoothing_points"] = smoothing_points_index
 
     @staticmethod
     def __apply_gaussian_filter(
         data: list,
         out_array: np.array,
         use_polygon: np.ndarray,
-    ) -> np.ndarray:
+    ) -> xr.Dataset:
         """
         Apply the Gaussian smoothing where the polygons overlap for all except the
         last polygon.
@@ -281,25 +272,26 @@ class DataInterpolator:
         """
         from scipy.ndimage import gaussian_filter
 
-        temp_out_array = out_array.copy()
-
         for i, data_item in enumerate(data[:-1]):
             if not use_polygon[i]:
                 continue
 
             # ...Apply the Gaussian smoothing using scipy.ndimage
-            smoothed_array = gaussian_filter(
-                out_array,
-                sigma=5.0 * data[i]["res"],
-                mode="constant",
-                cval=np.nan,
-            )
-            temp_out_array[data_item["smoothing_points"]] = smoothed_array[
-                data_item["smoothing_points"]
-            ]
-            # temp_out_array[data_item["smoothing_points"]] = 0.0
+            for var in out_array:
+                smoothed_array = gaussian_filter(
+                    out_array[var].to_numpy(),
+                    sigma=5.0 * data[i].resolution(),
+                    mode="constant",
+                    cval=np.nan,
+                )
 
-        return temp_out_array
+                pts = data_item.smoothing_points()
+                arr = out_array[var].to_numpy()
+                arr[pts] = smoothed_array[pts]
+                # arr[pts] = 0.0  # ...Use for debugging the selection box
+                out_array[var] = xr.DataArray(arr, dims=["latitude", "longitude"])
+
+        return out_array
 
     @staticmethod
     def __order_points(point_list: np.array) -> np.array:
@@ -329,10 +321,9 @@ class DataInterpolator:
 
     def __read_datasets(
         self,
-        file_list: list,
-        variable_type: MetDataType,
-        boundary_polygons: Union[list, None],
-    ) -> list:
+        file_list: List[str],
+        boundary_polygons: Union[List[Polygon], None],
+    ) -> List[InterpData]:
         """
         Read the datasets from the various files into a list of dictionaries
         which contain:
@@ -340,7 +331,6 @@ class DataInterpolator:
 
         Args:
             file_list (list): The list of grib files to interpolate.
-            variable_type (MetDataType): The name of the variable in the grib file.
             boundary_polygons (list): The list of boundary polygons to use.
 
         Returns:
@@ -349,32 +339,20 @@ class DataInterpolator:
         """
         datasets = []
         for i, f in enumerate(file_list):
-            var_data = f["type"].variable(variable_type)
-            var_name = var_data["var_name"]
-
             if boundary_polygons is None:
-                dataset, polygon = self.__open_dataset(f, var_data, None)
+                interp_data = self.__open_dataset(f, f["type"].variables(), None)
             else:
-                dataset, polygon = self.__open_dataset(
-                    f, var_data, boundary_polygons[i]
+                interp_data = self.__open_dataset(
+                    f, f["type"].variables(), boundary_polygons[i]
                 )
 
-            datasets.append(
-                {
-                    "filename": f["filename"],
-                    "variable_name": var_name,
-                    "scale": f["scale"],
-                    "dataset": dataset,
-                    "polygon": polygon,
-                    "res": self.__calculate_resolution(dataset),
-                }
-            )
+            datasets.append(interp_data)
 
         return datasets
 
     def __open_dataset(
         self, f: dict, variable_data: dict, boundary_polygon: Union[Polygon, None]
-    ) -> Tuple[xr.Dataset, Polygon]:
+    ) -> InterpData:
         """
         Open the dataset using xarray.
 
@@ -383,36 +361,32 @@ class DataInterpolator:
             variable_data (dict): The name of the variable in the grib file.
 
         Returns:
-            xr.Dataset: The dataset.
+            InterpData: The dataset and associated information
         """
         if f["type"].file_format() == MetFileFormat.GRIB:
-            dataset, polygon = self.__xr_open_grib_format(
+            interp_data = self.__xr_open_grib_format(
                 f,
-                variable_data["grib_name"],
-                variable_data["var_name"],
                 boundary_polygon,
             )
         elif f["type"].file_format() == MetFileFormat.COAMPS_TC:
-            dataset, polygon = self.__xr_open_coamps_netcdf(
+            interp_data = self.__xr_open_coamps_netcdf(
                 f,
-                variable_data["var_name"],
                 boundary_polygon,
             )
         else:
             msg = f"Unknown file extension: {f}"
             raise ValueError(msg)
-        return dataset, polygon
 
-    @staticmethod
+        return interp_data
+
     def __xr_open_coamps_netcdf(
-        f: dict, variable_name: str, boundary_polygon: Union[Polygon, None]
-    ) -> Tuple[xr.Dataset, Polygon]:
+        self, f: dict, boundary_polygon: Union[Polygon, None]
+    ) -> InterpData:
         """
         Open the coamps-tc netcdf file using xarray.
 
         Args:
             f (dict): The file to open.
-            variable_name (str): The name of the variable in the grib file.
             boundary_polygon (Polygon): The boundary polygon to use.
                 If None, then generate a polygon from the data.
 
@@ -431,57 +405,112 @@ class DataInterpolator:
         lat = nc.variables["lat"][:]
         lon = lon[0, :]
         lat = lat[:, 0]
-        var = nc.variables[variable_name][:]
-        dataset = xr.Dataset(
-            {
-                "longitude": (["longitude"], lon),
-                "latitude": (["latitude"], lat),
-                variable_name: (["latitude", "longitude"], var),
-            }
-        )
+
+        dataset = None
+        for var in f["type"].variables():
+            variable_name = f["type"].variable(var)["var_name"]
+            standard_name = str(f["type"].variable(var)["type"])
+
+            var_data = nc.variables[variable_name][:]
+
+            if dataset is None:
+                dataset = xr.Dataset(
+                    {
+                        "longitude": (["longitude"], lon),
+                        "latitude": (["latitude"], lat),
+                        standard_name: (["latitude", "longitude"], var_data),
+                    }
+                )
+            else:
+                dataset = xr.merge(
+                    [
+                        dataset,
+                        xr.Dataset(
+                            {
+                                "longitude": (["longitude"], lon),
+                                "latitude": (["latitude"], lat),
+                                standard_name: (["latitude", "longitude"], var_data),
+                            }
+                        ),
+                    ]
+                )
 
         if boundary_polygon is None:
-            poly = DataInterpolator.__generate_dataset_polygon(dataset, variable_name)
+            var_name = str(
+                f["type"].variables()[next(iter(f["type"].variables()))]["type"]
+            )
+            poly = DataInterpolator.__generate_dataset_polygon(dataset, var_name)
         else:
             poly = boundary_polygon
 
-        return dataset, poly
+        return InterpData(
+            filename=f["filename"],
+            epsg=4326,
+            file_type=f["type"],
+            grid_obj=self.__grid,
+            dataset=dataset,
+            polygon=poly,
+        )
 
-    @staticmethod
     def __xr_open_grib_format(
+        self,
         f: dict,
-        grib_variable_name: str,
-        dataset_variable_name: str,
         boundary_polygon: Union[Polygon, None],
-    ) -> Tuple[xr.Dataset, Polygon]:
+    ) -> InterpData:
         """
         Open the grib file using xarray. Only read the specified variable.
 
         Args:
             f (dict): The file to open.
-            grib_variable_name (str): The name of the variable in the grib file.
-            dataset_variable_name (str): The name of the variable in the dataset.
             boundary_polygon (Polygon): The boundary polygon to use.
                 If None, then generate a polygon from the data.
 
-
         Returns:
-            xr.Dataset: The dataset.
+            InterpData: The dataset and associated information
         """
-        dataset = xr.open_dataset(
-            f["filename"],
-            engine="cfgrib",
-            backend_kwargs={"filter_by_keys": {"shortName": grib_variable_name}},
-        )
+
+        dataset = None
+        for var in f["type"].variables():
+            grib_var_name = f["type"].variable(var)["grib_name"]
+            ds = xr.open_dataset(
+                f["filename"],
+                engine="cfgrib",
+                backend_kwargs={"filter_by_keys": {"shortName": grib_var_name}},
+            )
+
+            ds = ds * f["type"].variable(var)["scale"]
+
+            if dataset is None:
+                dataset = ds
+            else:
+                dataset = xr.merge([dataset, ds], compat="override")
+
+        # ...Rename the variables in the dataset to the standard names
+        for var in f["type"].variables():
+            standard_name = str(f["type"].variable(var)["type"])
+            grib_var_name = f["type"].variable(var)["var_name"]
+            if grib_var_name in dataset:
+                dataset = dataset.rename({grib_var_name: standard_name})
 
         if boundary_polygon is None:
+            var_name = str(
+                f["type"].variables()[next(iter(f["type"].variables()))]["type"]
+            )
             poly = DataInterpolator.__generate_dataset_polygon(
-                dataset, dataset_variable_name
+                dataset,
+                var_name,
             )
         else:
             poly = boundary_polygon
 
-        return dataset, poly
+        return InterpData(
+            filename=f["filename"],
+            epsg=4326,
+            file_type=f["type"],
+            grid_obj=self.__grid,
+            dataset=dataset,
+            polygon=poly,
+        )
 
     @staticmethod
     def __generate_dataset_polygon(dataset: xr.Dataset, variable_name: str) -> Polygon:
@@ -496,7 +525,7 @@ class DataInterpolator:
         """
 
         # ...Get the resolution of the dataset
-        dataset_resolution = DataInterpolator.__calculate_resolution(dataset)
+        dataset_resolution = InterpData.calculate_resolution(dataset)
 
         xy = np.meshgrid(dataset.longitude.values, dataset.latitude.to_numpy())
         xy[0][xy[0] > 180.0] = xy[0][xy[0] > 180.0] - 360.0  # noqa: PLR2004
@@ -539,30 +568,3 @@ class DataInterpolator:
             raise ValueError(msg)
 
         return polygon.simplify(dataset_resolution / 2.0)
-
-    @staticmethod
-    def __calculate_resolution(dataset: xr.Dataset) -> float:
-        """
-        Compute the mean resolution of the grid.
-        """
-
-        # ...Due to the trickery use for netCDF data, we need to check if the
-        # dataset has lon and lat as coordinates or longitude and latitude
-        if "lon" in dataset.coords:
-            dx = (
-                dataset.lon.to_numpy()[0][-1] - dataset.lon.to_numpy()[0][0]
-            ) / dataset.lon.to_numpy().shape[1]
-            dy = (
-                dataset.lat.to_numpy()[-1][0] - dataset.lat.to_numpy()[0][0]
-            ) / dataset.lat.to_numpy().shape[0]
-        elif "longitude" in dataset.coords:
-            dx = (
-                dataset.longitude.to_numpy()[-1] - dataset.longitude.to_numpy()[0]
-            ) / dataset.longitude.to_numpy().shape[0]
-            dy = (
-                dataset.latitude.to_numpy()[-1] - dataset.latitude.to_numpy()[0]
-            ) / dataset.latitude.to_numpy().shape[0]
-        else:
-            msg = "Unknown coordinate system"
-            raise ValueError(msg)
-        return (dx + dy) / 2.0
