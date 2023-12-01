@@ -1,17 +1,46 @@
-from typing import List, Union
+###################################################################################################
+# MIT License
+#
+# Copyright (c) 2023 The Water Institute
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# Author: Zach Cobell
+# Contact: zcobell@thewaterinstitute.org
+# Organization: The Water Institute
+#
+###################################################################################################
+
+from typing import List
 
 import numpy as np
 import xarray as xr
 from shapely import Polygon
 
-from .enum import MetFileFormat
+from .enum import MetFileFormat, VariableType
 from .interpdata import InterpData
 from .output.outputgrid import OutputGrid
 
 
 class DataInterpolator:
     """
-    A class to interpolate data from a grib file to a grid.
+    A class to interpolate data from a meteorological file to an OutputGrid object.
     """
 
     def __init__(self, grid: OutputGrid):
@@ -55,80 +84,52 @@ class DataInterpolator:
         """
         return self.__y
 
-    def interpolate(self, **kwargs) -> dict:
+    def interpolate(self, **kwargs) -> xr.Dataset:
         """
         Interpolate the data from the grib file to the grid.
 
         Args:
             **kwargs: Keyword arguments for input data, including:
                 - file_list (list): List of files to interpolate.
-                - boundary_polygons (list): List of boundary polygons.
-                - smoothing_points (list): List of smoothing points.
+                - variable_type (VariableType): The type of variable to interpolate. Default is all
                 - apply_filter (bool): Flag to apply filtering.
 
         Returns:
-            dict: The interpolated data and the smoothing points
-            (if apply_filter is True).
+            xr.Dataset: The interpolated data.
         """
         # Check and retrieve the first three required arguments
         file_list = kwargs.get("file_list")
-        boundary_polygons = kwargs.get("boundary_polygons", None)
 
-        # Check for missing required arguments
+        # Check for missing arguments
         if file_list is None:
-            required_args = ["file_list"]
-            missing_args = [arg for arg in required_args if arg not in kwargs]
-            msg = f"Missing required arguments: {', '.join(missing_args)}"
+            msg = "Missing required arguments: file_list"
             raise ValueError(msg)
 
-        # Type check the first three arguments
+        # Type check
         if not isinstance(file_list, list):
             msg = "file_list must be of type list"
             raise TypeError(msg)
 
-        if not isinstance(boundary_polygons, list) and boundary_polygons is not None:
-            msg = "boundary_polygons must be of type list"
-            raise TypeError(msg)
-
         # Extract other kwargs or set default values
-        smoothing_points = kwargs.get("smoothing_points", None)
         apply_filter = kwargs.get("apply_filter", False)
+        variable_type = kwargs.get("variable_type", VariableType.ALL_VARIABLES)
 
-        # ...Read the datasets from the various files into a list of dictionaries
-        data = self.__read_datasets(file_list, boundary_polygons)
-
-        # ...If smoothing points are provided, then use them
-        if smoothing_points is not None:
-            for i, data_item in enumerate(data):
-                data_item.set_smoothing_points(smoothing_points[i])
+        # Read the datasets from the various files into a list of InterpData objects
+        data = self.__read_datasets(file_list, variable_type)
 
         # Sort the data by the resolution. The assumption is that the higher
-        # resolution data has the highest priority
+        # resolution data has the highest priority. Since this is a stable sort
+        # if the resolutions are the same, then the order of the files is
+        # preserved.
         data.sort(key=lambda gb: gb.resolution(), reverse=False)
 
-        # ...Interpolate the data to the user-specified grid
-        data = self.__interpolate_fields(data)
+        # Interpolate the data to the user-specified grid
+        self.__interpolate_fields(data)
 
-        out_array = self.__merge_data(data, apply_filter)
+        # ...Merge the data from the various files into a single xarray dataset
+        return self.__merge_data(data, variable_type, apply_filter)
 
-        # ...Generate the output dictionary
-        smoothing_point_list = []
-        boundary_polygon_list = []
-        for filename in file_list:
-            for data_item in data:
-                if data_item.filename() == filename["filename"]:
-                    smoothing_point_list.append(data_item.smoothing_points())
-                    boundary_polygon_list.append(data_item.polygon())
-                    break
-
-        return {
-            "result": out_array,
-            "files": file_list,
-            "smoothing_points": smoothing_point_list,
-            "boundary_polygons": boundary_polygon_list,
-        }
-
-    def __interpolate_fields(self, data: list) -> list:
+    def __interpolate_fields(self, data: list) -> None:
         """
         Interpolate the data to the user specified grid.
 
@@ -136,8 +137,6 @@ class DataInterpolator:
             data (list): The list of dictionaries containing the filename,
             variable_name, scale, dataset, and resolution.
 
-        Returns:
-            None
         """
         for data_item in data:
             interp_data = data_item.dataset().interp(
@@ -145,15 +144,16 @@ class DataInterpolator:
             )
             data_item.set_interp_dataset(interp_data)
 
-        return data
-
-    def __merge_data(self, data: List[InterpData], apply_filter: bool) -> xr.Dataset:
+    def __merge_data(
+        self, data: List[InterpData], variable_type: VariableType, apply_filter: bool
+    ) -> xr.Dataset:
         """
         Merge the data from the various files into a single array.
 
         Args:
             data (list): The list of dictionaries containing the filename,
                 variable_name, scale, dataset, and resolution.
+            variable_type (VariableType): The type of variable to interpolate.
             apply_filter (bool): Whether to apply the Gaussian filter.
 
         Returns:
@@ -164,7 +164,7 @@ class DataInterpolator:
         for var in out_data:
             out_data[var].where(False, np.nan)
 
-        for var_obj in data[0].file_type().variables():
+        for var_obj in data[0].file_type().selected_variables(variable_type):
             for data_item in data:
                 var_name = str(data_item.file_type().variable(var_obj)["type"])
                 out_data[var_name] = xr.where(
@@ -173,24 +173,35 @@ class DataInterpolator:
                     out_data[var_name],
                 )
 
-        check_outer_polygons = self.__check_polygons_to_be_used(data)
+        # ...Apply the Gaussian smoothing where the polygons overlap for all
+        # except the last polygon
+        if apply_filter:
+            self.__perform_boundary_smoothing(data, out_data)
 
+        return out_data
+
+    def __perform_boundary_smoothing(
+        self, input_data: list, output_dataset: xr.Dataset
+    ) -> None:
+        """
+        Performs the boundary smoothing using the polygon buffer and a Gaussian filter.
+
+        Args:
+            input_data (list): The list of dictionaries containing the filename,
+                variable_name, scale, dataset, and resolution.
+            output_dataset (xr.Dataset): The output array to apply the Gaussian smoothing to.
+        """
+        check_outer_polygons = DataInterpolator.__check_polygons_to_be_used(input_data)
         # ...Generate buffering boundaries for the polygons
-        for data_item in data:
+        for data_item in input_data:
             poly = data_item.polygon()
             inner_polygon = poly.buffer(-5.0 * data_item.resolution())
             outer_polygon = poly.buffer(5.0 * data_item.resolution())
 
             # ...Set the polygon to the difference between the outer and inner polygons
             data_item.set_polygon(outer_polygon.difference(inner_polygon))
-
-        # ...Apply the Gaussian smoothing where the polygons overlap for all
-        # except the last polygon
-        if apply_filter:
-            self.__compute_smoothing_points(data, check_outer_polygons)
-            self.__apply_gaussian_filter(data, out_data, check_outer_polygons)
-
-        return out_data
+        self.__compute_smoothing_points(input_data, check_outer_polygons)
+        self.__apply_gaussian_filter(input_data, output_dataset, check_outer_polygons)
 
     @staticmethod
     def __check_polygons_to_be_used(data: list) -> np.ndarray:
@@ -254,7 +265,7 @@ class DataInterpolator:
     @staticmethod
     def __apply_gaussian_filter(
         data: list,
-        out_array: np.array,
+        out_array: xr.Dataset,
         use_polygon: np.ndarray,
     ) -> xr.Dataset:
         """
@@ -321,8 +332,8 @@ class DataInterpolator:
 
     def __read_datasets(
         self,
-        file_list: List[str],
-        boundary_polygons: Union[List[Polygon], None],
+        file_list: List[dict],
+        variable_type: VariableType,
     ) -> List[InterpData]:
         """
         Read the datasets from the various files into a list of dictionaries
@@ -331,34 +342,30 @@ class DataInterpolator:
 
         Args:
             file_list (list): The list of grib files to interpolate.
-            boundary_polygons (list): The list of boundary polygons to use.
+            variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
             list: The list of dictionaries containing the filename,
                 variable_name, scale, dataset, and resolution.
         """
         datasets = []
-        for i, f in enumerate(file_list):
-            if boundary_polygons is None:
-                interp_data = self.__open_dataset(f, f["type"].variables(), None)
-            else:
-                interp_data = self.__open_dataset(
-                    f, f["type"].variables(), boundary_polygons[i]
-                )
-
+        for f in file_list:
+            interp_data = self.__open_dataset(f, variable_type)
             datasets.append(interp_data)
 
         return datasets
 
     def __open_dataset(
-        self, f: dict, variable_data: dict, boundary_polygon: Union[Polygon, None]
+        self,
+        f: dict,
+        variable_type: VariableType,
     ) -> InterpData:
         """
         Open the dataset using xarray.
 
         Args:
             f (dict): The file to open.
-            variable_data (dict): The name of the variable in the grib file.
+            variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
             InterpData: The dataset and associated information
@@ -366,12 +373,12 @@ class DataInterpolator:
         if f["type"].file_format() == MetFileFormat.GRIB:
             interp_data = self.__xr_open_grib_format(
                 f,
-                boundary_polygon,
+                variable_type,
             )
         elif f["type"].file_format() == MetFileFormat.COAMPS_TC:
             interp_data = self.__xr_open_coamps_netcdf(
                 f,
-                boundary_polygon,
+                variable_type,
             )
         else:
             msg = f"Unknown file extension: {f}"
@@ -380,15 +387,16 @@ class DataInterpolator:
         return interp_data
 
     def __xr_open_coamps_netcdf(
-        self, f: dict, boundary_polygon: Union[Polygon, None]
+        self,
+        f: dict,
+        variable_type: VariableType,
     ) -> InterpData:
         """
         Open the coamps-tc netcdf file using xarray.
 
         Args:
             f (dict): The file to open.
-            boundary_polygon (Polygon): The boundary polygon to use.
-                If None, then generate a polygon from the data.
+            variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
             xr.Dataset: The dataset.
@@ -407,7 +415,7 @@ class DataInterpolator:
         lat = lat[:, 0]
 
         dataset = None
-        for var in f["type"].variables():
+        for var in f["type"].selected_variables(variable_type):
             variable_name = f["type"].variable(var)["var_name"]
             standard_name = str(f["type"].variable(var)["type"])
 
@@ -435,13 +443,8 @@ class DataInterpolator:
                     ]
                 )
 
-        if boundary_polygon is None:
-            var_name = str(
-                f["type"].variables()[next(iter(f["type"].variables()))]["type"]
-            )
-            poly = DataInterpolator.__generate_dataset_polygon(dataset, var_name)
-        else:
-            poly = boundary_polygon
+        var_name = str(f["type"].variables()[next(iter(f["type"].variables()))]["type"])
+        poly = DataInterpolator.__generate_dataset_polygon(dataset, var_name)
 
         return InterpData(
             filename=f["filename"],
@@ -455,22 +458,21 @@ class DataInterpolator:
     def __xr_open_grib_format(
         self,
         f: dict,
-        boundary_polygon: Union[Polygon, None],
+        variable_type: VariableType,
     ) -> InterpData:
         """
         Open the grib file using xarray. Only read the specified variable.
 
         Args:
             f (dict): The file to open.
-            boundary_polygon (Polygon): The boundary polygon to use.
-                If None, then generate a polygon from the data.
+            variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
             InterpData: The dataset and associated information
         """
 
         dataset = None
-        for var in f["type"].variables():
+        for var in f["type"].selected_variables(variable_type):
             grib_var_name = f["type"].variable(var)["grib_name"]
             ds = xr.open_dataset(
                 f["filename"],
@@ -486,22 +488,17 @@ class DataInterpolator:
                 dataset = xr.merge([dataset, ds], compat="override")
 
         # ...Rename the variables in the dataset to the standard names
-        for var in f["type"].variables():
+        for var in f["type"].selected_variables(variable_type):
             standard_name = str(f["type"].variable(var)["type"])
             grib_var_name = f["type"].variable(var)["var_name"]
             if grib_var_name in dataset:
                 dataset = dataset.rename({grib_var_name: standard_name})
 
-        if boundary_polygon is None:
-            var_name = str(
-                f["type"].variables()[next(iter(f["type"].variables()))]["type"]
-            )
-            poly = DataInterpolator.__generate_dataset_polygon(
-                dataset,
-                var_name,
-            )
-        else:
-            poly = boundary_polygon
+        var_name = str(f["type"].variables()[next(iter(f["type"].variables()))]["type"])
+        poly = DataInterpolator.__generate_dataset_polygon(
+            dataset,
+            var_name,
+        )
 
         return InterpData(
             filename=f["filename"],

@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 
-from .enum import MetDataType, MetFileFormat
+from .enum import MetDataType, MetFileFormat, VariableType
 
 
 class MetFileAttributes:
@@ -138,6 +138,16 @@ class MetFileAttributes:
         if t not in self.__variables:
             raise ValueError("Invalid variable type for this format: " + str(t))
         return self.__variables[t]
+
+    def selected_variables(self, data_type: VariableType) -> list:
+        """
+        Get the list of variables selected for the type of meteorological data
+
+        Returns:
+            list: The list of variables selected for the type of meteorological data
+        """
+        candidates = data_type.select()
+        return [v for v in candidates if v in self.__variables]
 
     def cycles(self) -> list:
         """
