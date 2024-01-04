@@ -27,8 +27,7 @@
 #
 ###################################################################################################
 
-from dataset import Dataset
-
+from .dataset import Dataset
 from .outputfile import OutputFile
 from .outputgrid import OutputGrid
 from .owiasciidomain import OwiAsciiDomain
@@ -79,3 +78,13 @@ class OwiAsciiOutput(OutputFile):
         """
         msg = "OwiAsciiOutput.write() is not implemented"
         raise NotImplementedError(msg)
+
+    def close(self) -> None:
+        """
+        Close the OWI ASCII output file.
+
+        Returns:
+            None
+        """
+        for d in self.domains():
+            d["domain"].close()

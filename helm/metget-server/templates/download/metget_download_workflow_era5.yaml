@@ -17,7 +17,7 @@ spec:
       - name: runner
         steps:
         - - name: download
-            templateRef: 
+            templateRef:
               name: {{ .Release.Name }}-download-template
               template: {{ .Release.Name }}-download-runner
             arguments:

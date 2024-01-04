@@ -4,7 +4,7 @@ metadata:
   name: workflow-controller-configmap
   namespace: argo
 data:
-  workflowDefaults: | 
+  workflowDefaults: |
     spec:
       podGC:
         strategy: OnWorkflowSuccess

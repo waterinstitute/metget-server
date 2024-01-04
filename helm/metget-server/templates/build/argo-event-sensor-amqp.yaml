@@ -42,13 +42,13 @@ spec:
                               name: {{ .Release.Name }}-database-secret
                               key: username
                         - name: METGET_DATABASE_PASSWORD
-                          valueFrom: 
-                            secretKeyRef: 
-                              name: {{ .Release.Name }}-database-secret 
+                          valueFrom:
+                            secretKeyRef:
+                              name: {{ .Release.Name }}-database-secret
                               key: password
                         - name: AWS_ACCESS_KEY_ID
-                          valueFrom: 
-                            secretKeyRef: 
+                          valueFrom:
+                            secretKeyRef:
                               name: aws-credentials
                               key: username
                         - name: AWS_SECRET_ACCESS_KEY
@@ -85,12 +85,12 @@ spec:
                           valueFrom:
                             configMapKeyRef:
                               name: {{ .Release.Name }}-configmap
-                              key: s3.upload_bucket 
+                              key: s3.upload_bucket
                         - name: METGET_RABBITMQ_QUEUE
                           valueFrom:
                             configMapKeyRef:
                               name: {{ .Release.Name }}-configmap
-                              key: rabbit.queue 
+                              key: rabbit.queue
                         - name: METGET_REQUEST_JSON
                           value: '{{ "{{" }}inputs.parameters.message{{ "}}" }}'
                       command: [python3, metget_build.py]

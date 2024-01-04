@@ -28,8 +28,8 @@
 #
 ###################################################################################################
 
-from typing import Union
 from datetime import datetime
+from typing import Union
 
 
 class Metdb:
@@ -201,10 +201,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def __has_hafs(self, datatype: str, metadata: dict):
         """
@@ -219,7 +216,7 @@ class Metdb:
         """
         from metbuild.tables import HafsATable, HafsBTable
 
-        if datatype == "ncep_hafs_a" or datatype == "hafs":
+        if datatype in ("ncep_hafs_a", "hafs"):
             table = HafsATable
         elif datatype == "ncep_hafs_b":
             table = HafsBTable
@@ -240,10 +237,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def __has_coamps(self, metadata: dict) -> bool:
         """
@@ -271,10 +265,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def __has_ctcx(self, metadata: dict) -> bool:
         """
@@ -304,10 +295,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def __has_nhc_fcst(self, metadata: dict) -> bool:
         """
@@ -343,10 +331,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def __has_nhc_btk(self, metadata: dict) -> bool:
         """
@@ -380,10 +365,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def __has_gefs(self, metadata: dict) -> bool:
         """
@@ -411,10 +393,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def __has_generic(self, datatype: str, metadata: dict) -> bool:
         """
@@ -429,10 +408,10 @@ class Metdb:
         """
         from metbuild.tables import (
             GfsTable,
+            HrrrAlaskaTable,
+            HrrrTable,
             NamTable,
             WpcTable,
-            HrrrTable,
-            HrrrAlaskaTable,
         )
 
         if datatype == "gfs_ncep":
@@ -460,10 +439,7 @@ class Metdb:
             .first()
         )
 
-        if v is not None:
-            return True
-        else:
-            return False
+        return v is not None
 
     def add(self, metadata: dict, datatype: str, filepath: str) -> None:
         """
@@ -508,17 +484,17 @@ class Metdb:
         Returns:
             None
         """
-        from metbuild.tables import (
-            GfsTable,
-            NamTable,
-            WpcTable,
-            HrrrTable,
-            HrrrAlaskaTable,
-        )
         import math
 
-        if not self.__has_generic(datatype, metadata):
+        from metbuild.tables import (
+            GfsTable,
+            HrrrAlaskaTable,
+            HrrrTable,
+            NamTable,
+            WpcTable,
+        )
 
+        if not self.__has_generic(datatype, metadata):
             if datatype == "gfs_ncep":
                 table = GfsTable
             elif datatype == "nam_ncep":
@@ -564,8 +540,9 @@ class Metdb:
         Returns:
             None
         """
-        from metbuild.tables import GefsTable
         import math
+
+        from metbuild.tables import GefsTable
 
         if not self.__has_gefs(metadata):
             cdate = metadata["cycledate"]
@@ -614,13 +591,9 @@ class Metdb:
             duration,
         ) = Metdb.__generate_nhc_vars_from_dict(metadata)
 
-        if "geojson" in metadata.keys():
-            geojson = metadata["geojson"]
-        else:
-            geojson = {}
+        geojson = metadata.get("geojson", {})
 
         if not self.__has_nhc_btk(metadata):
-
             record = NhcBtkTable(
                 storm_year=year,
                 basin=basin,
@@ -669,7 +642,6 @@ class Metdb:
             None
         """
         from metbuild.tables import NhcFcstTable
-        import json
 
         (
             year,
@@ -682,10 +654,7 @@ class Metdb:
         ) = Metdb.__generate_nhc_vars_from_dict(metadata)
         advisory = metadata["advisory"]
 
-        if "geojson" in metadata.keys():
-            geojson = metadata["geojson"]
-        else:
-            geojson = {}
+        geojson = metadata.get("geojson", {})
 
         record = (
             self.__session.query(NhcFcstTable.index)
@@ -699,7 +668,6 @@ class Metdb:
         )
 
         if record is None:
-
             record = NhcFcstTable(
                 storm_year=year,
                 basin=basin,
@@ -734,8 +702,9 @@ class Metdb:
         Returns:
             None
         """
-        from metbuild.tables import HafsATable, HafsBTable
         import math
+
+        from metbuild.tables import HafsATable, HafsBTable
 
         if not self.__has_hafs(datatype, metadata):
             cdate = metadata["cycledate"]
@@ -770,7 +739,8 @@ class Metdb:
                     accessed=datetime.now(),
                 )
             else:
-                raise RuntimeError("Invalid Type: {:s}".format(datatype))
+                msg = f"Invalid Type: {datatype:s}"
+                raise RuntimeError(msg)
 
             self.__session.add(record)
             self.__session.commit()
@@ -786,8 +756,9 @@ class Metdb:
         Returns:
             None
         """
-        from metbuild.tables import HwrfTable
         import math
+
+        from metbuild.tables import HwrfTable
 
         if not self.__has_hwrf(metadata):
             cdate = metadata["cycledate"]
@@ -826,6 +797,7 @@ class Metdb:
             None
         """
         import math
+
         from metbuild.tables import CoampsTable
 
         if not self.__has_coamps(metadata):
@@ -862,6 +834,7 @@ class Metdb:
             None
         """
         import math
+
         from metbuild.tables import CtcxTable
 
         if not self.__has_ctcx(metadata):
@@ -903,10 +876,7 @@ class Metdb:
         storm = metadata["storm"]
         basin = metadata["basin"]
 
-        if "md5" in metadata:
-            md5 = metadata["md5"]
-        else:
-            md5 = "None"
+        md5 = metadata.get("md5", "None")
 
         if "advisory_start" in metadata:
             start = str(metadata["advisory_start"])

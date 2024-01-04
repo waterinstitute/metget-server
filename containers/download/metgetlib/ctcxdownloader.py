@@ -28,8 +28,9 @@
 #
 ###################################################################################################
 import tempfile
-import boto3
 from datetime import datetime
+
+import boto3
 
 
 class CtcxDownloader:
@@ -47,20 +48,15 @@ class CtcxDownloader:
             COAMPS_AWS_SECRET: The AWS secret to use for authentication
         """
         import os
+
         from .metdb import Metdb
         from .s3file import S3file
 
         self.__s3_bucket = os.environ["COAMPS_S3_BUCKET"]
 
-        if "COAMPS_AWS_KEY" in os.environ:
-            self.__aws_key_id = os.environ["COAMPS_AWS_KEY"]
-        else:
-            self.__aws_key_id = None
+        self.__aws_key_id = os.environ.get("COAMPS_AWS_KEY", None)
 
-        if "COAMPS_AWS_SECRET" in os.environ:
-            self.__aws_access_key = os.environ["COAMPS_AWS_SECRET"]
-        else:
-            self.__aws_access_key = None
+        self.__aws_access_key = os.environ.get("COAMPS_AWS_SECRET", None)
 
         if self.__aws_key_id is None or self.__aws_access_key is None:
             self.__resource = boto3.resource("s3")
@@ -76,8 +72,8 @@ class CtcxDownloader:
         self.__s3 = S3file()
 
     def __del__(self):
-        import shutil
         import logging
+        import shutil
 
         log = logging.getLogger(__name__)
 
@@ -91,9 +87,9 @@ class CtcxDownloader:
         Returns:
             The number of files downloaded
         """
-        from datetime import datetime
         import logging
         import os
+        from datetime import datetime
 
         log = logging.getLogger(__name__)
 
@@ -105,19 +101,18 @@ class CtcxDownloader:
         file_count = 0
 
         for st in range(STORM_MIN, STORM_MAX, 1):
-            storm_name = "{:02d}L".format(st)
-            prefix = "CTCX/{:04d}/{:s}/".format(current_year, storm_name)
+            storm_name = f"{st:02d}L"
+            prefix = f"CTCX/{current_year:04d}/{storm_name:s}/"
             objects = self.__bucket.objects.filter(Prefix=prefix)
             for obj in objects:
                 path = obj.key
 
                 if path.endswith(".tar.gz"):
-
-                    log.info("Begin processing file {:s}".format(path))
+                    log.info(f"Begin processing file {path:s}")
 
                     cycle_date = datetime.strptime(
                         os.path.basename(path),
-                        "CTCXEPS_{:s}.%Y%m%d%H.tar.gz".format(storm_name),
+                        f"CTCXEPS_{storm_name:s}.%Y%m%d%H.tar.gz",
                     )
 
                     has_missing_cycles = self.__check_database_for_ensemble_members(
@@ -127,7 +122,7 @@ class CtcxDownloader:
                     if has_missing_cycles:
                         file_count += self.__process_ctcx_ensemble(path, storm_name)
                     else:
-                        log.info("Skipping file {:s}".format(path))
+                        log.info(f"Skipping file {path:s}")
 
         return file_count
 
@@ -158,9 +153,7 @@ class CtcxDownloader:
 
         # ...Convert the hdf5 files to netCDF format
         log.info(
-            "Begin converting hdf5 files to netCDF format in directory {:s}".format(
-                directory
-            )
+            f"Begin converting hdf5 files to netCDF format in directory {directory:s}"
         )
 
         for filename in os.listdir(directory):
@@ -199,7 +192,6 @@ class CtcxDownloader:
         has_missing_cycles = False
 
         for ensemble_member in range(ENSEMBLE_MEMBER_MIN, ENSEMBLE_MEMBER_MAX + 1, 1):
-
             # ...Scan the database quickly to see if we can skip this file
             metadata = {
                 "name": storm_name,
@@ -229,8 +221,8 @@ class CtcxDownloader:
             base_name: The base name of the file (without the extension)
             ensemble_member: The ensemble member metadata to add
         """
-        import os
         import logging
+        import os
         from datetime import timedelta
 
         log = logging.getLogger(__name__)
@@ -303,26 +295,26 @@ class CtcxDownloader:
         Returns:
             A dict with the metadata
         """
-        import os
-        from datetime import datetime
-        import tarfile
         import logging
+        import os
+        import tarfile
+        from datetime import datetime
 
         log = logging.getLogger(__name__)
 
         # ...Get the metadata from the filename
         filename = os.path.basename(path)
         cycle_date = datetime.strptime(
-            filename, "CTCXEPS_{:s}.%Y%m%d%H.tar.gz".format(storm_name)
+            filename, f"CTCXEPS_{storm_name:s}.%Y%m%d%H.tar.gz"
         )
 
         # ...Retrieve file from S3
-        log.info("Begin downloading file {:s} from s3".format(path))
+        log.info(f"Begin downloading file {path:s} from s3")
         local_file = os.path.join(self.__temp_directory, filename)
         self.__bucket.download_file(path, local_file)
 
         # ...Unpack the tarball
-        log.info("Begin unpacking file {:s}".format(local_file))
+        log.info(f"Begin unpacking file {local_file:s}")
         tar = tarfile.open(local_file)
         tar.extractall(path=self.__temp_directory)
         tar.close()
@@ -343,14 +335,15 @@ class CtcxDownloader:
         Returns:
             A dict with the metadata
         """
-        from .ctcxformatter import CtcxFormatter
         import logging
         import os
+
+        from .ctcxformatter import CtcxFormatter
 
         log = logging.getLogger(__name__)
 
         ensemble_member = int(filename.split("_")[0][-3:])
-        ensemble_member_str = "{:03d}".format(ensemble_member)
+        ensemble_member_str = f"{ensemble_member:03d}"
 
         member_directory = os.path.join(
             self.__temp_directory, base_name, ensemble_member_str

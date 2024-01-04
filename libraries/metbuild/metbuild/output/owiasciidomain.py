@@ -31,10 +31,12 @@ from datetime import datetime
 from typing import List, TextIO, Union
 
 import numpy as np
-from dataset import Dataset
+import xarray as xr
 
+from .dataset import Dataset
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
+from ..enum import VariableType
 
 
 class OwiAsciiDomain(OutputDomain):
@@ -118,7 +120,7 @@ class OwiAsciiDomain(OutputDomain):
         """
         import gzip
 
-        if self.__compression:
+        if not self.__compression:
             if isinstance(self.__filename, str):
                 fid = open(self.__filename, "w")  # noqa: SIM115
                 self._set_fid(fid)
@@ -252,45 +254,76 @@ class OwiAsciiDomain(OutputDomain):
 
         Args:
             fid (TextIO): The file id of the file to write to.
-            values (np.ndarray): The values to write to the file.
+            values (np.ndarray): The first set of values to write to the file.
 
         Returns:
             None
         """
+        counter = 0
         for i in range(values.shape[0]):
             for j in range(values.shape[1]):
                 fid.write(f"{values[i, j]:10.4f}")
-                if (j + 1) % 8 == 0:
+                if (counter + 1) % 8 == 0:
                     fid.write("\n")
+                    counter = 0
+                else:
+                    counter += 1
+        if counter != 0:
             fid.write("\n")
 
-    def write(self, data: Dataset) -> None:
+    def write(self, data: xr.Dataset, variable_type: VariableType) -> None:
         """
         Write the meteorological output domain.
 
         Args:
             data (Dataset): The dataset to write.
+            variable_type (VariableType): The type of meteorological variable.
 
         Returns:
             None
         """
+        from ..enum import MetDataType
+
+        keys = variable_type.select()
+
         if isinstance(self.fid(), TextIO):
             self.fid().write(
                 OwiAsciiDomain.__generate_record_header(
                     self.start_date(), self.grid_obj()
                 )
             )
-            OwiAsciiDomain.__write_record(self.fid(), data.values()[0, :, :])
+            OwiAsciiDomain.__write_record(self.fid(), data[str(keys[0])].to_numpy())
         elif isinstance(self.fid(), list):
-            for i in range(data.n_parameters()):
-                header = OwiAsciiDomain.__generate_record_header(
-                    self.start_date(), self.grid_obj()
-                )
-                self.fid().write(header)
-                OwiAsciiDomain.__write_record(self.fid(), data.values()[0, :, :])
-                for fid in self.fid():
-                    fid.write(header)
-                    OwiAsciiDomain.__write_record(fid, data.values()[i, :, :])
+            # ...Handle the special case for a pack of 2 files (pressure and wind-u/v)
+            if variable_type != VariableType.WIND_PRESSURE:
+                raise ValueError("Only wind pressure is supported for multiple files")
+
+            if len(self.fid()) != 2:
+                raise ValueError("Only 2 files are supported for wind pressure")
+
+            header = OwiAsciiDomain.__generate_record_header(
+                self.start_date(), self.grid_obj()
+            )
+            self.fid()[0].write(header)
+            OwiAsciiDomain.__write_record(
+                self.fid()[0], data[str(MetDataType.PRESSURE)].to_numpy()
+            )
+            self.fid()[1].write(header)
+            OwiAsciiDomain.__write_record(
+                self.fid()[1], data[str(MetDataType.WIND_U)].to_numpy()
+            )
+            OwiAsciiDomain.__write_record(
+                self.fid()[1], data[str(MetDataType.WIND_V)].to_numpy()
+            )
         else:
             msg = f"Invalid file id type: {type(self.fid())}"
             raise TypeError(msg)
+
+    def compression(self) -> bool:
+        """
+        Get the compression flag of the meteorological output domain.
+
+        Returns:
+            bool: The compression flag of the meteorological output domain.
+        """
+        return self.__compression

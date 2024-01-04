@@ -37,19 +37,20 @@ class WpcDownloader:
         self.__end_time = end_time
 
     def download(self) -> int:
+        import logging
+        import os
+        import tempfile
         from ftplib import FTP
+
         from .metdb import Metdb
         from .s3file import S3file
-        import tempfile
-        import os
-        import logging
 
         log = logging.getLogger(__name__)
 
         ftp_address = "ftp.wpc.ncep.noaa.gov"
         ftp_folder = "2p5km_qpf"
 
-        log.info("Connecting to {:s}".format(ftp_address))
+        log.info(f"Connecting to {ftp_address:s}")
         ftp = FTP(ftp_address)
         ftp.login()
         ftp.cwd(ftp_folder)
@@ -71,13 +72,11 @@ class WpcDownloader:
             forecast_hour = int(f[16:19]) - 6
 
             forecast_time = forecast_cycle + timedelta(hours=forecast_hour)
-            source = os.path.join(ftp_address, ftp_folder, f)
+            os.path.join(ftp_address, ftp_folder, f)
             year = forecast_cycle.year
             month = forecast_cycle.month
             day = forecast_cycle.day
-            remote_path = "wpc_ncep/{:04d}/{:02d}/{:02d}/{:s}".format(
-                year, month, day, f
-            )
+            remote_path = f"wpc_ncep/{year:04d}/{month:02d}/{day:02d}/{f:s}"
 
             data_pair = {
                 "cycledate": forecast_cycle,
@@ -100,16 +99,12 @@ class WpcDownloader:
                 # ...The WPC FTP server likes to kick people off. That's annoying,
                 #   but we are annoying-er
                 try:
-                    ftp.retrbinary(
-                        "RETR {:s}".format(f), open(temp_file_path, "wb").write
-                    )
-                except ConnectionResetError as e:
+                    ftp.retrbinary(f"RETR {f:s}", open(temp_file_path, "wb").write)
+                except ConnectionResetError:
                     ftp = FTP(ftp_address)
                     ftp.login()
                     ftp.cwd(ftp_folder)
-                    ftp.retrbinary(
-                        "RETR {:s}".format(f), open(temp_file_path, "wb").write
-                    )
+                    ftp.retrbinary(f"RETR {f:s}", open(temp_file_path, "wb").write)
 
                 s3.upload_file(temp_file_path, remote_path)
                 db.add(data_pair, "wpc_ncep", remote_path)

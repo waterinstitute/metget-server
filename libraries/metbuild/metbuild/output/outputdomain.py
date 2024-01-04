@@ -30,7 +30,11 @@
 from datetime import datetime
 from typing import List, TextIO, Union
 
+import xarray as xr
+
 from .outputgrid import OutputGrid
+from .dataset import Dataset
+from ..enum import VariableType
 
 
 class OutputDomain:
@@ -92,6 +96,16 @@ class OutputDomain:
     def time_step(self) -> int:
         return self.__time_step
 
+    def open(self) -> None:
+        """
+        Open the domain file(s)
+
+        Returns:
+            None
+        """
+        msg = "OutputDomain.open() is not implemented"
+        raise NotImplementedError(msg)
+
     def is_open(self) -> bool:
         return self.__is_open
 
@@ -100,3 +114,27 @@ class OutputDomain:
 
     def fid(self) -> Union[TextIO, List[TextIO]]:
         return self.__fid
+
+    def close(self) -> None:
+        """
+        Close the domain file
+
+        Returns:
+            None
+        """
+        msg = "OutputDomain.close() is not implemented"
+        raise NotImplementedError(msg)
+
+    def write(self, data: xr.Dataset, variable_type: VariableType) -> None:
+        """
+        Write data to the domain file
+
+        Args:
+            data (Dataset): The data to write to the domain file.
+            variable_type (VariableType): The type of meteorological variable
+
+        Returns:
+            None
+        """
+        msg = "OutputDomain.write() is not implemented"
+        raise NotImplementedError(msg)

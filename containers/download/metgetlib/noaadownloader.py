@@ -28,13 +28,15 @@
 #
 ###################################################################################################
 
-import boto3
 import logging
-from .s3file import S3file
-from .metdb import Metdb
 from datetime import datetime, timedelta
-from typing import Tuple, Union, List
+from typing import List, Optional, Tuple, Union
+
+import boto3
 from requests.packages.urllib3.util.retry import Retry
+
+from .metdb import Metdb
+from .s3file import S3file
 
 
 class RetryLogger(Retry):
@@ -276,9 +278,8 @@ class NoaaDownloader:
         """
         if self.use_big_data():
             if client is None:
-                raise RuntimeError(
-                    "Need client for getgrib when using AWS big data service"
-                )
+                msg = "Need client for getgrib when using AWS big data service"
+                raise RuntimeError(msg)
             return self.__get_grib_big_data(info, client)
         else:
             return self.__get_grib_noaa_servers(info)
@@ -309,7 +310,7 @@ class NoaaDownloader:
 
     @staticmethod
     def __try_get_object(
-        bucket: str, key: str, s3_client: boto3.client, byte_range: str = None
+        bucket: str, key: str, s3_client: boto3.client, byte_range: Optional[str] = None
     ) -> dict:
         """
         Try to get an object from an s3 bucket. If the object does not exist, wait 5 seconds and try again.
@@ -323,8 +324,9 @@ class NoaaDownloader:
         Returns:
             The object from the bucket
         """
-        from botocore.exceptions import ClientError
         from time import sleep
+
+        from botocore.exceptions import ClientError
 
         max_tries = 5
         sleep_interval = 5
@@ -343,9 +345,8 @@ class NoaaDownloader:
                     tries += 1
                     sleep(sleep_interval)
                     if tries > max_tries:
-                        raise RuntimeError(
-                            "Could not find key {} in bucket {}".format(key, bucket)
-                        )
+                        msg = f"Could not find key {key} in bucket {bucket}"
+                        raise RuntimeError(msg)
                 else:
                     raise e
 
@@ -366,7 +367,7 @@ class NoaaDownloader:
         inv_data_tmp = str(inv_obj["Body"].read().decode("utf-8")).split("\n")
         inv_data = []
         for line in inv_data_tmp:
-            if not line == "":
+            if line != "":
                 inv_data.append(line)
         byte_list = []
         for v in self.variables():
@@ -386,27 +387,26 @@ class NoaaDownloader:
         Returns:
             str: The path to the grib file
         """
-        import tempfile
-        import os
         import logging
+        import os
+        import tempfile
 
         logger = logging.getLogger(__name__)
 
         time = info["cycledate"]
         fn = info["grb"].rsplit("/")[-1]
-        year = "{0:04d}".format(time.year)
-        month = "{0:02d}".format(time.month)
-        day = "{0:02d}".format(time.day)
+        year = f"{time.year:04d}"
+        month = f"{time.month:02d}"
+        day = f"{time.day:02d}"
 
         destination_folder = os.path.join(self.mettype(), year, month, day)
         local_file = os.path.join(tempfile.gettempdir(), fn)
         path_found = self.__database.has(self.mettype(), info)
 
         if not path_found:
-
             # ...Get the inventory data
             byte_list = self.__get_inventory_big_data(info, s3_client)
-            if not len(byte_list) == len(self.variables()):
+            if len(byte_list) != len(self.variables()):
                 logger.error(
                     "Could not gather the inventory or missing variables detected. Trying again later."
                 )
@@ -460,11 +460,12 @@ class NoaaDownloader:
         Pain and suffering this way lies, use the AWS big data option whenever
         available
         """
-        import os.path
-        import requests
-        import tempfile
-        from requests.adapters import HTTPAdapter
         import logging
+        import os.path
+        import tempfile
+
+        import requests
+        from requests.adapters import HTTPAdapter
 
         logger = logging.getLogger(__name__)
 
@@ -484,16 +485,16 @@ class NoaaDownloader:
                 for v in self.variables():
                     retlist.append(NoaaDownloader.get_inventory_byte_list(inv_lines, v))
 
-                if not len(retlist) == len(self.__variables):
+                if len(retlist) != len(self.__variables):
                     logger.error(
                         "Could not gather the inventory or missing variables detected. Trying again later."
                     )
                     return None, 0, 1
 
                 fn = info["grb"].rsplit("/")[-1]
-                year = "{0:04d}".format(info["cycledate"].year)
-                month = "{0:02d}".format(info["cycledate"].month)
-                day = "{0:02d}".format(info["cycledate"].day)
+                year = "{:04d}".format(info["cycledate"].year)
+                month = "{:02d}".format(info["cycledate"].month)
+                day = "{:02d}".format(info["cycledate"].day)
 
                 dfolder = os.path.join(self.mettype(), year, month, day)
                 floc = os.path.join(tempfile.gettempdir(), fn)
@@ -577,7 +578,8 @@ class NoaaDownloader:
         This method is meant to be overridden by the child classes
 
         """
-        raise RuntimeError("Override method not implemented")
+        msg = "Override method not implemented"
+        raise RuntimeError(msg)
 
     @staticmethod
     def _filename_to_hour(filename: str) -> int:
@@ -592,7 +594,8 @@ class NoaaDownloader:
 
         This method is meant to be overridden by the child classes
         """
-        raise RuntimeError("Override method not implemented")
+        msg = "Override method not implemented"
+        raise RuntimeError(msg)
 
     def _download_aws_big_data(self) -> int:
         """
@@ -610,7 +613,7 @@ class NoaaDownloader:
         end = datetime(
             self.enddate().year, self.enddate().month, self.enddate().day, 0, 0, 0
         )
-        date_range = [begin + timedelta(days=x) for x in range(0, (end - begin).days)]
+        date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
         pairs = []
         for d in date_range:
@@ -661,7 +664,8 @@ class NoaaDownloader:
         if self.__use_aws_big_data:
             return self._download_aws_big_data()
         else:
-            raise RuntimeError("Override method not implemented")
+            msg = "Override method not implemented"
+            raise RuntimeError(msg)
 
     @staticmethod
     def linkToTime(t):
@@ -691,4 +695,5 @@ class NoaaDownloader:
                 int(dstr[0:4]), int(dstr[4:6]), int(dstr[6:8]), int(dstr[8:10]), 0, 0
             )
         else:
-            raise Exception("Could not convert link to a datetime")
+            msg = "Could not convert link to a datetime"
+            raise Exception(msg)

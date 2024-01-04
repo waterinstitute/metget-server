@@ -45,24 +45,19 @@ class CoampsDownloader:
         Initialize the downloader
         """
         import os
+        import tempfile
+
+        import boto3
 
         from .metdb import Metdb
         from .s3file import S3file
-        import boto3
-        import tempfile
 
         self.__s3_download_bucket = os.environ["COAMPS_S3_BUCKET"]
         self.__s3_download_prefix = "deterministic/realtime"
 
-        if "COAMPS_AWS_KEY" in os.environ:
-            self.__aws_key_id = os.environ["COAMPS_AWS_KEY"]
-        else:
-            self.__aws_key_id = None
+        self.__aws_key_id = os.environ.get("COAMPS_AWS_KEY", None)
 
-        if "COAMPS_AWS_SECRET" in os.environ:
-            self.__aws_access_key = os.environ["COAMPS_AWS_SECRET"]
-        else:
-            self.__aws_access_key = None
+        self.__aws_access_key = os.environ.get("COAMPS_AWS_SECRET", None)
 
         if self.__aws_key_id is None or self.__aws_access_key is None:
             self.__resource = boto3.resource("s3")
@@ -89,13 +84,13 @@ class CoampsDownloader:
         Returns:
             None
         """
+        import logging
         import shutil
         import tempfile
-        import logging
 
         log = logging.getLogger(__name__)
 
-        log.info("Deleting temporary directory: {}".format(self.__temp_directory))
+        log.info(f"Deleting temporary directory: {self.__temp_directory}")
 
         shutil.rmtree(self.__temp_directory)
 
@@ -144,9 +139,9 @@ class CoampsDownloader:
         file_count = 0
 
         for storm in range(CoampsDownloader.STORM_MIN, CoampsDownloader.STORM_MAX, 1):
-            storm_name = "{:02d}L".format(storm)
+            storm_name = f"{storm:02d}L"
             prefix = os.path.join(
-                self.__s3_download_prefix, "{:04d}".format(current_year), storm_name
+                self.__s3_download_prefix, f"{current_year:04d}", storm_name
             )
 
             # ...Check if the prefix exists in s3
@@ -181,7 +176,7 @@ class CoampsDownloader:
                 files = self.__download_and_unpack_forecast(filename, forecast)
                 file_list = self.__generate_forecast_snap_list(files)
 
-                for key in file_list.keys():
+                for key in file_list:
                     dd = file_list[key]
                     files = ""
                     metadata = {
@@ -247,7 +242,7 @@ class CoampsDownloader:
             cycle_date, forecast_hour = CoampsDownloader.__date_from_filename(f)
             fn = os.path.basename(f)
             domain = int(fn.split("_")[1][1:])
-            if forecast_hour not in file_list.keys():
+            if forecast_hour not in file_list:
                 file_list[forecast_hour] = []
 
             file_list[forecast_hour].append(
@@ -267,24 +262,23 @@ class CoampsDownloader:
         Returns:
             List of netcdf files in the temporary directory
         """
+        import glob
         import logging
         import os
-        import glob
         import tarfile
 
         log = logging.getLogger(__name__)
 
         # ...Download the file
-        log.info("Downloading file: {}".format(filename))
+        log.info(f"Downloading file: {filename}")
         local_file = os.path.join(self.__temp_directory, filename)
         self.__bucket.download_file(forecast.key, local_file)
 
         # ...Unpack the file
-        log.info("Unpacking file: {}".format(filename))
+        log.info(f"Unpacking file: {filename}")
         with tarfile.open(local_file, "r") as tar:
 
             def is_within_directory(directory, target):
-
                 abs_directory = os.path.abspath(directory)
                 abs_target = os.path.abspath(target)
 
@@ -295,20 +289,19 @@ class CoampsDownloader:
             def safe_extract(
                 tar_obj, extract_path=".", members=None, *, numeric_owner=False
             ):
-
                 for member in tar_obj.getmembers():
                     member_path = os.path.join(extract_path, member.name)
                     if not is_within_directory(extract_path, member_path):
-                        raise Exception("Attempted Path Traversal in tar File")
+                        msg = "Attempted Path Traversal in tar File"
+                        raise Exception(msg)
 
                 tar_obj.extractall(extract_path, members, numeric_owner=numeric_owner)
 
             safe_extract(tar, self.__temp_directory)
 
         # ...Get the list of netcdf files in the temporary directory
-        path = "{}/netcdf/*.nc".format(self.__temp_directory)
-        files = sorted(glob.glob(path, recursive=True))
-        return files
+        path = f"{self.__temp_directory}/netcdf/*.nc"
+        return sorted(glob.glob(path, recursive=True))
 
     def __check_database_for_forecast(
         self, storm_name: str, cycle_date: datetime

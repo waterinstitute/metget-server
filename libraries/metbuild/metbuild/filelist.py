@@ -106,13 +106,13 @@ class Filelist:
         if not isinstance(self.__tau, int):
             msg = "tau must be of type int"
             raise TypeError(msg)
-        if not isinstance(self.__storm_year, int):
+        if not isinstance(self.__storm_year, int) and self.__storm_year is not None:
             msg = "storm_year must be of type int"
             raise TypeError(msg)
-        if not isinstance(self.__storm, int):
+        if not isinstance(self.__storm, int) and self.__storm is not None:
             msg = "storm must be of type int"
             raise TypeError(msg)
-        if not isinstance(self.__advisory, int):
+        if not isinstance(self.__advisory, int) and self.__advisory is not None:
             msg = "advisory must be of type int"
             raise TypeError(msg)
         if not isinstance(self.__nowcast, bool):

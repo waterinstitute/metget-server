@@ -7,6 +7,11 @@ spec:
   - image: {{ .Values.containers.key_manager.image }}:{{ .Values.containers.version }}
     imagePullPolicy: Always
     name: {{ .Release.Name }}-keymanager
+    resources:
+      requests:
+        memory: 1Gi
+      limits:
+        memory: 2Gi
     stdin: true
     stdinOnce: true
     tty: true
@@ -15,7 +20,7 @@ spec:
       valueFrom:
         secretKeyRef:
           name: {{ .Release.Name }}-database-secret
-          key: username  
+          key: username
     - name: METGET_DATABASE_PASSWORD
       valueFrom:
         secretKeyRef:

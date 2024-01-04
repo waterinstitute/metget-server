@@ -161,12 +161,13 @@ class RequestTable(TableBase):
         )
 
         with Database() as db, db.session() as session:
-            qry_object = session.query(RequestTable).where(
-                RequestTable.request_id == record.request_id
-            )
-            if qry_object.first() is None:
-                session.add(record)
-                session.commit()
+            if session is not None:
+                qry_object = session.query(RequestTable).where(
+                    RequestTable.request_id == record.request_id
+                )
+                if qry_object.first() is None:
+                    session.add(record)
+                    session.commit()
 
     @staticmethod
     def update_request(**kwargs) -> None:

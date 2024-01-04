@@ -45,5 +45,11 @@ setup(
         "sqlalchemy",
         "psycopg2",
         "python-dateutil",
+        "xarray",
+        "matplotlib",
+        "netCDF4",
+        "cfgrib",
+        "geopandas",
+        "shapely",
     ],
 )

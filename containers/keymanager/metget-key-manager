@@ -48,9 +48,10 @@ def add_key(
     Returns:
         None
     """
-    from metbuild.tables import AuthTable
-    from metbuild.database import Database
     import secrets
+
+    from metbuild.database import Database
+    from metbuild.tables import AuthTable
 
     # Generate a url safe token 40 characters long without any special characters
     # if a key was not provided
@@ -60,19 +61,24 @@ def add_key(
         token = secrets.token_urlsafe(80).replace("-", "").replace("_", "")[:40]
 
     if len(token) != 40:
-        raise ValueError("Token is not 40 characters long")
+        msg = "Token is not 40 characters long"
+        raise ValueError(msg)
 
     if not user:
-        raise ValueError("No user name specified")
+        msg = "No user name specified"
+        raise ValueError(msg)
 
     if not description:
-        raise ValueError("No user description specified")
+        msg = "No user description specified"
+        raise ValueError(msg)
 
     if not api_credits:
-        raise ValueError("No credit count specified")
+        msg = "No credit count specified"
+        raise ValueError(msg)
 
     if not expiration_date:
-        raise ValueError("No expiration date specified")
+        msg = "No expiration date specified"
+        raise ValueError(msg)
 
     # Add the key to the database
     with Database() as db, db.session() as session:
@@ -89,7 +95,7 @@ def add_key(
         session.commit()
 
     # Print the key to the user
-    print("The key for user {} is '{}'".format(user, token))
+    print(f"The key for user {user} is '{token}'")
 
 
 def update_key(
@@ -108,14 +114,15 @@ def update_key(
     Returns:
         None
     """
-    from metbuild.tables import AuthTable
     from metbuild.database import Database
+    from metbuild.tables import AuthTable
 
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
 
         if not current_key:
-            raise Exception("Key does not exist")
+            msg = "Key does not exist"
+            raise Exception(msg)
 
         if user:
             current_key.username = user
@@ -139,14 +146,15 @@ def enable_disable_key(key: str, enabled: str):
     Returns:
         None
     """
-    from metbuild.tables import AuthTable
     from metbuild.database import Database
+    from metbuild.tables import AuthTable
 
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
 
         if not current_key:
-            raise Exception("Key does not exist")
+            msg = "Key does not exist"
+            raise Exception(msg)
 
         current_key.enabled = enabled
 
@@ -161,14 +169,15 @@ def remove_key(key: str):
         key (str): The key to remove
     """
 
-    from metbuild.tables import AuthTable
     from metbuild.database import Database
+    from metbuild.tables import AuthTable
 
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
 
         if not current_key:
-            raise Exception("Key does not exist")
+            msg = "Key does not exist"
+            raise Exception(msg)
 
         session.delete(current_key)
         session.commit()
@@ -178,11 +187,12 @@ def list_keys():
     """
     List all keys in the database
     """
-    import prettytable
-    from metbuild.tables import AuthTable, RequestTable
-    from metbuild.database import Database
-    from sqlalchemy import func, or_
     from datetime import datetime, timedelta
+
+    import prettytable
+    from metbuild.database import Database
+    from metbuild.tables import AuthTable, RequestTable
+    from sqlalchemy import func, or_
 
     with Database() as db, db.session() as session:
         table = prettytable.PrettyTable()
@@ -231,7 +241,7 @@ def list_keys():
                 credit_balance = "Unlimited"
             else:
                 credit_limit = float(key.credit_limit) / CREDIT_MULTIPLIER
-                credit_balance = float(credit_limit - credit_used) 
+                credit_balance = float(credit_limit - credit_used)
 
             table.add_row(
                 [

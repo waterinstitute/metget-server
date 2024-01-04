@@ -19,12 +19,17 @@ spec:
       - image: {{ .Values.containers.api.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
         name: {{ .Release.Name }}-api
+        resources:
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 2Gi
         env:
         - name: METGET_DATABASE_USER
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-database-secret
-              key: username  
+              key: username
         - name: METGET_DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -54,12 +59,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: {{ .Release.Name }}-configmap
-              key: s3.upload_bucket 
+              key: s3.upload_bucket
         - name: METGET_RABBITMQ_QUEUE
           valueFrom:
             configMapKeyRef:
               name: {{ .Release.Name }}-configmap
-              key: rabbit.queue 
+              key: rabbit.queue
         - name: METGET_ENFORCE_CREDIT_LIMITS
           {{ if .Values.config.credits.enforce_credit_limits }}
           value: "true"
@@ -74,7 +79,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-api
-  labels: 
+  labels:
     app.kubernetes.io/name: {{ .Release.Name }}-api
 spec:
   type: NodePort

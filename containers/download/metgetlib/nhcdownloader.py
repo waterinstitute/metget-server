@@ -79,9 +79,10 @@ class NhcDownloader:
         pressure_method="knaffzehr",
         use_aws=True,
     ):
-        from datetime import datetime
-        from .metdb import Metdb
         import tempfile
+        from datetime import datetime
+
+        from .metdb import Metdb
 
         self.__mettype = "nhc"
         self.__metstring = "NHC"
@@ -96,7 +97,6 @@ class NhcDownloader:
 
         if self.__use_aws:
             from .s3file import S3file
-            import os
 
             self.__dblocation = tempfile.gettempdir()
             self.__downloadlocation = dblocation + "/nhc"
@@ -159,17 +159,18 @@ class NhcDownloader:
 
         split = re.split("([0-9]{1,2})", string)
         if len(split) == 2:
-            adv_number = "{:03}".format(int(split[1]))
+            adv_number = f"{int(split[1]):03}"
         else:
-            adv_number = "{:03}".format(int(split[1])) + split[2]
+            adv_number = f"{int(split[1]):03}" + split[2]
         return adv_number
 
     def read_nhc_rss_feed(self, rss):
-        import feedparser
-        import os
-        from datetime import datetime
-        from .forecastdata import ForecastData
         import logging
+        from datetime import datetime
+
+        import feedparser
+
+        from .forecastdata import ForecastData
 
         logger = logging.getLogger(__name__)
 
@@ -183,9 +184,7 @@ class NhcDownloader:
             rss_date = datetime.strptime(rss_date_str, "%d %b %Y %H:%M:%S")
 
             for e in feed.entries:
-
                 if "Forecast Advisory" in e["title"]:
-
                     adv_number_str = e["title"].split()[-1]
                     adv_number = NhcDownloader.generate_advisory_number(adv_number_str)
 
@@ -411,21 +410,21 @@ class NhcDownloader:
                     storm_number.strip().rjust(3),
                     forecast_data[0].time().strftime(" %Y%m%d%H"),
                 )
-                line = line + " 00, OFCL,{:4.0f},".format(d.forecast_hour())
+                line = line + f" 00, OFCL,{d.forecast_hour():4.0f},"
 
                 x, y = d.storm_center()
                 x = int(round(x * 10))
                 y = int(round(y * 10))
 
                 if x < 0:
-                    x = "{:5d}".format(abs(x)) + "W"
+                    x = f"{abs(x):5d}" + "W"
                 else:
-                    x = "{:5d}".format(x) + "E"
+                    x = f"{x:5d}" + "E"
 
                 if y < 0:
-                    y = "{:4d}".format(abs(y)) + "S"
+                    y = f"{abs(y):4d}" + "S"
                 else:
-                    y = "{:4d}".format(y) + "N"
+                    y = f"{y:4d}" + "N"
 
                 if d.max_wind() < 34:
                     windcode = "TD"
@@ -475,9 +474,7 @@ class NhcDownloader:
                         f.write(itline)
                         f.write(os.linesep)
                 else:
-                    itline = line + "{:4d}, NEQ,{:5d},{:5d},{:5d},{:5d},".format(
-                        34, 0, 0, 0, 0
-                    )
+                    itline = line + f"{34:4d}, NEQ,{0:5d},{0:5d},{0:5d},{0:5d},"
                     itline = (
                         itline
                         + " 1013,    0,   0,{:4.0f},   0,   0,    ,METG,{:4d},{:4d},"
@@ -487,8 +484,6 @@ class NhcDownloader:
                     )
                     f.write(itline)
                     f.write(os.linesep)
-
-        return
 
     @staticmethod
     def get_storm_center(x, y):
@@ -556,7 +551,7 @@ class NhcDownloader:
         from datetime import datetime, timedelta
 
         data = []
-        with open(filename, "r") as f:
+        with open(filename) as f:
             for line in f:
                 keys = line.rstrip().split(",")
                 date = datetime.strptime(keys[2], " %Y%m%d%H")
@@ -569,7 +564,7 @@ class NhcDownloader:
 
     @staticmethod
     def sanitize_keys(line, key, value):
-        if not key in line.keys():
+        if key not in line:
             line[key] = value
         elif line[key] == "":
             line[key] = value
@@ -678,10 +673,10 @@ class NhcDownloader:
         NhcDownloader.write_nhc_data(nhc_data, filepath)
 
     def download_forecast_ftp(self):
-        from ftplib import FTP
+        import logging
         import os
         import tempfile
-        import logging
+        from ftplib import FTP
 
         logger = logging.getLogger(__name__)
 
@@ -692,7 +687,7 @@ class NhcDownloader:
         try:
             filelist = ftp.nlst("*.fst")
         except ftplib.error_temp as e:
-            logger.warning("No NHC forecast files found. FTP error: {}".format(e))
+            logger.warning(f"No NHC forecast files found. FTP error: {e}")
             return 0
 
         n = 0
@@ -711,7 +706,6 @@ class NhcDownloader:
                         )
 
                     if current_advisory:
-
                         fn = (
                             "nhc_fcst_"
                             + year
@@ -797,22 +791,20 @@ class NhcDownloader:
                             n += 1
             except Exception as e:
                 logger.error(
-                    "The following exception was thrown for file {:s}: {:s}".format(
-                        f, str(e)
-                    )
+                    f"The following exception was thrown for file {f:s}: {e!s:s}"
                 )
         return n
 
     def __position_to_float(self, position: str):
         direction = position[-1].upper()
         pos = float(position[:-1]) / 10.0
-        if direction == "W" or direction == "S":
+        if direction in ("W", "S"):
             return pos * -1.0
         else:
             return pos
 
     def __generate_track(self, path: str) -> tuple:
-        from geojson import Feature, FeatureCollection, Point, LineString
+        from geojson import Feature, FeatureCollection, Point
 
         KNOT_TO_MPH = 1.15078
 
@@ -849,10 +841,10 @@ class NhcDownloader:
         return self.__generate_track(filename)
 
     def download_hindcast(self):
-        from ftplib import FTP
+        import logging
         import os.path
         import tempfile
-        import logging
+        from ftplib import FTP
 
         logger = logging.getLogger(__name__)
 
@@ -867,7 +859,7 @@ class NhcDownloader:
             try:
                 file_list = ftp.nlst("*.dat")
             except ftplib.error_temp as e:
-                logger.warning("No NHC forecast files found. FTP error: {}".format(e))
+                logger.warning(f"No NHC forecast files found. FTP error: {e}")
                 return 0
 
             logger.info("NHC FTP connection successful")
@@ -904,7 +896,7 @@ class NhcDownloader:
                     )
                     md5_updated = self.compute_checksum(file_path)
                     geojson = self.generate_geojson(file_path)
-                    if not md5_original == md5_updated:
+                    if md5_original != md5_updated:
                         if md5_original == 0:
                             logger.info(
                                 "Downloaded NHC best track for Basin: {:s}, Year: {:s}, Storm: {:s}".format(
@@ -986,8 +978,8 @@ class NhcDownloader:
 
     @staticmethod
     def get_nhc_start_end_date(filename, is_forecast):
-        from datetime import datetime, timedelta
         import csv
+        from datetime import datetime, timedelta
 
         with open(filename) as csvfile:
             reader = csv.reader(csvfile)

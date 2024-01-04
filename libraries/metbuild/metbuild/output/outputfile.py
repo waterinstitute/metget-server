@@ -134,11 +134,52 @@ class OutputFile:
         """
         return len(self.__domains)
 
-    def domains(self) -> Tuple[List[OutputDomain], List[str]]:
+    def domains(self) -> List[dict]:
         """
         Get the domains in the meteorological field.
 
         Returns:
-            Tuple[List[Domain], List[str]]: The domains in the meteorological field.
+            List[dict]: The domains in the meteorological field.
         """
-        return self.__domains, self.__filenames
+        data = []
+        for i in range(self.num_domains()):
+            data.append({"domain": self.__domains[i], "filename": self.__filenames[i]})
+        return data
+
+    def remove_files(self) -> None:
+        """
+        Remove the files associated with the meteorological field.
+
+        Returns:
+            None
+        """
+        import os
+
+        for filename in self.__filenames:
+            if isinstance(filename, list):
+                for f in filename:
+                    os.remove(f)
+            else:
+                os.remove(filename)
+
+    def close(self) -> None:
+        """
+        Close the meteorological field.
+
+        Returns:
+            None
+        """
+        msg = "OutputFile.close() is not implemented"
+        raise NotImplementedError(msg)
+
+    def filenames(self) -> list:
+        """
+        Get the filenames of the meteorological field.
+
+        Returns:
+            list: The filenames of the meteorological field.
+        """
+        if isinstance(self.__filenames, list):
+            return self.__filenames
+        else:
+            return [self.__filenames]

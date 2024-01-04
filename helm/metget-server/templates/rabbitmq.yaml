@@ -15,6 +15,11 @@ spec:
       containers:
       - image: rabbitmq
         name: rabbitmq
+        resources:
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 2Gi
         ports:
           - containerPort: 5672
           - containerPort: 15672

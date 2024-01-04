@@ -26,6 +26,10 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+
+import logging
+
+
 class Database:
     """
     Database class for interacting with the database
@@ -39,6 +43,8 @@ class Database:
         """
         from sqlalchemy.orm import Session
 
+        self.__engine = None
+        self.__session = None
         self.__engine = self.__init_database_engine()
         self.__session = Session(self.__engine)
 
@@ -56,9 +62,10 @@ class Database:
         engine. This assumes that anything the user wants, they will
         have already committed to the database.
         """
-        self.__session.rollback()
-        self.__session.close()
-        self.__engine.dispose()
+        if self.__engine is not None and self.__session is not None:
+            self.__session.rollback()
+            self.__session.close()
+            self.__engine.dispose()
 
     def __del__(self):
         """
@@ -67,9 +74,10 @@ class Database:
         will also dispose of the database engine. This assumes that anything
         the user wants, they will have already committed to the database.
         """
-        self.__session.rollback()
-        self.__session.close()
-        self.__engine.dispose()
+        if self.__engine is not None and self.__session is not None:
+            self.__session.rollback()
+            self.__session.close()
+            self.__engine.dispose()
 
     def session(self):
         """
@@ -85,6 +93,28 @@ class Database:
         import os
 
         from sqlalchemy import URL, create_engine
+
+        log = logging.getLogger(__name__)
+
+        if (
+            "METGET_DATABASE_SERVICE_HOST" not in os.environ
+            or "METGET_DATABASE_PASSWORD" not in os.environ
+            or "METGET_DATABASE_USER" not in os.environ
+            or "METGET_DATABASE" not in os.environ
+        ):
+            # List the environment variables that are required for the database
+            # connection
+            log.error("Database environment variables not set")
+            if "METGET_DATABASE_SERVICE_HOST" not in os.environ:
+                log.error("METGET_DATABASE_SERVICE_HOST not set")
+            if "METGET_DATABASE_PASSWORD" not in os.environ:
+                log.error("METGET_DATABASE_PASSWORD not set")
+            if "METGET_DATABASE_USER" not in os.environ:
+                log.error("METGET_DATABASE_USER not set")
+            if "METGET_DATABASE" not in os.environ:
+                log.error("METGET_DATABASE not set")
+
+            raise RuntimeError("Database environment variables not set")
 
         db_host = os.environ["METGET_DATABASE_SERVICE_HOST"]
         db_password = os.environ["METGET_DATABASE_PASSWORD"]

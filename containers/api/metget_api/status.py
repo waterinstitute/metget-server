@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -30,6 +29,8 @@
 
 from datetime import datetime, timedelta
 from typing import Tuple, Union
+
+import flask
 
 AVAILABLE_MET_MODELS = [
     "gfs",
@@ -108,191 +109,193 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from datetime import timedelta
 
-        if "model" in request.args:
-            status_type = request.args["model"]
-        else:
-            status_type = "all"
+        status_type = request.args.get("model", "all")
 
-        if "basin" in request.args:
-            basin = request.args["basin"]
-        else:
-            basin = "all"
+        basin = request.args.get("basin", "all")
 
-        if "storm" in request.args:
-            storm = request.args["storm"]
-        else:
-            storm = "all"
+        storm = request.args.get("storm", "all")
 
-        if "member" in request.args:
-            member = request.args["member"]
-        else:
-            member = "all"
+        member = request.args.get("member", "all")
 
+        try:
+            start_dt, end_dt, time_limit = Status.__get_date_limits(request)
+        except ValueError:
+            return {
+                "statusCode": 400,
+                "body": {"message": "ERROR: Invalid start/end specified"},
+            }, 400
+
+        s = None
+
+        match status_type:
+            case t if t not in AVAILABLE_MET_MODELS and t != "all":
+                return {
+                    "message": f"ERROR: Unknown model requested: '{status_type:s}'"
+                }, 400
+            case "gfs":
+                s = Status.__get_status_gfs(
+                    MET_MODEL_FORECAST_DURATION["gfs"], time_limit, start_dt, end_dt
+                )
+            case "gefs":
+                s = Status.__get_status_gefs(
+                    MET_MODEL_FORECAST_DURATION["gefs"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    member,
+                )
+            case "nam":
+                s = Status.__get_status_nam(
+                    MET_MODEL_FORECAST_DURATION["nam"], time_limit, start_dt, end_dt
+                )
+            case "hwrf":
+                s = Status.__get_status_hwrf(
+                    MET_MODEL_FORECAST_DURATION["hwrf"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                )
+            case "hafs":
+                s = Status.__get_status_hafs(
+                    MET_MODEL_FORECAST_DURATION["hafs"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                )
+            case "hrrr":
+                s = Status.__get_status_hrrr(
+                    MET_MODEL_FORECAST_DURATION["hrrr"], time_limit, start_dt, end_dt
+                )
+            case "hrrr-alaska":
+                s = Status.__get_status_hrrr_alaska(
+                    MET_MODEL_FORECAST_DURATION["hrrr-alaska"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                )
+            case "wpc":
+                s = Status.__get_status_wpc(
+                    MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
+                )
+            case "nhc":
+                s = Status.__get_status_nhc(time_limit, start_dt, end_dt, basin, storm)
+            case "coamps":
+                s = Status.__get_status_coamps(
+                    MET_MODEL_FORECAST_DURATION["coamps"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                )
+            case "ctcx":
+                s = Status.__get_status_ctcx(
+                    MET_MODEL_FORECAST_DURATION["coamps"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                    member,
+                )
+            case "all":
+                gfs, _ = Status.__get_status_gfs(
+                    MET_MODEL_FORECAST_DURATION["gfs"], time_limit, start_dt, end_dt
+                )
+                gefs, _ = Status.__get_status_gefs(
+                    MET_MODEL_FORECAST_DURATION["gefs"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    member,
+                )
+                nam, _ = Status.__get_status_nam(
+                    MET_MODEL_FORECAST_DURATION["nam"], time_limit, start_dt, end_dt
+                )
+                hwrf, _ = Status.__get_status_hwrf(
+                    MET_MODEL_FORECAST_DURATION["hwrf"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                )
+                hrrr, _ = Status.__get_status_hrrr(
+                    MET_MODEL_FORECAST_DURATION["hrrr"], time_limit, start_dt, end_dt
+                )
+                hrrr_alaska, _ = Status.__get_status_hrrr_alaska(
+                    MET_MODEL_FORECAST_DURATION["hrrr-alaska"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                )
+                nhc, _ = Status.__get_status_nhc(
+                    time_limit, start_dt, end_dt, basin, storm
+                )
+                wpc, _ = Status.__get_status_wpc(
+                    MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
+                )
+                coamps, _ = Status.__get_status_coamps(
+                    MET_MODEL_FORECAST_DURATION["coamps"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                )
+                ctcx, _ = Status.__get_status_ctcx(
+                    MET_MODEL_FORECAST_DURATION["coamps"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                    member,
+                )
+                s = {
+                    "gfs": gfs,
+                    "gefs": gefs,
+                    "nam": nam,
+                    "hwrf": hwrf,
+                    "hrrr": hrrr,
+                    "hrrr-alaska": hrrr_alaska,
+                    "nhc": nhc,
+                    "wpc": wpc,
+                    "coamps": coamps,
+                    "ctcx": ctcx,
+                }
+
+        return s, 200
+
+    @staticmethod
+    def __get_date_limits(
+        request: flask.Request,
+    ) -> Tuple[datetime, datetime, timedelta]:
+        """
+        This method is used to get the date limits for the status request
+
+        Args:
+            request: A flask request object
+
+        Returns:
+            Tuple containing the start and end dates and the time limit
+        """
         if "limit" in request.args:
             limit_days = request.args["limit"]
-            try:
-                limit_days_int = int(limit_days)
-            except ValueError:
-                return {
-                    "statusCode": 400,
-                    "body": {"message": "ERROR: Invalid limit specified"},
-                }, 400
+            limit_days_int = int(limit_days)
             time_limit = timedelta(days=limit_days_int)
             start_dt = None
             end_dt = None
         elif "start" in request.args and "end" in request.args:
             start = request.args["start"]
             end = request.args["end"]
-            try:
-                start_dt = datetime.strptime(start, "%Y-%m-%d")
-                end_dt = datetime.strptime(end, "%Y-%m-%d")
-            except ValueError:
-                return {
-                    "statusCode": 400,
-                    "body": {"message": "ERROR: Invalid start/end specified"},
-                }, 400
+            start_dt = datetime.strptime(start, "%Y-%m-%d")
+            end_dt = datetime.strptime(end, "%Y-%m-%d")
             time_limit = None
         else:
             limit_days_int = 3
             time_limit = timedelta(days=limit_days_int)
             start_dt = None
             end_dt = None
-
-        s = None
-
-        if status_type not in AVAILABLE_MET_MODELS and status_type != "all":
-            return {
-                "message": "ERROR: Unknown model requested: '{:s}'".format(status_type)
-            }, 400
-
-        if status_type == "gfs":
-            s = Status.__get_status_gfs(
-                MET_MODEL_FORECAST_DURATION["gfs"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "gefs":
-            s = Status.__get_status_gefs(
-                MET_MODEL_FORECAST_DURATION["gefs"],
-                time_limit,
-                start_dt,
-                end_dt,
-                member,
-            )
-        elif status_type == "nam":
-            s = Status.__get_status_nam(
-                MET_MODEL_FORECAST_DURATION["nam"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "hwrf":
-            s = Status.__get_status_hwrf(
-                MET_MODEL_FORECAST_DURATION["hwrf"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-        elif status_type == "hafs":
-            s = Status.__get_status_hafs(
-                MET_MODEL_FORECAST_DURATION["hafs"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-        elif status_type == "hrrr":
-            s = Status.__get_status_hrrr(
-                MET_MODEL_FORECAST_DURATION["hrrr"],
-                time_limit,
-                start_dt,
-                end_dt,
-            )
-        elif status_type == "hrrr-alaska":
-            s = Status.__get_status_hrrr_alaska(
-                MET_MODEL_FORECAST_DURATION["hrrr-alaska"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "wpc":
-            s = Status.__get_status_wpc(
-                MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "nhc":
-            s = Status.__get_status_nhc(time_limit, start_dt, end_dt, basin, storm)
-        elif status_type == "coamps":
-            s = Status.__get_status_coamps(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-        elif status_type == "ctcx":
-            s = Status.__get_status_ctcx(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-                member,
-            )
-        elif status_type == "all":
-            gfs, _ = Status.__get_status_gfs(
-                MET_MODEL_FORECAST_DURATION["gfs"], time_limit, start_dt, end_dt
-            )
-            gefs, _ = Status.__get_status_gefs(
-                MET_MODEL_FORECAST_DURATION["gefs"],
-                time_limit,
-                start_dt,
-                end_dt,
-                member,
-            )
-            nam, _ = Status.__get_status_nam(
-                MET_MODEL_FORECAST_DURATION["nam"], time_limit, start_dt, end_dt
-            )
-            hwrf, _ = Status.__get_status_hwrf(
-                MET_MODEL_FORECAST_DURATION["hwrf"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-            hrrr, _ = Status.__get_status_hrrr(
-                MET_MODEL_FORECAST_DURATION["hrrr"], time_limit, start_dt, end_dt
-            )
-            hrrr_alaska, _ = Status.__get_status_hrrr_alaska(
-                MET_MODEL_FORECAST_DURATION["hrrr-alaska"], time_limit, start_dt, end_dt
-            )
-            nhc, _ = Status.__get_status_nhc(time_limit, start_dt, end_dt, basin, storm)
-            wpc, _ = Status.__get_status_wpc(
-                MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
-            )
-            coamps, _ = Status.__get_status_coamps(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-            ctcx, _ = Status.__get_status_ctcx(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-                member,
-            )
-            s = {
-                "gfs": gfs,
-                "gefs": gefs,
-                "nam": nam,
-                "hwrf": hwrf,
-                "hrrr": hrrr,
-                "hrrr-alaska": hrrr_alaska,
-                "nhc": nhc,
-                "wpc": wpc,
-                "coamps": coamps,
-                "ctcx": ctcx,
-            }
-
-        return s, 200
+        return start_dt, end_dt, time_limit
 
     @staticmethod
     def __get_status_generic(
@@ -377,9 +380,8 @@ class Status:
             if cycle[0] == cycle_maximum:
                 latest_cycle_length = dt
 
-            if dt >= cycle_duration:
-                if not latest_complete_cycle:
-                    latest_complete_cycle = cycle_time
+            if dt >= cycle_duration and not latest_complete_cycle:
+                latest_complete_cycle = cycle_time
 
             if min_forecast_time:
                 min_forecast_time = min(cycle_min, min_forecast_time)
@@ -448,7 +450,8 @@ class Status:
             limit_end_str = Status.d2s(datetime.utcnow())
             method = "startend"
         else:
-            raise ValueError("ERROR: Invalid limit provided")
+            msg = "ERROR: Invalid limit provided"
+            raise ValueError(msg)
 
         return {
             "days": limit_days,
@@ -515,7 +518,6 @@ class Status:
             members = {}
 
             for member in unique_members:
-
                 member_name = member[0]
 
                 unique_cycles = (
@@ -917,18 +919,16 @@ class Status:
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
-
             date_filter = [
                 table_type.forecastcycle >= time_limits["start"],
                 table_type.forecastcycle <= time_limits["end"],
             ]
             storm_filter = table_type.stormname == storm
-            ensemble_member_filter = table_type.ensemble_member == ensemble_member
 
             if storm == "all":
                 query_filter = date_filter
             else:
-                query_filter = [storm_filter] + date_filter
+                query_filter = [storm_filter, *date_filter]
 
             unique_storms = (
                 session.query(table_type.stormname)
@@ -965,7 +965,6 @@ class Status:
                 )
 
                 for member in unique_ensemble_members:
-
                     member_name = member[0]
 
                     unique_cycles = (
@@ -1079,7 +1078,6 @@ class Status:
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
-
             date_filter = [
                 table_type.forecastcycle >= time_limits["start"],
                 table_type.forecastcycle <= time_limits["end"],
@@ -1177,7 +1175,7 @@ class Status:
                     this_storm["cycles"] = this_storm_cycles
                     this_storm["cycles_complete"] = this_storm_complete_cycles
 
-                    if storm_year not in storms.keys():
+                    if storm_year not in storms:
                         storms[storm_year] = {}
                     storms[storm_year][storm_name] = this_storm
 
@@ -1229,7 +1227,6 @@ class Status:
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
-
             date_filter = or_(
                 NhcBtkTable.advisory_start.between(
                     time_limits["start"], time_limits["end"]
@@ -1313,7 +1310,6 @@ class Status:
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
-
             date_filter = or_(
                 NhcFcstTable.advisory_start.between(
                     time_limits["start"], time_limits["end"]
@@ -1382,7 +1378,7 @@ class Status:
                 advisory_list = {}
                 for adv in this_storm:
                     a = int(adv[0])
-                    adv_str = "{:03d}".format(a)
+                    adv_str = f"{a:03d}"
                     start_trk = adv[1]
                     end_trk = adv[2]
                     duration = adv[3]

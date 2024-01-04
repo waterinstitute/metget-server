@@ -26,7 +26,7 @@ spec:
                 name: use-annotation
         - path: /*
           pathType: ImplementationSpecific
-          backend: 
+          backend:
             service:
               name: {{ .Release.Name }}-api
               port:

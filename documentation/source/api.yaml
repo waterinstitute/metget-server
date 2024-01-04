@@ -540,4 +540,3 @@ securityDefinitions:
     name: x-api-key
     type: apiKey
 x-components: {}
-

@@ -26,7 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
+import copy
 from datetime import datetime
 from typing import List, Union
 
@@ -35,6 +35,7 @@ import numpy as np
 from .datainterpolator import DataInterpolator
 from .enum import MeteorologicalSource, VariableType
 from .output.outputgrid import OutputGrid
+from .fileobj import FileObj
 
 
 class Meteorology:
@@ -49,6 +50,8 @@ class Meteorology:
             backfill (bool): Whether to backfill missing data
             epsg (int): The EPSG code of the output grid
         """
+
+        import xarray as xr
 
         if "grid" in kwargs:
             self.__grid = kwargs["grid"]
@@ -95,14 +98,12 @@ class Meteorology:
                 raise TypeError(msg)
 
         # Initialize other attributes
-        self.__file_1: Union[None, str] = None
-        self.__file_2: Union[None, str] = None
-        self.__time_file_1: Union[datetime, None] = None
-        self.__time_file_2: Union[datetime, None] = None
+        self.__file_1: Union[None, FileObj] = None
+        self.__file_2: Union[None, FileObj] = None
         self.__interpolation_1 = DataInterpolator(self.__grid)
-        self.__interpolation_2 = DataInterpolator(self.__grid)
-        self.__interpolation_result_1: Union[None, List[dict]] = None
-        self.__interpolation_result_2: Union[None, List[dict]] = None
+        self.__interpolation_2 = copy.deepcopy(self.__interpolation_1)
+        self.__interpolation_result_1: Union[None, xr.Dataset] = None
+        self.__interpolation_result_2: Union[None, xr.Dataset] = None
 
     def grid(self) -> OutputGrid:
         """
@@ -149,7 +150,7 @@ class Meteorology:
         """
         return self.__epsg
 
-    def f1(self) -> Union[None, str]:
+    def f1(self) -> Union[None, FileObj]:
         """
         Get the first file
 
@@ -158,7 +159,7 @@ class Meteorology:
         """
         return self.__file_1
 
-    def f2(self) -> Union[None, str]:
+    def f2(self) -> Union[None, FileObj]:
         """
         Get the second file
 
@@ -167,45 +168,23 @@ class Meteorology:
         """
         return self.__file_2
 
-    def t1(self) -> Union[None, datetime]:
-        """
-        Get the time of the first file
-
-        Returns:
-            Union[None, datetime]: The time of the first file
-        """
-        return self.__time_file_1
-
-    def t2(self) -> Union[None, datetime]:
-        """
-        Get the time of the second file
-
-        Returns:
-            Union[None, datetime]: The time of the second file
-        """
-        return self.__time_file_2
-
-    def set_next_file(self, time: datetime, filename: str) -> None:
+    def set_next_file(self, f_obj: FileObj) -> None:
         """
         Set the next file to be processed and the time of the file. Move the
         current file to the previous file.
 
         Args:
-            time (datetime): The time of the file
-            filename (str): The filename of the file
+            f_obj (FileObj): The filename of the file
 
         Returns:
             None
         """
         if self.__file_1 is None:
-            self.__time_file_1 = time
-            self.__file_1 = filename
+            self.__file_1 = f_obj
         elif self.__file_2 is None:
-            self.__time_file_2 = time
-            self.__file_2 = filename
+            self.__file_2 = f_obj
         else:
-            self.__file_1, self.__file_2 = self.__file_2, filename
-            self.__time_file_1, self.__time_file_2 = self.__time_file_2, time
+            self.__file_1, self.__file_2 = self.__file_2, f_obj
 
     def process_files(self) -> None:
         """
@@ -218,12 +197,12 @@ class Meteorology:
             self.__interpolation_result_1 = self.__interpolation_result_2
         else:
             self.__interpolation_result_1 = self.__interpolation_1.interpolate(
-                file_list=[self.__file_1],
+                f_obj=self.__file_1,
                 variable_type=self.__data_type_key,
                 apply_filter=False,
             )
         self.__interpolation_result_2 = self.__interpolation_2.interpolate(
-            file_list=[self.__file_2],
+            f_obj=self.__file_2,
             variable_type=self.__data_type_key,
             apply_filter=False,
         )
@@ -238,13 +217,13 @@ class Meteorology:
         Returns:
             float: The time weight
         """
-        if time >= self.__time_file_2:
+        if time >= self.__file_2.time():
             return 1.0
-        elif time <= self.__time_file_1:
+        elif time <= self.__file_1.time():
             return 0.0
         else:
-            return (time - self.__time_file_1) / (
-                self.__time_file_2 - self.__time_file_1
+            return (time - self.__file_1.time()) / (
+                self.__file_2.time() - self.__file_1.time()
             )
 
     def get(self, time: datetime) -> np.array:
@@ -257,13 +236,13 @@ class Meteorology:
         Returns:
             np.array: The meteorological field
         """
-        if time >= self.__time_file_2:
-            return self.__interpolation_result_2["result"]
-        elif time <= self.__time_file_1:
-            return self.__interpolation_result_1["result"]
+        if time >= self.__file_2.time():
+            return self.__interpolation_result_2
+        elif time <= self.__file_1.time():
+            return self.__interpolation_result_1
         else:
             weight = self.time_weight(time)
             return (
-                self.__interpolation_result_1["result"] * (1.0 - weight)
-                + self.__interpolation_result_2["result"] * weight
+                self.__interpolation_result_1 * (1.0 - weight)
+                + self.__interpolation_result_2 * weight
             )
