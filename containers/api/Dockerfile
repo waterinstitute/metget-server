@@ -12,7 +12,7 @@ COPY libraries/metbuild /tmp/metbuild/.
 RUN pip install /tmp/metbuild/. && rm -rf /tmp/metbuild
 
 COPY containers/api/metget_api /app/metget_api/.
-COPY containers/api/metget.py /app/. 
+COPY containers/api/metget.py /app/.
 
 ENTRYPOINT ["gunicorn"]
 CMD ["-w","4","metget:application","--bind","0.0.0.0:8080","--timeout","120"]

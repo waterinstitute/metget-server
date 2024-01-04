@@ -28,7 +28,7 @@
 ###################################################################################################
 
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import List, Dict, Optional, Tuple, Union
 
 
 class S3GribIO:
@@ -37,18 +37,18 @@ class S3GribIO:
     of grib data from s3 resources
     """
 
-    def __init__(self, s3_bucket: str, variable_list: list):
+    def __init__(self, s3_bucket: str, variable_dict: dict):
         """
         Constructor
 
         Args:
             s3_bucket (str): The s3 bucket to download from
-            variable_list (list): The list of variables to download
+            variable_dict (dict): The list of variables to download
         """
         import boto3
 
         self.__s3_bucket = s3_bucket
-        self.__variable_list = variable_list
+        self.__variable_dict = variable_dict
         self.__s3_client = boto3.client("s3")
         self.__s3_resource = boto3.resource("s3")
         # self.__s3_bucket_object = self.__s3_resource.Bucket(self.__s3_bucket)
@@ -62,14 +62,14 @@ class S3GribIO:
         """
         return self.__s3_bucket
 
-    def variable_list(self) -> List[dict]:
+    def variable_dict(self) -> Dict:
         """
-        Returns the variable list
+        Returns the variable dictionary
 
         Returns:
-            list: The variable list
+            dict: The variable list
         """
-        return self.__variable_list
+        return self.__variable_dict
 
     @staticmethod
     def __parse_path(path: str) -> Tuple[str, str]:
@@ -183,8 +183,12 @@ class S3GribIO:
                 if line != "":
                     inv_data.append(line)
             byte_list = []
-            for v in self.__variable_list:
-                byte_list.append(S3GribIO.__get_inventory_byte_list(inv_data, v))
+            for v in self.__variable_dict:
+                byte_list.append(
+                    S3GribIO.__get_inventory_byte_list(
+                        inv_data, self.__variable_dict[v]
+                    )
+                )
 
             return byte_list
 

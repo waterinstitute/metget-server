@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -30,7 +29,7 @@
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Tuple
+from typing import Tuple, Union
 
 from metbuild.domain import Domain
 from metbuild.filelist import Filelist
@@ -39,8 +38,10 @@ from metbuild.s3file import S3file
 from metbuild.tables import RequestTable
 from metbuild.s3gribio import S3GribIO
 from metbuild.output.outputfile import OutputFile
-from metbuild.variabletype import VariableType
-from metbuild.meteorologicalsource import MeteorologicalSource
+from metbuild.output.outputdomain import OutputDomain
+from metbuild.enum import VariableType, MeteorologicalSource
+from metbuild.fileobj import FileObj
+from metbuild.meteorology import Meteorology
 
 
 class MessageHandler:
@@ -50,8 +51,16 @@ class MessageHandler:
     """
 
     def __init__(self, message: dict) -> None:
-        self.__message = message
-        self.__input = Input(self.__message)
+        """
+        Constructor for the message handler
+
+        Args:
+            message (dict): The message to process
+
+        Returns:
+            None
+        """
+        self.__input = Input(message)
 
     def input(self) -> Input:
         """
@@ -70,143 +79,202 @@ class MessageHandler:
             True if the message was processed successfully, False otherwise
         """
         import json
-        from metbuild.tables import RequestEnum.restore
 
         filelist_name = "filelist.json"
 
         log = logging.getLogger(__name__)
 
         log.info("Processing message")
-        log.info(json.dumps(self.__message))
+        log.info(json.dumps(self.input().json()))
 
         log.info(
-            "Found {:d} domains in input request".format(self.__input.num_domains())
+            "Found {:d} domains in input request".format(self.input().num_domains())
         )
 
-        start_date = self.__input.start_date()
-        end_date = self.__input.end_date()
-        time_step = self.__input.time_step()
+        output_obj = MessageHandler.__generate_output_field(self.input())
 
-        met_field = MessageHandler.__generate_met_field(
-            self.__input.format(),
-            start_date,
-            end_date,
-            time_step,
-            self.__input.filename(),
-            self.__input.compression(),
-        )
-
-        log.info("Generating type key for {:s}".format(self.__input.data_type()))
-        data_type_key = MessageHandler.__generate_datatype_key(self.__input.data_type())
-
-        domain_data = []
-        ongoing_restore = False
-        nhc_data = {}
-        db_files = []
+        log.info("Generating type key for {:s}".format(self.input().data_type()))
+        data_type_key = MessageHandler.__generate_datatype_key(self.input().data_type())
 
         # ...Take a first pass on the data and check for restore status
-        for i in range(self.__input.num_domains()):
-            if met_field:
-                log.info("Generating met domain object for domain {:d}".format(i))
-                MessageHandler.__generate_met_domain(self.__input, met_field, i)
-            d = self.__input.domain(i)
-
-            log.info("Querying database for available data")
-            filelist = Filelist(
-                d.service(),
-                self.__input.data_type(),
-                start_date,
-                end_date,
-                d.tau(),
-                d.storm_year(),
-                d.storm(),
-                d.basin(),
-                d.advisory(),
-                self.__input.nowcast(),
-                self.__input.multiple_forecasts(),
-                d.ensemble_member(),
-            )
-            f = filelist.files()
-            log.info("Selected {:d} files for interpolation".format(len(f)))
-
-            if d.service() == "nhc":
-                nhc_data[i] = f
-            else:
-                db_files.append(f)
-                if len(f) < 2:
-                    log.error("No data found for domain " + str(i) + ". Giving up.")
-                    raise RuntimeError("No data found for domain")
-                ongoing_restore = MessageHandler.__check_glacier_restore(d, f)
+        file_info = self.__list_files_check_glacier(self.input(), output_obj)
 
         # ...If restore ongoing, this is where we stop
-        if ongoing_restore:
-            log.info("Request is currently in restore status")
-            RequestTable.update_request(
-                self.__input.request_id(),
-                RequestEnum.restore,
-                self.__message["api_key"],
-                self.__message["source_ip"],
-                self.__message,
-                "Job is in archive restore status",
-                0,
-            )
-            if met_field:
-                ff = met_field.filenames()
-                for f in ff:
-                    os.remove(f)
-                MessageHandler.__cleanup_temp_files(domain_data)
+        if file_info["ongoing_restore"]:
+            self.__handle_ongoing_restore(output_obj)
             return False
 
         # ...Begin downloading data from s3
-        MessageHandler.__download_files_from_s3(
-            db_files, domain_data, self.__input, met_field, nhc_data
+        domain_data = MessageHandler.__download_files_from_s3(
+            file_info["database_files"],
+            self.input(),
+            output_obj,
+            file_info["nhc_files"],
         )
 
-        if not met_field:
-            (
-                output_file_list,
-                files_used_list,
-            ) = MessageHandler.__generate_raw_files_list(domain_data, self.__input)
+        if output_obj is None:
+            output_info = MessageHandler.__generate_raw_files_list(
+                domain_data, self.input()
+            )
         else:
-            (
-                output_file_list,
-                files_used_list,
-            ) = MessageHandler.__interpolate_wind_fields(
-                self.__input,
-                met_field,
+            output_info = MessageHandler.__interpolate_wind_fields(
+                self.input(),
+                output_obj,
                 data_type_key,
                 domain_data,
-                start_date,
-                end_date,
-                time_step,
             )
 
         output_file_dict = {
-            "input": self.__input.json(),
-            "input_files": files_used_list,
-            "output_files": output_file_list,
+            "input": self.input().json(),
+            "input_files": output_info["files_used"],
+            "output_files": output_info["output_files"],
         }
 
-        met_field = None  # ... This assignment closes all open files
+        output_obj.close()
 
         # ...Posts the data out to the correct S3 location
+        self.__upload_files_to_s3(
+            output_info["output_files"], output_file_dict, filelist_name
+        )
+
+        # ...Remove the temporary files
+        MessageHandler.__cleanup_temp_files(domain_data)
+
+        return True
+
+    def __upload_files_to_s3(self, output_file_list, output_file_dict, filelist_name):
+        """
+        Uploads the files to the SE
+
+        Args:
+            output_file_list: The list of output files
+            output_file_dict: The output file dictionary
+            filelist_name: The name of the filelist
+
+        Returns:
+            None
+        """
+        import json
+
+        log = logging.getLogger(__name__)
+
         s3up = S3file(os.environ["METGET_S3_BUCKET_UPLOAD"])
-        for f in output_file_list:
-            path = os.path.join(self.__input.request_id(), f)
-            s3up.upload_file(f, path)
-            os.remove(f)
+        for domain_files in output_file_list:
+            for f in domain_files:
+                path = os.path.join(self.input().request_id(), f)
+                s3up.upload_file(f, path)
+                os.remove(f)
 
         with open(filelist_name, "w") as of:
             of.write(json.dumps(output_file_dict, indent=2))
 
-        filelist_path = os.path.join(self.__input.request_id(), filelist_name)
+        filelist_path = os.path.join(self.input().request_id(), filelist_name)
         s3up.upload_file(filelist_name, filelist_path)
         log.info("Finished processing message with id")
         os.remove(filelist_name)
 
-        MessageHandler.__cleanup_temp_files(domain_data)
+    def __handle_ongoing_restore(self, met_field: OutputFile) -> None:
+        """
+        Handles the case where there is an ongoing restore
 
-        return True
+        Args:
+            met_field: The met field object
+
+        Returns:
+            None
+        """
+        from metbuild.tables import RequestEnum
+
+        log = logging.getLogger(__name__)
+
+        log.info("Request is currently in restore status")
+        RequestTable.update_request(
+            request_id=self.input().request_id(),
+            request_status=RequestEnum.restore,
+            api_key=self.input().json()["api_key"],
+            source_ip=self.input().json()["source_ip"],
+            input_data=self.input().json(),
+            message="Job is in archive restore status",
+            increment_try=0,
+        )
+
+        if met_field is not None:
+            met_field.remove_files()
+
+    @staticmethod
+    def __list_files_check_glacier(input_data: Input, met_field: OutputFile) -> dict:
+        """
+        Gets the list of files from the database and checks for ongoing glacier restores
+
+        Args:
+            input_data: The input data object
+            met_field: The met field object
+
+        Returns:
+            A dictionary containing the list of files and whether there is an ongoing restore
+        """
+        db_files = []
+        nhc_data = {}
+        ongoing_restore = False
+
+        log = logging.getLogger(__name__)
+
+        for i in range(input_data.num_domains()):
+            if met_field:
+                log.info("Generating met domain object for domain {:d}".format(i))
+                MessageHandler.__generate_met_domain(input_data, met_field, i)
+
+            log.info("Querying database for available data")
+            filelist = MessageHandler.__generate_filelist_obj(
+                input_data.domain(i), input_data
+            )
+            log.info(
+                "Selected {:d} files for interpolation".format(len(filelist.files()))
+            )
+
+            if input_data.domain(i).service() == "nhc":
+                nhc_data[i] = filelist.files()
+            else:
+                db_files.append(filelist.files())
+                if len(filelist.files()) < 2:
+                    log.error("No data found for domain " + str(i) + ". Giving up.")
+                    raise RuntimeError("No data found for domain")
+                ongoing_restore = MessageHandler.__check_glacier_restore(
+                    input_data.domain(i), filelist.files()
+                )
+
+        return {
+            "database_files": db_files,
+            "nhc_files": nhc_data,
+            "ongoing_restore": ongoing_restore,
+        }
+
+    @staticmethod
+    def __generate_filelist_obj(domain: Domain, input_data: Input) -> Filelist:
+        """
+        Generates a filelist object from the domain and input data
+
+        Args:
+            domain: The domain object
+            input_data: The input data object
+
+        Returns:
+            The filelist object
+        """
+        return Filelist(
+            service=domain.service(),
+            param=input_data.data_type(),
+            start=input_data.start_date(),
+            end=input_data.end_date(),
+            tau=domain.tau(),
+            storm_year=domain.storm_year(),
+            storm=domain.storm(),
+            basin=domain.basin(),
+            advisory=domain.advisory(),
+            nowcast=input_data.nowcast(),
+            multiple_forecasts=input_data.multiple_forecasts(),
+            ensemble_member=domain.ensemble_member(),
+        )
 
     @staticmethod
     def __date_span(start_date: datetime, end_date: datetime, delta: timedelta):
@@ -253,51 +321,49 @@ class MessageHandler:
         return MeteorologicalSource.from_string(data_source)
 
     @staticmethod
-    def __generate_met_field(
-        output_format: str,
-        start: datetime,
-        end: datetime,
-        time_step: int,
-        filename: str,
-        compression: bool,
-    ) -> OutputFile:
+    def __generate_output_field(input_data: Input) -> Union[OutputFile, None]:
         """
         Generate the met field object
 
         Args:
-            output_format: The output format to generate the met field object for
-            start: The start date
-            end: The end date
-            time_step: The time step in seconds
-            filename: The filename to write to
-            compression: Whether to compress the output
+            input_data: The input data object
+
+        Returns:
+            The output file object
         """
         from metbuild.output.owiasciioutput import OwiAsciiOutput
 
-        if (
-            output_format == "ascii"
-            or output_format == "owi-ascii"
-            or output_format == "adcirc-ascii"
-        ):
+        log = logging.getLogger(__name__)
 
-            return OwiAsciiOutput(start, end, time_step, compression)
+        if (
+            input_data.format() == "ascii"
+            or input_data.format() == "owi-ascii"
+            or input_data.format() == "adcirc-ascii"
+        ):
+            log.info("Compression: " + str(input_data.compression()))
+            return OwiAsciiOutput(
+                input_data.start_date(),
+                input_data.end_date(),
+                input_data.time_step(),
+                input_data.compression(),
+            )
         # elif output_format == "owi-netcdf" or output_format == "adcirc-netcdf":
         #     return pymetbuild.OwiNetcdf(start, end, time_step, filename)
         # elif output_format == "hec-netcdf":
         #     return pymetbuild.RasNetcdf(start, end, time_step, filename)
         # elif output_format == "delft3d":
         #     return pymetbuild.DelftOutput(start, end, time_step, filename)
-        # elif output_format == "raw":
-        #     return None
+        elif input_data.format() == "raw":
+            return None
         else:
             raise RuntimeError(
-                "Invalid output format selected: {:s}".format(output_format)
+                "Invalid output format selected: {:s}".format(input_data.format())
             )
 
     @staticmethod
-    def __generate_met_domain(input_data: Input, met_object, index: int):
+    def __generate_met_domain(input_data: Input, met_object: OutputFile, index: int):
         """
-        Generate the met domain object from the pymetbuild library
+        Generate the met domain object
 
         Args:
             input_data: The input data object
@@ -331,38 +397,38 @@ class MessageHandler:
                 for i, s in enumerate(fns):
                     fns[i] = s + ".gz"
 
-            met_object.addDomain(d.grid(), fns)
-        elif output_format == "owi-netcdf":
-            group = d.name()
-            met_object.addDomain(d.grid(), [group])
-        elif output_format == "hec-netcdf":
-            if input_data.data_type() == "wind_pressure":
-                variables = ["wind_u", "wind_v", "mslp"]
-            elif input_data.data_type() == "wind":
-                variables = ["wind_u", "wind_v"]
-            elif input_data.data_type() == "rain":
-                variables = ["rain"]
-            elif input_data.data_type() == "humidity":
-                variables = ["humidity"]
-            elif input_data.data_type() == "ice":
-                variables = ["ice"]
-            else:
-                raise RuntimeError("Invalid variable requested")
-            met_object.addDomain(d.grid(), variables)
-        elif output_format == "delft3d":
-            if input_data.data_type() == "wind_pressure":
-                variables = ["wind_u", "wind_v", "mslp"]
-            elif input_data.data_type() == "wind":
-                variables = ["wind_u", "wind_v"]
-            elif input_data.data_type() == "rain":
-                variables = ["rain"]
-            elif input_data.data_type() == "humidity":
-                variables = ["humidity"]
-            elif input_data.data_type() == "ice":
-                variables = ["ice"]
-            else:
-                raise RuntimeError("Invalid variable requested")
-            met_object.addDomain(d.grid(), variables)
+            met_object.add_domain(d.grid(), fns)
+        # elif output_format == "owi-netcdf":
+        #     group = d.name()
+        #     met_object.add_domain(d.grid(), [group])
+        # elif output_format == "hec-netcdf":
+        #     if input_data.data_type() == "wind_pressure":
+        #         variables = ["wind_u", "wind_v", "mslp"]
+        #     elif input_data.data_type() == "wind":
+        #         variables = ["wind_u", "wind_v"]
+        #     elif input_data.data_type() == "rain":
+        #         variables = ["rain"]
+        #     elif input_data.data_type() == "humidity":
+        #         variables = ["humidity"]
+        #     elif input_data.data_type() == "ice":
+        #         variables = ["ice"]
+        #     else:
+        #         raise RuntimeError("Invalid variable requested")
+        #     met_object.add_domain(d.grid(), variables)
+        # elif output_format == "delft3d":
+        #     if input_data.data_type() == "wind_pressure":
+        #         variables = ["wind_u", "wind_v", "mslp"]
+        #     elif input_data.data_type() == "wind":
+        #         variables = ["wind_u", "wind_v"]
+        #     elif input_data.data_type() == "rain":
+        #         variables = ["rain"]
+        #     elif input_data.data_type() == "humidity":
+        #         variables = ["humidity"]
+        #     elif input_data.data_type() == "ice":
+        #         variables = ["ice"]
+        #     else:
+        #         raise RuntimeError("Invalid variable requested")
+        #     met_object.add_domain(d.grid(), variables)
         else:
             raise RuntimeError("Invalid output format selected: " + output_format)
 
@@ -437,32 +503,63 @@ class MessageHandler:
         return output_file
 
     @staticmethod
+    def __generate_file_obj(filename: str, service: str, time: datetime) -> FileObj:
+        """
+        Generates the file object
+
+        Args:
+            filename (str): The filename
+            service (str): The service
+            time (datetime): The time
+        """
+        from metbuild.metfiletype import (
+            NCEP_GFS,
+            NCEP_NAM,
+            NCEP_GEFS,
+            NCEP_HRRR,
+            NCEP_HRRR_ALASKA,
+            NCEP_WPC,
+            COAMPS_TC,
+        )
+
+        if service == "gfs-ncep":
+            file_type = NCEP_GFS
+        elif service == "nam-ncep":
+            file_type = NCEP_NAM
+        elif service == "gefs-ncep":
+            file_type = NCEP_GEFS
+        elif service == "hrrr-ncep":
+            file_type = NCEP_HRRR
+        elif service == "hrrr-alaska-ncep":
+            file_type = NCEP_HRRR_ALASKA
+        elif service == "wpc-ncep":
+            file_type = NCEP_WPC
+        elif service == "coamps-tc":
+            file_type = COAMPS_TC
+        else:
+            raise RuntimeError("Invalid service selected: " + service)
+
+        return FileObj(filename, file_type, time)
+
+    @staticmethod
     def __interpolate_wind_fields(
-        input_data,
-        met_field,
-        data_type_key,
-        domain_data,
-        start_date,
-        end_date,
-        time_step,
-    ) -> Tuple[list, dict]:
+        input_data: Input,
+        output_field: OutputFile,
+        data_type_key: VariableType,
+        domain_data: list,
+    ) -> dict:
         """
         Interpolates the wind fields for the given domains
 
         Args:
             input_data (Input): The input data
-            met_field (Meteorology): The meteorology object
+            output_field (OutputFile): The meteorology object
             data_type_key (VariableType): The data type key
             domain_data (list): The list of domain data
-            start_date (datetime): The start date
-            end_date (datetime): The end date
-            time_step (int): The time step
 
         Returns:
-            Tuple[list, dict]: The list of output files and the list of files used
+            Dict: The list of output files and the list of files used
         """
-        from datetime import timedelta
-        from metbuild.meteorology import Meteorology
 
         log = logging.getLogger(__name__)
 
@@ -471,113 +568,275 @@ class MessageHandler:
         files_used_list = {}
 
         for i in range(input_data.num_domains()):
-            d = input_data.domain(i)
-
-            if d.service() == "nhc":
-                log.error("NHC to gridded data not implemented")
-                raise RuntimeError("NHC to gridded data no implemented")
-
-            source_key = MessageHandler.__generate_data_source_key(d.service())
-            met = Meteorology(
-                d.grid(),
-                source_key,
+            output_domain, _ = output_field.domain(i)
+            MessageHandler.__process_domain(
+                i,
+                input_data,
                 data_type_key,
-                input_data.backfill(),
-                input_data.epsg(),
+                domain_data,
+                output_domain,
+                files_used_list,
             )
-            t0 = domain_data[i][0]["time"]
 
-            domain_files_used = []
-            next_time = start_date + timedelta(seconds=time_step)
-            index = MessageHandler.__get_next_file_index(next_time, domain_data[i])
+        output_file_list = output_field.filenames()
 
-            t1 = domain_data[i][index]["time"]
-            ff = domain_data[i][0]["filepath"]
-            MessageHandler.__print_file_status(ff, t0)
+        log.info("Finished interpolating meteorological fields")
 
-            met.set_next_file(ff)
-            if d.service() == "coamps-tc" or d.service() == "coamps-ctcx":
-                for ff in domain_data[i][0]["filepath"]:
-                    domain_files_used.append(os.path.basename(ff))
-            else:
-                domain_files_used.append(
-                    os.path.basename(domain_data[i][0]["filepath"])
-                )
-
-            met.set_next_file(domain_data[i][index]["filepath"])
-            ff = domain_data[i][index]["filepath"]
-            MessageHandler.__print_file_status(ff, t1)
-            met.process_data()
-            if d.service() == "coamps-tc" or d.service() == "coamps-ctcx":
-                for ff in domain_data[i][index]["filepath"]:
-                    domain_files_used.append(os.path.basename(ff))
-            else:
-                domain_files_used.append(
-                    os.path.basename(domain_data[i][index]["filepath"])
-                )
-
-            for t in MessageHandler.__date_span(
-                start_date, end_date, timedelta(seconds=time_step)
-            ):
-                if t > t1:
-                    index = MessageHandler.__get_next_file_index(t, domain_data[i])
-                    t0 = t1
-                    t1 = domain_data[i][index]["time"]
-                    ff = domain_data[i][index]["filepath"]
-                    MessageHandler.__print_file_status(ff, t1)
-                    met.set_next_file(domain_data[i][index]["filepath"])
-                    if t0 != t1:
-                        if d.service() == "coamps-tc" or d.service() == "coamps-ctcx":
-                            for ff in domain_data[i][index]["filepath"]:
-                                domain_files_used.append(os.path.basename(ff))
-                        else:
-                            domain_files_used.append(
-                                os.path.basename(domain_data[i][index]["filepath"])
-                            )
-                    met.process_data()
-
-                if t < t0 or t > t1:
-                    weight = -1.0
-                elif t0 == t1:
-                    weight = 0.0
-                else:
-                    weight = met.generate_time_weight(
-                        Input.date_to_pmb(t0),
-                        Input.date_to_pmb(t1),
-                        Input.date_to_pmb(t),
-                    )
-
-                log.info(
-                    "Processing time {:s}, weight = {:f}".format(
-                        t.strftime("%Y-%m-%d %H:%M"), weight
-                    )
-                )
-
-                log.info(
-                    "Interpolating domain {:d}, snap {:s} to grid".format(
-                        i, t.strftime("%Y-%m-%d %H:%M")
-                    )
-                )
-                if input_data.data_type() == "wind_pressure":
-                    values = met.to_wind_grid(weight)
-                else:
-                    values = met.to_grid(weight)
-
-                log.info(
-                    "Writing domain {:d}, snap {:s} to disk".format(
-                        i, t.strftime("%Y-%m-%d %H:%M")
-                    )
-                )
-                met_field.write(Input.date_to_pmb(t), i, values)
-
-            files_used_list[input_data.domain(i).name()] = domain_files_used
-
-        output_file_list = met_field.filenames()
-
-        return output_file_list, files_used_list
+        return {"output_files": output_file_list, "files_used": files_used_list}
 
     @staticmethod
-    def __generate_raw_files_list(domain_data, input_data) -> Tuple[list, dict]:
+    def __process_domain(
+        domain_index: int,
+        input_data: Input,
+        data_type_key: VariableType,
+        domain_data: list,
+        output_domain: OutputDomain,
+        files_used_list: dict,
+    ):
+        """
+        Processes the domain at the given index
+
+        Args:
+            domain_index (int): The index of the domain
+            input_data (Input): The input data
+            data_type_key (VariableType): The data type key
+            domain_data (list): The list of domain data
+            files_used_list (dict): The list of files used
+
+        Returns:
+            None
+
+        """
+
+        log = logging.getLogger(__name__)
+
+        log.info(
+            "Processing domain {:d} of {:d}".format(
+                domain_index + 1, input_data.num_domains()
+            )
+        )
+
+        if input_data.domain(domain_index).service() == "nhc":
+            log.error("NHC to gridded data not implemented")
+            raise RuntimeError("NHC to gridded data no implemented")
+
+        log.debug("Generating source key for domain {:d}".format(domain_index + 1))
+        source_key = MessageHandler.__generate_data_source_key(
+            input_data.domain(domain_index).service()
+        )
+
+        log.debug(
+            "Generating meteorology object for domain {:d}".format(domain_index + 1)
+        )
+        meteo_obj = Meteorology(
+            grid=input_data.domain(domain_index).grid(),
+            source_key=source_key,
+            data_type_key=data_type_key,
+            backfill=input_data.backfill(),
+            epsg=input_data.epsg(),
+        )
+
+        log.debug("Opening the output file(s) for domain {:d}".format(domain_index + 1))
+        output_domain.open()
+
+        log.debug("Processing initial data for domain {:d}".format(domain_index + 1))
+        domain_files_used = MessageHandler.__process_initial_domain_data(
+            domain_data, domain_index, input_data, meteo_obj
+        )
+
+        for t in MessageHandler.__date_span(
+            input_data.start_date(),
+            input_data.end_date(),
+            timedelta(seconds=input_data.time_step()),
+        ):
+
+            if t > meteo_obj.f2().time():
+                log.debug(
+                    "Processing next domain time step: {:s} > {:s}".format(
+                        t, meteo_obj.f2().time()
+                    )
+                )
+                domain_files_used = MessageHandler.__process_next_domain_time_step(
+                    domain_data,
+                    domain_files_used,
+                    domain_index,
+                    input_data,
+                    meteo_obj,
+                    t,
+                )
+
+            weight = meteo_obj.time_weight(t)
+            log.info(
+                "Processing time {:s}, weight = {:f}".format(
+                    t.strftime("%Y-%m-%d %H:%M"), weight
+                )
+            )
+
+            log.info(
+                "Interpolating domain {:d}, snap {:s} to grid".format(
+                    domain_index + 1, t.strftime("%Y-%m-%d %H:%M")
+                )
+            )
+            dataset = meteo_obj.get(t)
+
+            log.info(
+                "Writing domain {:d}, snap {:s} to disk".format(
+                    domain_index + 1, t.strftime("%Y-%m-%d %H:%M")
+                )
+            )
+            output_domain.write(dataset, data_type_key)
+
+        log.debug("Closing the output file(s) for domain {:d}".format(domain_index + 1))
+        output_domain.close()
+
+        files_used_list[input_data.domain(domain_index).name()] = domain_files_used
+
+    @staticmethod
+    def __process_next_domain_time_step(
+        domain_data: list,
+        domain_files_used: list,
+        domain_index: int,
+        input_data: Input,
+        meteo_obj: Meteorology,
+        interpolation_time: datetime,
+    ) -> list:
+        """
+        Processes the next domain time step when the next time is greater than the current time
+
+        Args:
+            domain_data (list): The list of domain data
+            domain_files_used (list): The list of domain files used
+            domain_index (int): The index of the domain
+            input_data (Input): The input data
+            meteo_obj (Meteorology): The meteorology object
+
+        Returns:
+            List[str]: The list of domain files used
+        """
+        index = MessageHandler.__get_next_file_index(
+            interpolation_time, domain_data[domain_index]
+        )
+        next_time = domain_data[domain_index][index]["time"]
+        current_file = domain_data[domain_index][index]["filepath"]
+        MessageHandler.__print_file_status(current_file, next_time)
+        meteo_obj.set_next_file(
+            MessageHandler.__generate_file_obj(
+                domain_data[domain_index][index]["filepath"],
+                input_data.domain(domain_index).service(),
+                next_time,
+            )
+        )
+
+        meteo_obj.process_files()
+
+        if meteo_obj.f1().time() != meteo_obj.f2().time():
+            domain_files_used = MessageHandler.__append_domain_files(
+                domain_index, index, input_data, domain_data, domain_files_used
+            )
+
+        return domain_files_used
+
+    @staticmethod
+    def __append_domain_files(
+        domain_index: int,
+        index: int,
+        input_data: Input,
+        domain_data: list,
+        domain_files_used: list,
+    ) -> list:
+        """
+        Appends the domain files which are used to the list
+
+        Args:
+            domain_index (int): The index of the domain
+            index (int): The index of the file in the domain
+            input_data (Input): The input data
+            domain_data (list): The list of domain data
+            domain_files_used (list): The list of domain files used
+
+        Returns:
+            None
+        """
+        if (
+            input_data.domain(domain_index).service() == "coamps-tc"
+            or input_data.domain(domain_index).service() == "coamps-ctcx"
+        ):
+            for current_file in domain_data[domain_index][index]["filepath"]:
+                domain_files_used.append(os.path.basename(current_file))
+        else:
+            domain_files_used.append(
+                os.path.basename(domain_data[domain_index][index]["filepath"])
+            )
+
+        return domain_files_used
+
+    @staticmethod
+    def __process_initial_domain_data(
+        domain_data: list,
+        domain_index: int,
+        input_data: Input,
+        meteo_object: Meteorology,
+    ) -> list:
+        """
+        Generates the initial domain data
+
+        Args:
+            domain_data (list): The list of domain data
+            domain_index (int): The index of the domain
+            input_data (Input): The input data
+            meteo_object (Meteorology): The meteorology object
+
+        Returns:
+            Tuple[str, list, int, datetime]: The list of domain files used, the index, and the next time
+        """
+
+        log = logging.getLogger(__name__)
+
+        current_time = domain_data[domain_index][0]["time"]
+        domain_files_used = []
+        next_time = input_data.start_date() + timedelta(seconds=input_data.time_step())
+
+        log.debug(
+            "Processing initial domain data at time {:s}".format(
+                current_time.strftime("%Y-%m-%d %H:%M")
+            )
+        )
+
+        index = MessageHandler.__get_next_file_index(
+            next_time, domain_data[domain_index]
+        )
+        next_time = domain_data[domain_index][index]["time"]
+        current_file = domain_data[domain_index][0]["filepath"]
+        MessageHandler.__print_file_status(current_file, current_time)
+        meteo_object.set_next_file(
+            MessageHandler.__generate_file_obj(
+                current_file, input_data.domain(domain_index).service(), current_time
+            )
+        )
+
+        domain_files_used = MessageHandler.__append_domain_files(
+            domain_index, 0, input_data, domain_data, domain_files_used
+        )
+
+        meteo_object.set_next_file(
+            MessageHandler.__generate_file_obj(
+                current_file, input_data.domain(domain_index).service(), next_time
+            )
+        )
+
+        current_file = domain_data[domain_index][index]["filepath"]
+        MessageHandler.__print_file_status(current_file, next_time)
+
+        meteo_object.process_files()
+
+        domain_files_used = MessageHandler.__append_domain_files(
+            domain_index, index, input_data, domain_data, domain_files_used
+        )
+
+        return domain_files_used
+
+    @staticmethod
+    def __generate_raw_files_list(domain_data, input_data) -> dict:
         """
         Generates the list of raw files used for the given domains
 
@@ -586,7 +845,7 @@ class MessageHandler:
             input_data (Input): The input data
 
         Returns:
-            Tuple[list, dict]: The list of raw files and the list of files used
+            Dict: The list of output files and the list of files used
         """
         output_file_list = []
         files_used_list = {}
@@ -594,25 +853,23 @@ class MessageHandler:
             for pr in domain_data[i]:
                 output_file_list.append(pr["filepath"])
             files_used_list[input_data.domain(i).name()] = output_file_list
-        return output_file_list, files_used_list
+        return {"output_files": output_file_list, "files_used": files_used_list}
 
     @staticmethod
-    def __download_files_from_s3(
-        db_files, domain_data, input_data, met_field, nhc_data
-    ) -> None:
+    def __download_files_from_s3(db_files, input_data, met_field, nhc_data) -> list:
         """
         Downloads the files from S3 and generates the list of files used
 
         Args:
             db_files (list): The list of files from the database
-            domain_data (list): The list of domain data
             input_data (Input): The input data
             met_field (MeteorologyField): The meteorology field
             nhc_data (dict): The list of NHC data
 
         Returns:
-            None
+            List[str]: The list of files used
         """
+        domain_data = []
         for i in range(input_data.num_domains()):
             d = input_data.domain(i)
             domain_data.append([])
@@ -625,6 +882,7 @@ class MessageHandler:
                 MessageHandler.__get_2d_forcing_files(
                     input_data.data_type(), d, db_files, domain_data, i, met_field
                 )
+        return domain_data
 
     @staticmethod
     def __generate_noaa_s3_remote_instance(data_type: str) -> S3GribIO:
@@ -637,7 +895,7 @@ class MessageHandler:
         Returns:
             S3GribIO: The remote s3 grib instance
         """
-        from metbuild.gribdataattributes import (
+        from metbuild.metfiletype import (
             NCEP_NAM,
             NCEP_GFS,
             NCEP_GEFS,
@@ -878,14 +1136,18 @@ class MessageHandler:
             bool: True if any files are currently being restored from Glacier
 
         """
+        log = logging.getLogger(__name__)
+
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
         ongoing_restore = False
+        glacier_count = 0
         for item in filelist:
             if domain.service() == "coamps-tc" or domain.service() == "coamps-ctcx":
                 files = item["filepath"].split(",")
                 for ff in files:
                     ongoing_restore_this = s3.check_archive_initiate_restore(ff)
                     if ongoing_restore_this:
+                        glacier_count += 1
                         ongoing_restore = True
             else:
                 if "s3://" not in item["filepath"]:
@@ -893,7 +1155,11 @@ class MessageHandler:
                         item["filepath"]
                     )
                     if ongoing_restore_this:
+                        glacier_count += 1
                         ongoing_restore = True
+
+        log.info("Found {:d} files currently in Glacier storage".format(glacier_count))
+
         return ongoing_restore
 
     @staticmethod
@@ -908,7 +1174,7 @@ class MessageHandler:
 
         for domain in data:
             for f in domain:
-                if type(f["filepath"]) == list:
+                if isinstance(f["filepath"], list):
                     for ff in f["filepath"]:
                         if exists(ff):
                             os.remove(ff)

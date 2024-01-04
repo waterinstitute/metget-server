@@ -7,9 +7,3 @@ Cloudformation serves as the backbone of developing a MetGet instance. The `clou
 
 Lambda Functions
 ****************
-
-
-
-
-
-

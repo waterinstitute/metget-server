@@ -17,6 +17,11 @@ spec:
       - image: {{ .Values.containers.key_manager.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
         name: {{ .Release.Name }}-keymanager
+        resources:
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 2Gi
         stdin: true
         stdinOnce: true
         tty: true

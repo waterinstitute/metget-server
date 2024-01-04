@@ -98,7 +98,7 @@ class InterpData:
         Compute the mean resolution of the grid.
         """
 
-        # ...Due to the trickery use for netCDF data, we need to check if the
+        # ...Due to the trickery used for netCDF data, we need to check if the
         # dataset has lon and lat as coordinates or longitude and latitude
         if "lon" in dataset.coords:
             dx = (
