@@ -170,7 +170,11 @@ class MessageHandler:
 
         filelist_path = os.path.join(self.input().request_id(), filelist_name)
         s3up.upload_file(filelist_name, filelist_path)
-        log.info("Finished processing message with id")
+        log.info(
+            "Finished processing message with id '{:s}'".format(
+                self.input().request_id()
+            )
+        )
         os.remove(filelist_name)
 
     def __handle_ongoing_restore(self, met_field: OutputFile) -> None:
