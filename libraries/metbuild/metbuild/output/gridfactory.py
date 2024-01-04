@@ -84,4 +84,11 @@ def grid_factory(json_data: dict) -> OutputGrid:
         dx = json_data["di"]
         dy = json_data["dj"]
 
-    return OutputGrid(x_init, y_init, x_end, y_end, dx, dy)
+    return OutputGrid(
+        x_lower_left=x_init,
+        y_lower_left=y_init,
+        x_upper_right=x_end,
+        y_upper_right=y_end,
+        x_resolution=dx,
+        y_resolution=dy,
+    )

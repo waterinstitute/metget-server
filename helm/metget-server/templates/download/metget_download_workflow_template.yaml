@@ -12,6 +12,13 @@ spec:
     container:
       image: {{ .Values.containers.download.image }}:{{ .Values.containers.version }}
       imagePullPolicy: Always
+      resources:
+        requests:
+          memory: 2Gi
+          ephemeral-storage: 4Gi
+        limits:
+          memory: 3Gi
+          ephemeral-storage: 8Gi
       env:
         - name: METGET_DATABASE_USER
           valueFrom:
@@ -19,8 +26,8 @@ spec:
               name: {{ .Release.Name }}-database-secret
               key: username
         - name: METGET_DATABASE_PASSWORD
-          valueFrom: 
-            secretKeyRef: 
+          valueFrom:
+            secretKeyRef:
               name: {{ .Release.Name }}-database-secret
               key: password
         - name: METGET_DATABASE
@@ -39,8 +46,8 @@ spec:
               name: {{ .Release.Name }}-configmap
               key: database.apikey_table
         - name: AWS_ACCESS_KEY_ID
-          valueFrom: 
-            secretKeyRef: 
+          valueFrom:
+            secretKeyRef:
               name: aws-credentials
               key: username
         - name: AWS_SECRET_ACCESS_KEY

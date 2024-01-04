@@ -36,6 +36,8 @@ from shapely import Polygon
 from .enum import MetFileFormat, VariableType
 from .interpdata import InterpData
 from .output.outputgrid import OutputGrid
+from .metfileattributes import MetFileAttributes
+from .fileobj import FileObj
 
 
 class DataInterpolator:
@@ -90,7 +92,7 @@ class DataInterpolator:
 
         Args:
             **kwargs: Keyword arguments for input data, including:
-                - file_list (list): List of files to interpolate.
+                - f_obj (FileObj): Files to interpolate
                 - variable_type (VariableType): The type of variable to interpolate. Default is all
                 - apply_filter (bool): Flag to apply filtering.
 
@@ -98,16 +100,18 @@ class DataInterpolator:
             xr.Dataset: The interpolated data.
         """
         # Check and retrieve the first three required arguments
-        file_list = kwargs.get("file_list")
+        file_list = kwargs.get("f_obj")
 
         # Check for missing arguments
         if file_list is None:
-            msg = "Missing required arguments: file_list"
+            msg = "Missing required arguments: f_obj"
             raise ValueError(msg)
 
         # Type check
-        if not isinstance(file_list, list):
-            msg = "file_list must be of type list"
+        if not isinstance(file_list, FileObj):
+            msg = "file_list must be of type FileObj and it is of type {}".format(
+                type(file_list)
+            )
             raise TypeError(msg)
 
         # Extract other kwargs or set default values
@@ -332,7 +336,7 @@ class DataInterpolator:
 
     def __read_datasets(
         self,
-        file_list: List[dict],
+        file_list: FileObj,
         variable_type: VariableType,
     ) -> List[InterpData]:
         """
@@ -341,7 +345,7 @@ class DataInterpolator:
             filename, variable_name, scale, dataset, and resolution.
 
         Args:
-            file_list (list): The list of grib files to interpolate.
+            file_list (FileObj): The list of grib files to interpolate.
             variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
@@ -349,53 +353,59 @@ class DataInterpolator:
                 variable_name, scale, dataset, and resolution.
         """
         datasets = []
-        for f in file_list:
-            interp_data = self.__open_dataset(f, variable_type)
+        for fn, ft in file_list.files():
+            interp_data = self.__open_dataset(fn, ft, variable_type)
             datasets.append(interp_data)
 
         return datasets
 
     def __open_dataset(
         self,
-        f: dict,
+        filename: str,
+        file_type: MetFileAttributes,
         variable_type: VariableType,
     ) -> InterpData:
         """
         Open the dataset using xarray.
 
         Args:
-            f (dict): The file to open.
+            filename (str): The filename of the file to open.
+            file_type (MetFileAttributes): The type of file to open.
             variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
             InterpData: The dataset and associated information
         """
-        if f["type"].file_format() == MetFileFormat.GRIB:
+        if file_type.file_format() == MetFileFormat.GRIB:
             interp_data = self.__xr_open_grib_format(
-                f,
+                filename,
+                file_type,
                 variable_type,
             )
-        elif f["type"].file_format() == MetFileFormat.COAMPS_TC:
+        elif file_type.file_format() == MetFileFormat.COAMPS_TC:
             interp_data = self.__xr_open_coamps_netcdf(
-                f,
+                filename,
+                file_type,
                 variable_type,
             )
         else:
-            msg = f"Unknown file extension: {f}"
+            msg = f"Unknown file format: {filename}"
             raise ValueError(msg)
 
         return interp_data
 
     def __xr_open_coamps_netcdf(
         self,
-        f: dict,
+        filename: str,
+        file_type: MetFileAttributes,
         variable_type: VariableType,
     ) -> InterpData:
         """
         Open the coamps-tc netcdf file using xarray.
 
         Args:
-            f (dict): The file to open.
+            filename (str): The filename of the file to open.
+            file_type (MetFileAttributes): The type of file to open.
             variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
@@ -408,16 +418,16 @@ class DataInterpolator:
         # identically. Instead of using the xarray.open_dataset() method, we
         # use the netCDF4.Dataset() method and then create an xarray.Dataset()
         # from the netCDF4.Dataset() object
-        nc = Dataset(f["filename"])
+        nc = Dataset(filename)
         lon = nc.variables["lon"][:]
         lat = nc.variables["lat"][:]
         lon = lon[0, :]
         lat = lat[:, 0]
 
         dataset = None
-        for var in f["type"].selected_variables(variable_type):
-            variable_name = f["type"].variable(var)["var_name"]
-            standard_name = str(f["type"].variable(var)["type"])
+        for var in file_type.selected_variables(variable_type):
+            variable_name = file_type.variable(var)["var_name"]
+            standard_name = str(file_type.variable(var)["type"])
 
             var_data = nc.variables[variable_name][:]
 
@@ -443,13 +453,13 @@ class DataInterpolator:
                     ]
                 )
 
-        var_name = str(f["type"].variables()[next(iter(f["type"].variables()))]["type"])
+        var_name = str(file_type.variables()[next(iter(file_type.variables()))]["type"])
         poly = DataInterpolator.__generate_dataset_polygon(dataset, var_name)
 
         return InterpData(
-            filename=f["filename"],
+            filename=filename,
             epsg=4326,
-            file_type=f["type"],
+            file_type=file_type,
             grid_obj=self.__grid,
             dataset=dataset,
             polygon=poly,
@@ -457,14 +467,16 @@ class DataInterpolator:
 
     def __xr_open_grib_format(
         self,
-        f: dict,
+        filename: str,
+        file_type: MetFileAttributes,
         variable_type: VariableType,
     ) -> InterpData:
         """
         Open the grib file using xarray. Only read the specified variable.
 
         Args:
-            f (dict): The file to open.
+            filename (str): The filename of the file to open.
+            file_type (MetFileAttributes): The type of file to open.
             variable_type (VariableType): The type of variable to interpolate.
 
         Returns:
@@ -472,15 +484,15 @@ class DataInterpolator:
         """
 
         dataset = None
-        for var in f["type"].selected_variables(variable_type):
-            grib_var_name = f["type"].variable(var)["grib_name"]
+        for var in file_type.selected_variables(variable_type):
+            grib_var_name = file_type.variable(var)["long_name"]
             ds = xr.open_dataset(
-                f["filename"],
+                filename,
                 engine="cfgrib",
-                backend_kwargs={"filter_by_keys": {"shortName": grib_var_name}},
+#                backend_kwargs={"filter_by_keys": {"shortName": grib_var_name}},
             )
 
-            ds = ds * f["type"].variable(var)["scale"]
+            ds = ds * file_type.variable(var)["scale"]
 
             if dataset is None:
                 dataset = ds
@@ -488,22 +500,22 @@ class DataInterpolator:
                 dataset = xr.merge([dataset, ds], compat="override")
 
         # ...Rename the variables in the dataset to the standard names
-        for var in f["type"].selected_variables(variable_type):
-            standard_name = str(f["type"].variable(var)["type"])
-            grib_var_name = f["type"].variable(var)["var_name"]
+        for var in file_type.selected_variables(variable_type):
+            standard_name = str(file_type.variable(var)["type"])
+            grib_var_name = file_type.variable(var)["var_name"]
             if grib_var_name in dataset:
                 dataset = dataset.rename({grib_var_name: standard_name})
 
-        var_name = str(f["type"].variables()[next(iter(f["type"].variables()))]["type"])
+        var_name = str(file_type.variables()[next(iter(file_type.variables()))]["type"])
         poly = DataInterpolator.__generate_dataset_polygon(
             dataset,
             var_name,
         )
 
         return InterpData(
-            filename=f["filename"],
+            filename=filename,
             epsg=4326,
-            file_type=f["type"],
+            file_type=file_type,
             grid_obj=self.__grid,
             dataset=dataset,
             polygon=poly,

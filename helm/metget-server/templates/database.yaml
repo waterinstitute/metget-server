@@ -1,4 +1,4 @@
-{{ if .Values.config.storage.use_aws_ebs }} 
+{{ if .Values.config.storage.use_aws_ebs }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -10,7 +10,7 @@ spec:
   resources:
     requests:
       storage: 20Gi
-{{ else }} 
+{{ else }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -86,7 +86,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: metget-database
-  labels: 
+  labels:
     app: {{ .Release.Name }}-database
 spec:
   type: ClusterIP

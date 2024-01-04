@@ -8,7 +8,7 @@ This project is in active development and should not be considered a production 
 
 ## Development Partners
 
-MetGet is developed by [The Water Institute](https://thewaterinstitute.org) and has been funded by the 
+MetGet is developed by [The Water Institute](https://thewaterinstitute.org) and has been funded by the
 University of North Carolina at Chapel Hill [Coastal Resilience Center of Excellence](https://www.coastalresiliencecenter.org).
 
 ![The Water Institute](https://thewaterinstitute.org/images/01-Primary_Logo_Final.png)
@@ -38,17 +38,17 @@ MetGet is written in Python and C++ and utilizes the following applications/libr
 
 ## Usage
 
-The `metget-server` should be deployed to a Kubernetes cluster using Helm. 
+The `metget-server` should be deployed to a Kubernetes cluster using Helm.
 The Helm chart is located in the `helm` directory.
 
-The `metget` client application is a Python package which interacts with the `metget-server` can be 
+The `metget` client application is a Python package which interacts with the `metget-server` can be
 installed using `pip`:
 
 ```bash
 pip install metget
 ```
 
-The `metget` client application can be used to query the `metget-server` for meteorological data. 
+The `metget` client application can be used to query the `metget-server` for meteorological data.
 
 ## Installation
 
@@ -64,7 +64,7 @@ If you have not done so, please follow the instructions for installing the above
 ### Required AWS Services
 
 The `metget-server` uses S3 buckets to store both meteorological source data and the output from client
-requests. The user will need to create two S3 buckets for use with the `metget-server` and specify them 
+requests. The user will need to create two S3 buckets for use with the `metget-server` and specify them
 during the configuration steps. It is recommended that the bucket used for internal storage of meteorological
 data be set as private and the bucket used for client requests be set as public without list permissions. The
 user should also create an IAM user with access to both buckets and specify the access key and secret key
@@ -92,12 +92,12 @@ stable container images for use within the system. However, there are also night
 which may be of interest to some users.
 
 Additionally, users may want to turn on/off various types of meteorology. Certain types of meteorology which cannot
-be reliably sourced via Amazon's Big Data Service (e.g. HWRF, WPC, COAMPS-TC) will incur additional costs. Users 
+be reliably sourced via Amazon's Big Data Service (e.g. HWRF, WPC, COAMPS-TC) will incur additional costs. Users
 should be aware of these costs before turning on these types of meteorology.
 
-Second, if more than one `metget-server` instance is installed (i.e. development and production), the S3 
-buckets that it points to for its own storage should be unique. If they are not unique, you will encounter 
-undefined behavior. 
+Second, if more than one `metget-server` instance is installed (i.e. development and production), the S3
+buckets that it points to for its own storage should be unique. If they are not unique, you will encounter
+undefined behavior.
 
 Once you've gone through the various configuration options, you can install the Helm chart. From the `helm`
 directory, run:
@@ -107,7 +107,6 @@ helm install [installation-name] ./metget-server --namespace [namespace]
 ```
 
 Where `[installation-name]` is the name you'd like to give the installation and `[namespace]` is the namespace
-you'd like to install the application to. 
+you'd like to install the application to.
 
 :warning: WARNING: Each `metget-server` installation should be installed to its own namespace.
-

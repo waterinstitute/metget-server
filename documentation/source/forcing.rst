@@ -43,5 +43,3 @@ Hurricane Weather Research and Forecasting (HWRF)
 Description
 ^^^^^^^^^^^
 The HWRF model runs on-demand with input provided by the National Hurricane Center (NHC), Central Pacific Hurricane Center (CPHC), and/or Joint Typhoon Warning Center (JTWC). HWRF consists of multiple movable two-way interactive nested grids that follow the projected path of a tropical storm. The atmospheric component of the HWRF model was coupled to the Princeton Ocean Model (POM) for North Atlantic (NATL), Eastern Pacific (EPAC), and Central Pacific (CPAC) storms, and to the HYbrid Coordinate Ocean Model (HYCOM) for Western Pacific (WPAC), North Indian Ocean (NIO), and Southern hemisphere (SH) storms. Also, one-way coupling to wave model (Wave Watch III) was enabled for NATL, EPAC, and CPAC storms with hurricane surface wave products generated for these three basins. Grib filtering exists for the HWRF Wave Watch III data but it will only update when there are active tropical storms in these three basins.
-
-

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -73,8 +72,9 @@ class MetBuildRequest:
         Returns:
             A tuple containing the response message and status code
         """
-        from metget_api.build_request import BuildRequest
         from metbuild.tables import RequestEnum
+
+        from .build_request import BuildRequest
 
         self.__build_request = BuildRequest(
             self.__request_id, self.__api_key, self.__source_ip, self.__json_data, True
@@ -95,7 +95,6 @@ class MetBuildRequest:
 
         valid = self.__build_request.validate()
         if valid:
-
             credit_dict, credit_balance_authorized = self.__generate_credit_info(
                 self.__api_key,
                 self.__build_request.input_obj().credit_usage(),
@@ -108,34 +107,33 @@ class MetBuildRequest:
                 msg["body"]["request_url"] = "n/a"
                 msg["body"]["credits"] = credit_dict
                 msg["body"]["error_text"] = []
-            else:
-                if credit_balance_authorized or (not self.__enforce_credit_limits):
-                    msg["body"]["status"] = "success"
-                    msg["body"]["message"] = "Request added to queue"
-                    msg["body"]["request_id"] = self.__build_request.request_id()
-                    msg["body"][
-                        "request_url"
-                    ] = "https://{:s}.s3.amazonaws.com/{:s}".format(
-                        self.__output_bucket, self.__build_request.request_id()
-                    )
-                    msg["body"]["credits"] = credit_dict
-                    msg["body"]["error_text"] = []
+            elif credit_balance_authorized or (not self.__enforce_credit_limits):
+                msg["body"]["status"] = "success"
+                msg["body"]["message"] = "Request added to queue"
+                msg["body"]["request_id"] = self.__build_request.request_id()
+                msg["body"][
+                    "request_url"
+                ] = "https://{:s}.s3.amazonaws.com/{:s}".format(
+                    self.__output_bucket, self.__build_request.request_id()
+                )
+                msg["body"]["credits"] = credit_dict
+                msg["body"]["error_text"] = []
 
-                    self.__build_request.add_request(
-                        RequestEnum.queued,
-                        "Request added to queue",
-                        True,
-                        self.__build_request.input_obj().credit_usage(),
-                    )
-                else:
-                    statuscode = 402
-                    msg["statusCode"] = 402
-                    msg["body"]["status"] = "error"
-                    msg["body"]["message"] = "Insufficient credits"
-                    msg["body"]["request_id"] = self.__build_request.request_id()
-                    msg["body"]["request_url"] = "n/a"
-                    msg["body"]["credits"] = credit_dict
-                    msg["body"]["error_text"] = []
+                self.__build_request.add_request(
+                    RequestEnum.queued,
+                    "Request added to queue",
+                    True,
+                    self.__build_request.input_obj().credit_usage(),
+                )
+            else:
+                statuscode = 402
+                msg["statusCode"] = 402
+                msg["body"]["status"] = "error"
+                msg["body"]["message"] = "Insufficient credits"
+                msg["body"]["request_id"] = self.__build_request.request_id()
+                msg["body"]["request_url"] = "n/a"
+                msg["body"]["credits"] = credit_dict
+                msg["body"]["error_text"] = []
         else:
             msg["statusCode"] = 401
             msg["body"]["status"] = "error"

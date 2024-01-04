@@ -28,8 +28,9 @@
 #
 ###################################################################################################
 
-from .noaadownloader import NoaaDownloader
 from metbuild.gribdataattributes import NCEP_HRRR_ALASKA
+
+from .noaadownloader import NoaaDownloader
 
 
 class NcepHrrrAlaskadownloader(NoaaDownloader):
@@ -51,14 +52,9 @@ class NcepHrrrAlaskadownloader(NoaaDownloader):
         self.set_big_data_bucket(NCEP_HRRR_ALASKA.bucket())
         self.set_cycles(NCEP_HRRR_ALASKA.cycles())
 
-
     @staticmethod
     def _generate_prefix(date, hour) -> str:
-        return (
-            "hrrr."
-            + date.strftime("%Y%m%d")
-            + "/alaska/hrrr.t{:02d}z.wrfnatf".format(hour)
-        )
+        return "hrrr." + date.strftime("%Y%m%d") + f"/alaska/hrrr.t{hour:02d}z.wrfnatf"
 
     @staticmethod
     def _filename_to_hour(filename) -> int:

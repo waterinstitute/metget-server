@@ -62,7 +62,7 @@ class Domain:
             service: The service used to generate the domain
             json: The json object containing the domain information
         """
-        from output.gridfactory import grid_factory
+        from .output.gridfactory import grid_factory
 
         log = logging.getLogger(__name__)
 

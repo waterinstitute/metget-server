@@ -33,6 +33,7 @@ import os
 from datetime import datetime, timedelta
 
 from metbuild.tables import RequestTable
+from metbuild.tables import RequestEnum
 from message_handler import MessageHandler
 
 MAX_REQUEST_TIME = timedelta(hours=48)
@@ -46,6 +47,7 @@ def main():
     import json
     import time
     import traceback
+    import argparse
 
     logging.basicConfig(
         level=logging.INFO,
@@ -53,29 +55,55 @@ def main():
         datefmt="%Y-%m-%dT%H:%M:%S%Z",
     )
 
+    p = argparse.ArgumentParser(description="Process a metget request")
+    p.add_argument(
+        "--request-json",
+        required=False,
+        type=str,
+        help="Override use of the METGET_REQUEST_JSON environment variable",
+    )
+    args = p.parse_args()
+
     log = logging.getLogger(__name__)
     log.info("Beginning execution")
 
-    try:
-        # ...Get the input data from the environment.
-        # This variable is set by the argo template
-        # and comes from rabbitmq
-        message = os.environ["METGET_REQUEST_JSON"]
-        json_data = json.loads(message)
+    credit_cost = 0
+    json_data = None
 
-        credit_cost = 0
+    try:
+
+        if args.request_json:
+            with open(args.request_json, "r") as f:
+                message = f.read()
+            json_data = json.loads(message)
+            if "request_id" not in json_data:
+                json_data["request_id"] = "development"
+            if "api_key" not in json_data:
+                json_data["api_key"] = "none"
+            if "source_ip" not in json_data:
+                json_data["source_ip"] = "none"
+        else:
+            # ...Get the input data from the environment.
+            # This variable is set by the argo template
+            # and comes from rabbitmq
+            if "METGET_REQUEST_JSON" not in os.environ:
+                raise RuntimeError("METGET_REQUEST_JSON not set in environment")
+            message = os.environ["METGET_REQUEST_JSON"]
+            json_data = json.loads(message)
 
         handler = MessageHandler(json_data)
+        if handler.input().valid() is False:
+            raise RuntimeError("Input is not valid")
         credit_cost = handler.input().credit_usage()
 
         RequestTable.update_request(
-            json_data["request_id"],
-            "running",
-            json_data["api_key"],
-            json_data["source_ip"],
-            json_data,
-            "Job is running",
-            credit_cost,
+            request_id=json_data["request_id"],
+            request_status=RequestEnum.running,
+            api_key=json_data["api_key"],
+            source_ip=json_data["source_ip"],
+            input_data=json_data,
+            message="Job is running",
+            credit=credit_cost,
         )
 
         status = False
@@ -91,55 +119,59 @@ def main():
             status = handler.process_message()
 
             if datetime.now() - start_time > MAX_REQUEST_TIME:
-                raise RuntimeError("Job exceeded maximum run time of 48 hours")
+                raise RuntimeError(
+                    "Job exceeded maximum run time of {:d} hours".format(
+                        int(MAX_REQUEST_TIME.total_seconds() / 3600)
+                    )
+                )
 
             if status is False:
                 time.sleep(REQUEST_SLEEP_TIME.total_seconds())
 
         RequestTable.update_request(
-            json_data["request_id"],
-            "completed",
-            json_data["api_key"],
-            json_data["source_ip"],
-            json_data,
-            "Job completed successfully",
-            credit_cost,
+            request_id=json_data["request_id"],
+            request_status=RequestEnum.completed,
+            api_key=json_data["api_key"],
+            source_ip=json_data["source_ip"],
+            input_data=json_data,
+            message="Job completed successfully",
+            credit=credit_cost,
         )
     except RuntimeError as e:
         log.error("Encountered error during processing: " + str(e))
         log.error(traceback.format_exc())
         RequestTable.update_request(
-            json_data["request_id"],
-            "error",
-            json_data["api_key"],
-            json_data["source_ip"],
-            json_data,
-            "Job encountered an error: {:s}".format(str(e)),
-            credit_cost,
+            request_id=json_data["request_id"],
+            request_status=RequestEnum.error,
+            api_key=json_data["api_key"],
+            source_ip=json_data["source_ip"],
+            input_data=json_data,
+            message="Job encountered an error: {:s}".format(str(e)),
+            credit=credit_cost,
         )
     except KeyError as e:
         log.error("Encountered malformed json input: " + str(e))
         log.error(traceback.format_exc())
         RequestTable.update_request(
-            json_data["request_id"],
-            "error",
-            json_data["api_key"],
-            json_data["source_ip"],
-            json_data,
-            "Job encountered an error: {:s}".format(str(e)),
-            credit_cost,
+            request_id=json_data["request_id"],
+            request_status=RequestEnum.error,
+            api_key=json_data["api_key"],
+            source_ip=json_data["source_ip"],
+            input_data=json_data,
+            message="Job encountered an error: {:s}".format(str(e)),
+            credit=credit_cost,
         )
     except Exception as e:
         log.error("Encountered unexpected error: " + str(e))
         log.error(traceback.format_exc())
         RequestTable.update_request(
-            json_data["request_id"],
-            "error",
-            json_data["api_key"],
-            json_data["source_ip"],
-            json_data,
-            "Job encountered an unhandled error: {:s}".format(str(e)),
-            credit_cost,
+            request_id=json_data["request_id"],
+            request_status=RequestEnum.error,
+            api_key=json_data["api_key"],
+            source_ip=json_data["source_ip"],
+            input_data=json_data,
+            message="Job encountered an unhandled error: {:s}".format(str(e)),
+            credit=credit_cost,
         )
         raise
 

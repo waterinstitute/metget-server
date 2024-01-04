@@ -15,7 +15,7 @@
 # A series of docker containers are required for the
 # various pods. Their paths and versions are specified
 # here. You may change these if you have a development
-# version or if you have forked the code and changed 
+# version or if you have forked the code and changed
 # how the containers operate
 #####################################################
 containers:
@@ -39,13 +39,13 @@ containers:
 
 #####################################################
 # Authentication Information
-# 
+#
 # MetGet will use AWS S3 buckets to store data when
 # required. Supply the AWS credentials to use to
 # upload data to the specified S3 buckets
 #
 # COAMPS data is stored in a specific S3 bucket when
-# posted by NRL. These buckets (may) require specific 
+# posted by NRL. These buckets (may) require specific
 # access keys for use, and so their values are required
 # here if you want to use either coamps or ctcx data
 #####################################################
@@ -61,7 +61,7 @@ auth:
 # HTTP Settings
 #
 # Use these settings to enable an external ingress
-# within AWS. You can disable this if you'd like 
+# within AWS. You can disable this if you'd like
 # to specify your own ingress outside EKS or
 # on your local k8s cluster
 #####################################################
@@ -74,7 +74,7 @@ http:
 #####################################################
 # S3 Configuration
 #
-# The AWS S3 buckets that are used throughout the 
+# The AWS S3 buckets that are used throughout the
 # code to either download data and store or post
 # data to for outside users
 #####################################################

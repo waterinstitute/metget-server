@@ -105,7 +105,8 @@ class ForecastData:
                 self.__maxwind, last_vmax, last_pressure
             )
         else:
-            raise RuntimeError("No valid pressure method found")
+            msg = "No valid pressure method found"
+            raise RuntimeError(msg)
 
     @staticmethod
     def compute_pressure_knaffzehr(wind):
@@ -128,7 +129,7 @@ class ForecastData:
         background_pressure = 1013.0
 
         # Below from Courtney and Knaff 2009
-        vsrm1 = wind_speed * 1.5 * forward_speed ** 0.63
+        vsrm1 = wind_speed * 1.5 * forward_speed**0.63
 
         rmax = (
             66.785 - 0.09102 * wind_speed + 1.0619 * (eye_latitude - 25.0)
@@ -167,10 +168,10 @@ class ForecastData:
 
     @staticmethod
     def compute_initial_pressure_estimate_asgs(wind, last_vmax, last_pressure):
-
         if last_pressure == 0:
             if last_vmax == 0:
-                raise RuntimeError("No valid prior wind speed given")
+                msg = "No valid prior wind speed given"
+                raise RuntimeError(msg)
             # Estimate the last pressure if none is given
             last_pressure = ForecastData.compute_pressure_dvorak(last_vmax)
 
@@ -233,15 +234,15 @@ class ForecastData:
 
     def print(self):
         print("Forecast Data for: " + self.__time.strftime("%Y-%m-%d %HZ"))
-        print("          Storm Center: ", "{:.2f}, {:.2f}".format(self.__x, self.__y))
-        print("              Max Wind: ", "{:.1f}".format(self.__maxwind))
-        print("              Max Gust: ", "{:.1f}".format(self.__maxgust))
-        print("              Pressure: ", "{:.1f}".format(self.__pressure))
-        print("         Forecast Hour: ", "{:.1f}".format(self.__forecastHours))
-        if not self.__forward_speed == -999:
-            print("         Forward Speed: ", "{:.1f}".format(self.__forward_speed))
-        if not self.__heading == -999:
-            print("               Heading: ", "{:.1f}".format(self.__heading))
+        print("          Storm Center: ", f"{self.__x:.2f}, {self.__y:.2f}")
+        print("              Max Wind: ", f"{self.__maxwind:.1f}")
+        print("              Max Gust: ", f"{self.__maxgust:.1f}")
+        print("              Pressure: ", f"{self.__pressure:.1f}")
+        print("         Forecast Hour: ", f"{self.__forecastHours:.1f}")
+        if self.__forward_speed != -999:
+            print("         Forward Speed: ", f"{self.__forward_speed:.1f}")
+        if self.__heading != -999:
+            print("               Heading: ", f"{self.__heading:.1f}")
         print("    Number of Isotachs: ", self.nisotachs())
         print("        Isotach Levels: ", self.isotach_levels())
         for level in self.isotach_levels():

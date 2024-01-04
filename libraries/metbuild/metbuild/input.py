@@ -27,6 +27,7 @@
 #
 ###################################################################################################
 from datetime import datetime
+import logging
 
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
@@ -45,6 +46,7 @@ class Input:
         {
             "name": str,
             "service": Or(*VALID_SERVICES),
+            "level": And(Use(int), lambda n: n >= 0),
             "x_init": And(Use(float), lambda n: -180 <= n <= 180),  # noqa: PLR2004
             "y_init": And(Use(float), lambda n: -90 <= n <= 90),  # noqa: PLR2004
             "x_end": And(Use(float), lambda n: -180 <= n <= 180),  # noqa: PLR2004
@@ -53,7 +55,9 @@ class Input:
             "dj": And(Use(float), lambda n: n > 0),
             Optional("basin"): Or("al", "ep", "wp"),
             Optional("advisory"): And(Use(int), lambda n: n > 0),
-            Optional("storm_year"): And(Use(int), lambda n: n > 1990),  # noqa: PLR2004
+            Optional("storm_year", default=datetime.utcnow().year): And(
+                Use(int), lambda n: n > 1990
+            ),  # noqa: PLR2004
             Optional("tau"): And(Use(int), lambda n: n >= 0),
         }
     )
@@ -67,8 +71,13 @@ class Input:
             "end_date": datetime.fromisoformat,
             "time_step": And(Use(int), lambda n: n > 0),
             "filename": str,
-            "format": Or("netcdf", "ascii", "owi-netcdf", "hec-netcdf", "raw"),
+            "format": Or(
+                "netcdf", "ascii", "owi-ascii", "owi-netcdf", "hec-netcdf", "raw"
+            ),
             "domains": [METGET_DOMAIN_SCHEMA],
+            Optional("background_pressure", default=1013.0): And(
+                Use(float), lambda n: n > 0
+            ),
             Optional("data_type"): Or(*VALID_DATA_TYPES),
             Optional("dry_run"): bool,
             Optional("compression"): bool,
@@ -77,10 +86,13 @@ class Input:
             Optional("nowcast"): bool,
             Optional("multiple_forecasts"): bool,
             Optional("strict"): bool,
+            Optional("api_key"): str,
+            Optional("creator"): str,
+            Optional("source_ip"): str,
         }
     )
 
-    def __init__(self, json_data, no_construct: bool = False):
+    def __init__(self, json_data: dict):
         """
         Constructor for Input
 
@@ -89,18 +101,22 @@ class Input:
 
         """
 
+        log = logging.getLogger(__name__)
+
         # ....Validate the input json data
+        log.info("Begin validating input JSON data with the schema")
         try:
             self.__json = Input.METGET_SCHEMA.validate(json_data)
         except SchemaError as e:
+            log.error("JSON data has invalid schema: " + str(e))
             self.__json = json_data
             self.__error = [str(e)]
             self.__valid = False
             return
+        log.info("Finished validating input JSON data with the schema")
 
         self.__json = json_data
         self.__data_type = "wind_pressure"
-        self.__no_construct = no_construct
         self.__start_date = None
         self.__end_date = None
         self.__operator = None
@@ -332,6 +348,10 @@ class Input:
 
         from .domain import Domain
 
+        log = logging.getLogger(__name__)
+
+        log.info("Begin parsing input JSON data")
+
         try:
             self.__version = self.__json["version"]
             self.__operator = self.__json["creator"]
@@ -348,31 +368,37 @@ class Input:
             if self.__format in ("owi-netcdf", "hec-netcdf") and extension != ".nc":
                 self.__filename += ".nc"
 
-            self.__data_type = self.__json.get("data_type", None)
+            self.__data_type = self.__json.get("data_type", self.__data_type)
             if self.__data_type and self.__data_type not in VALID_DATA_TYPES:
+                log.error("Invalid data type: " + self.__data_type)
                 msg = f"Invalid data type: {self.__data_type}"
                 raise RuntimeError(msg)
 
-            self.__dry_run = self.__json.get("dry_run", None)
-            self.__compression = self.__json.get("compression", None)
-            self.__backfill = self.__json.get("backfill", None)
-            self.__epsg = self.__json.get("epsg", None)
-            self.__nowcast = self.__json.get("nowcast", None)
-            self.__multiple_forecasts = self.__json.get("multiple_forecasts", None)
-            self.__strict = self.__json.get("strict", None)
+            self.__dry_run = self.__json.get("dry_run", self.__dry_run)
+            self.__compression = self.__json.get("compression", self.__compression)
+            self.__backfill = self.__json.get("backfill", self.__backfill)
+            self.__epsg = self.__json.get("epsg", self.__epsg)
+            self.__nowcast = self.__json.get("nowcast", self.__nowcast)
+            self.__multiple_forecasts = self.__json.get(
+                "multiple_forecasts", self.__multiple_forecasts
+            )
+            self.__strict = self.__json.get("strict", self.__strict)
 
             if self.__data_type is None and "data_type" in self.__json:
                 msg = "Missing required field: data_type"
+                log.error(msg)
                 raise RuntimeError(msg)
 
             # ... Sanity check
             if self.__start_date >= self.__end_date:
                 self.__error.append("Request dates are not valid")
+                log.error("Request dates are not valid")
                 self.__valid = False
 
             ndomain = len(self.__json["domains"])
             if ndomain == 0:
                 msg = "You must specify one or more domains"
+                log.error(msg)
                 raise RuntimeError(msg)
             for i in range(ndomain):
                 name = self.__json["domains"][i]["name"]
@@ -386,11 +412,15 @@ class Input:
                     self.__domains.append(d)
                 else:
                     self.__valid = False
+                    log.error("Could not generate domain " + str(i))
                     self.__error.append("Could not generate domain " + str(i))
 
         except Exception as e:
+            log.error("Could not parse the input json dataset: " + str(e))
             self.__valid = False
             self.__error.append("Could not parse the input json dataset: " + str(e))
+
+        log.info("Finished parsing input JSON data")
 
     def __calculate_credit_usage(self) -> int:
         """
@@ -402,16 +432,22 @@ class Input:
         Returns:
             The credit usage of the request
         """
+
+        log = logging.getLogger(__name__)
+        log.info("Calculating credit usage")
+
         credit_usage = 0
         num_time_steps = int(
             (self.__end_date - self.__start_date).total_seconds() / self.__time_step
         )
         for d in self.__domains:
             if d.service() != "nhc" and self.format() != "raw":
-                num_cells = d.grid().nx() * d.grid().ny()
-                credit_usage += num_cells * num_time_steps
+                credit_usage += d.grid().n() * num_time_steps
             elif d.service() == "nhc":
                 credit_usage += 100 * 100 * 24
             else:
                 credit_usage += 100 * 100 * 24 * num_time_steps
+
+        log.info("Credit usage calculated as: " + str(credit_usage))
+
         return credit_usage

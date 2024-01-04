@@ -30,8 +30,7 @@
 
 
 def generate_default_date_range():
-    from datetime import datetime
-    from datetime import timedelta
+    from datetime import datetime, timedelta
 
     start = datetime.utcnow()
     start = datetime(start.year, start.month, start.day, 0, 0, 0) - timedelta(days=1)
@@ -40,17 +39,16 @@ def generate_default_date_range():
 
 
 def nam_download():
-    from metgetlib.ncepnamdownloader import NcepNamdownloader
     import logging
+
+    from metgetlib.ncepnamdownloader import NcepNamdownloader
 
     logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     nam = NcepNamdownloader(start, end)
     logger.info(
-        "Beginning to run NCEP-NAM from {:s} to {:s}".format(
-            start.isoformat(), end.isoformat()
-        )
+        f"Beginning to run NCEP-NAM from {start.isoformat():s} to {end.isoformat():s}"
     )
     n = nam.download()
     logger.info("NCEP-NAM complete. " + str(n) + " files downloaded")
@@ -58,119 +56,119 @@ def nam_download():
 
 
 def gfs_download():
-    from metgetlib.ncepgfsdownloader import NcepGfsdownloader
     import logging
+
+    from metgetlib.ncepgfsdownloader import NcepGfsdownloader
 
     logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     gfs = NcepGfsdownloader(start, end)
     logger.info(
-        "Beginning to run NCEP-GFS from {:s} to {:s}".format(
-            start.isoformat(), end.isoformat()
-        )
+        f"Beginning to run NCEP-GFS from {start.isoformat():s} to {end.isoformat():s}"
     )
     n = gfs.download()
-    logger.info("NCEP-GFS complete. {:d} files downloaded".format(n))
+    logger.info(f"NCEP-GFS complete. {n:d} files downloaded")
     return n
 
 
 def gefs_download():
-    from metgetlib.ncepgefsdownloader import NcepGefsdownloader
     import logging
+
+    from metgetlib.ncepgefsdownloader import NcepGefsdownloader
 
     logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     gefs = NcepGefsdownloader(start, end)
     logger.info(
-        "Beginning to run NCEP-GEFS from {:s} to {:s}".format(
-            start.isoformat(), end.isoformat()
-        )
+        f"Beginning to run NCEP-GEFS from {start.isoformat():s} to {end.isoformat():s}"
     )
     n = gefs.download()
-    logger.info("NCEP-GEFS complete. {:d} files downloaded".format(n))
+    logger.info(f"NCEP-GEFS complete. {n:d} files downloaded")
     return n
 
 
 def hwrf_download():
-    from metgetlib.hwrfdownloader import HwrfDownloader
     import logging
+
+    from metgetlib.hwrfdownloader import HwrfDownloader
 
     logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     hwrf = HwrfDownloader(start, end)
     logger.info(
-        "Beginning to run HWRF from {:s} to {:s}".format(
-            start.isoformat(), end.isoformat()
-        )
+        f"Beginning to run HWRF from {start.isoformat():s} to {end.isoformat():s}"
     )
     n = hwrf.download()
-    logger.info("HWRF complete. {:d} files downloaded".format(n))
+    logger.info(f"HWRF complete. {n:d} files downloaded")
     return n
 
 
 def hafs_download():
-    from metgetlib.hafsdownloader import HafsDownloader
-    from metbuild.gribdataattributes import NCEP_HAFS_A, NCEP_HAFS_B
     import logging
+
+    from metbuild.gribdataattributes import NCEP_HAFS_A
+    from metgetlib.hafsdownloader import HafsDownloader
 
     logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     hafs = HafsDownloader(start, end, NCEP_HAFS_A)
     logger.info(
-        "Beginning to run HAFS from {:s} to {:s}".format(
-            start.isoformat(), end.isoformat()
-        )
+        f"Beginning to run HAFS from {start.isoformat():s} to {end.isoformat():s}"
     )
     n = hafs.download()
-    logger.info("HAFS complete. {:d} files downloaded".format(n))
+    logger.info(f"HAFS complete. {n:d} files downloaded")
     return n
 
 
 def nhc_download():
-    from metgetlib.nhcdownloader import NhcDownloader
     import logging
+
+    from metgetlib.nhcdownloader import NhcDownloader
 
     logger = logging.getLogger(__name__)
 
     nhc = NhcDownloader()
     logger.info("Beginning downloading NHC data")
     n = nhc.download()
-    logger.info("NHC complete. {:d} files downloaded".format(n))
+    logger.info(f"NHC complete. {n:d} files downloaded")
     return n
 
 
 def coamps_download():
-    from metgetlib.coampsdownloader import CoampsDownloader
     import logging
+
+    from metgetlib.coampsdownloader import CoampsDownloader
 
     logger = logging.getLogger(__name__)
 
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
     n = coamps.download()
-    logger.info("COAMPS complete. {:d} files downloaded".format(n))
+    logger.info(f"COAMPS complete. {n:d} files downloaded")
     return n
 
 
 def ctcx_download():
-    from metgetlib.ctcxdownloader import CtcxDownloader
     import logging
+
+    from metgetlib.ctcxdownloader import CtcxDownloader
 
     logger = logging.getLogger(__name__)
 
     ctcx = CtcxDownloader()
     n = ctcx.download()
-    logger.info("CTCX complete. {:d} files downloaded".format(n))
+    logger.info(f"CTCX complete. {n:d} files downloaded")
     return n
 
 
 def hrrr_download():
-    from metgetlib.ncephrrrdownloader import NcepHrrrdownloader
     import logging
+
+    from metgetlib.ncephrrrdownloader import NcepHrrrdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -179,13 +177,14 @@ def hrrr_download():
     logger.info("Beginning downloading HRRR data")
     n = hrrr.download()
 
-    logger.info("HRRR complete. {:d} files downloaded".format(n))
+    logger.info(f"HRRR complete. {n:d} files downloaded")
     return n
 
 
 def hrrr_alaska_download():
-    from metgetlib.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
     import logging
+
+    from metgetlib.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
 
     logger = logging.getLogger(__name__)
 
@@ -193,13 +192,14 @@ def hrrr_alaska_download():
     hrrr = NcepHrrrAlaskadownloader(start, end)
     logger.info("Beginning downloading HRRR-Alaska data")
     n = hrrr.download()
-    logger.info("HRRR complete. {:d} files downloaded".format(n))
+    logger.info(f"HRRR complete. {n:d} files downloaded")
     return n
 
 
 def wpc_download():
-    from metgetlib.wpcdownloader import WpcDownloader
     import logging
+
+    from metgetlib.wpcdownloader import WpcDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -207,7 +207,7 @@ def wpc_download():
     wpc = WpcDownloader(start, end)
     logger.info("Beginning downloading WPC data")
     n = wpc.download()
-    logger.info("WPC complete. {:d} files downloaded".format(n))
+    logger.info(f"WPC complete. {n:d} files downloaded")
     return n
 
 
@@ -230,32 +230,33 @@ def main():
     )
     args = p.parse_args()
 
-    logger.info("Running with configuration: {:s}".format(args.service))
+    logger.info(f"Running with configuration: {args.service:s}")
 
     if args.service == "nam":
-        n = nam_download()
+        nam_download()
     elif args.service == "gfs":
-        n = gfs_download()
+        gfs_download()
     elif args.service == "gefs":
-        n = gefs_download()
+        gefs_download()
     elif args.service == "hwrf":
-        n = hwrf_download()
+        hwrf_download()
     elif args.service == "hafs":
-        n = hafs_download()
+        hafs_download()
     elif args.service == "nhc":
-        n = nhc_download()
+        nhc_download()
     elif args.service == "coamps":
-        n = coamps_download()
+        coamps_download()
     elif args.service == "ctcx":
-        n = ctcx_download()
+        ctcx_download()
     elif args.service == "hrrr":
-        n = hrrr_download()
+        hrrr_download()
     elif args.service == "hrrr-alaska":
-        n = hrrr_alaska_download()
+        hrrr_alaska_download()
     elif args.service == "wpc":
-        n = wpc_download()
+        wpc_download()
     else:
-        raise RuntimeError("Invalid data source selected")
+        msg = "Invalid data source selected"
+        raise RuntimeError(msg)
 
 
 if __name__ == "__main__":
