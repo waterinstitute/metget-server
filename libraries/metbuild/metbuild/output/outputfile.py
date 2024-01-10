@@ -113,7 +113,7 @@ class OutputFile:
         """
         return self.__time_step
 
-    def domain(self, index: int) -> Tuple[OutputDomain, str]:
+    def domain(self, index: int) -> OutputDomain:
         """
         Get the domain at the specified index.
 
@@ -123,7 +123,19 @@ class OutputFile:
         Returns:
             Tuple[Domain, str]: The domain and filename at the specified index.
         """
-        return self.__domains[index], self.__filenames[index]
+        return self.__domains[index]
+
+    def filename(self, index: int) -> str:
+        """
+        Get the filename at the specified index.
+
+        Args:
+            index (int): The index of the filename.
+
+        Returns:
+            str: The filename at the specified index.
+        """
+        return self.__filenames[index]
 
     def num_domains(self) -> int:
         """

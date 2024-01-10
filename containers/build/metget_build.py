@@ -49,12 +49,6 @@ def main():
     import traceback
     import argparse
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s :: %(levelname)s :: %(filename)s :: %(funcName)s :: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S%Z",
-    )
-
     p = argparse.ArgumentParser(description="Process a metget request")
     p.add_argument(
         "--request-json",
@@ -62,7 +56,18 @@ def main():
         type=str,
         help="Override use of the METGET_REQUEST_JSON environment variable",
     )
+    p.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     args = p.parse_args()
+
+    log_level = logging.INFO
+    if args.verbose:
+        log_level = logging.DEBUG
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s :: %(levelname)s :: %(filename)s :: %(funcName)s :: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%Z",
+    )
 
     log = logging.getLogger(__name__)
     log.info("Beginning execution")

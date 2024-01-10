@@ -44,6 +44,7 @@ class InterpData:
         self.__file_type = kwargs.get("file_type")
         self.__grid_obj = kwargs.get("grid_obj")
         self.__polygon: Polygon = kwargs.get("polygon")
+        self.__edge_index = kwargs.get("edge_index")
         self.__dataset: Dataset = kwargs.get("dataset")
         self.__interp_dataset: Union[Dataset, None] = None
         self.__mask: Union[np.ndarray, None] = None
@@ -64,6 +65,12 @@ class InterpData:
 
     def set_polygon(self, polygon: Polygon) -> None:
         self.__polygon = polygon
+
+    def edge_index(self) -> np.ndarray:
+        return self.__edge_index
+
+    def set_edge_index(self, edge_index: np.ndarray) -> None:
+        self.__edge_index = edge_index
 
     def mask(self) -> np.ndarray:
         return self.__mask
@@ -97,24 +104,24 @@ class InterpData:
         """
         Compute the mean resolution of the grid.
         """
+        x_var = dataset.longitude
+        y_var = dataset.latitude
 
-        # ...Due to the trickery used for netCDF data, we need to check if the
-        # dataset has lon and lat as coordinates or longitude and latitude
-        if "lon" in dataset.coords:
+        if len(x_var.shape) == 2:
             dx = (
-                dataset.lon.to_numpy()[0][-1] - dataset.lon.to_numpy()[0][0]
-            ) / dataset.lon.to_numpy().shape[1]
+                x_var.to_numpy()[0][-1] - x_var.to_numpy()[0][0]
+            ) / x_var.to_numpy().shape[1]
             dy = (
-                dataset.lat.to_numpy()[-1][0] - dataset.lat.to_numpy()[0][0]
-            ) / dataset.lat.to_numpy().shape[0]
-        elif "longitude" in dataset.coords:
-            dx = (
-                dataset.longitude.to_numpy()[-1] - dataset.longitude.to_numpy()[0]
-            ) / dataset.longitude.to_numpy().shape[0]
-            dy = (
-                dataset.latitude.to_numpy()[-1] - dataset.latitude.to_numpy()[0]
-            ) / dataset.latitude.to_numpy().shape[0]
+                y_var.to_numpy()[-1][0] - y_var.to_numpy()[0][0]
+            ) / y_var.to_numpy().shape[0]
+        elif len(x_var.shape) == 1:
+            dx = (x_var.to_numpy()[-1] - x_var.to_numpy()[0]) / x_var.to_numpy().shape[
+                0
+            ]
+            dy = (y_var.to_numpy()[-1] - y_var.to_numpy()[0]) / y_var.to_numpy().shape[
+                0
+            ]
         else:
-            msg = "Unknown coordinate system"
+            msg = "Unknown coordinate dimension"
             raise ValueError(msg)
         return (dx + dy) / 2.0

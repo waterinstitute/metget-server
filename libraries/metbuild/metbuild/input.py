@@ -31,7 +31,7 @@ import logging
 
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
-from .domain import VALID_SERVICES
+from .domain import Domain, VALID_SERVICES
 
 VALID_DATA_TYPES = ["wind_pressure", "rain", "ice", "humidity", "temperature"]
 
@@ -229,7 +229,7 @@ class Input:
         """
         return self.__filename
 
-    def json(self):
+    def json(self) -> dict:
         """
         Returns the json data that was provided in the input
 
@@ -238,7 +238,7 @@ class Input:
         """
         return self.__json
 
-    def version(self):
+    def version(self) -> str:
         """
         Returns the version of the input data
 
@@ -247,7 +247,7 @@ class Input:
         """
         return self.__version
 
-    def operator(self):
+    def operator(self) -> str:
         """
         Returns the operator who provided the input data
 
@@ -256,7 +256,7 @@ class Input:
         """
         return self.__operator
 
-    def start_date(self):
+    def start_date(self) -> datetime:
         """
         Returns the start date of the input data
 
@@ -265,7 +265,7 @@ class Input:
         """
         return self.__start_date
 
-    def end_date(self):
+    def end_date(self) -> datetime:
         """
         Returns the end date of the input data
 
@@ -274,7 +274,7 @@ class Input:
         """
         return self.__end_date
 
-    def time_step(self):
+    def time_step(self) -> int:
         """
         Returns the time step of the input data
 
@@ -283,7 +283,7 @@ class Input:
         """
         return self.__time_step
 
-    def num_domains(self):
+    def num_domains(self) -> int:
         """
         Returns the number of domains in the input data
 
@@ -292,7 +292,7 @@ class Input:
         """
         return len(self.__domains)
 
-    def domain(self, index):
+    def domain(self, index: int) -> Domain:
         """
         Returns the domain at the specified index
 
@@ -301,7 +301,7 @@ class Input:
         """
         return self.__domains[index]
 
-    def nowcast(self):
+    def nowcast(self) -> bool:
         """
         Returns whether the data should only contain nowcast data
 
@@ -310,7 +310,7 @@ class Input:
         """
         return self.__nowcast
 
-    def multiple_forecasts(self):
+    def multiple_forecasts(self) -> bool:
         """
         Returns whether the output data should contain multiple forecasts
 
@@ -319,7 +319,7 @@ class Input:
         """
         return self.__multiple_forecasts
 
-    def backfill(self):
+    def backfill(self) -> bool:
         """
         Returns whether the output data should be backfilled when the domain
         extents are not available
@@ -329,7 +329,7 @@ class Input:
         """
         return self.__backfill
 
-    def strict(self):
+    def strict(self) -> bool:
         """
         Returns whether the request should be handled strictly
 
@@ -338,7 +338,7 @@ class Input:
         """
         return self.__strict
 
-    def __parse(self):
+    def __parse(self) -> None:
         """
         Parses the input data
         """
