@@ -28,15 +28,17 @@
 #
 ###################################################################################################
 
-from metgetlib.noaadownloader import NoaaDownloader
-from metbuild.gribdataattributes import GribDataAttributes
-from metbuild.gribdataattributes import NCEP_HAFS_A, NCEP_HAFS_B
 from datetime import datetime
 from typing import Tuple
 
+from metbuild.metfileattributes import MetFileAttributes
+from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
+
+from metgetlib.noaadownloader import NoaaDownloader
+
 
 class HafsDownloader(NoaaDownloader):
-    def __init__(self, begin: datetime, end: datetime, hafs_type: GribDataAttributes):
+    def __init__(self, begin: datetime, end: datetime, hafs_type: MetFileAttributes):
         address = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/"
 
         if hafs_type == NCEP_HAFS_A:
@@ -44,7 +46,8 @@ class HafsDownloader(NoaaDownloader):
         elif hafs_type == NCEP_HAFS_B:
             self.__hafs_version = "hfsb."
         else:
-            raise ValueError("Invalid HAFS type specified.")
+            msg = "Invalid HAFS type specified."
+            raise ValueError(msg)
 
         NoaaDownloader.__init__(
             self, hafs_type.table(), hafs_type.name(), address, begin, end
@@ -92,11 +95,12 @@ class HafsDownloader(NoaaDownloader):
         return num_download
 
     def get_grib_files(self, info: dict, client=None) -> Tuple[list, int, int]:
-        import os
-        import requests
-        import tempfile
-        from requests.adapters import HTTPAdapter
         import logging
+        import os
+        import tempfile
+
+        import requests
+        from requests.adapters import HTTPAdapter
 
         logger = logging.getLogger(__name__)
 
@@ -119,7 +123,7 @@ class HafsDownloader(NoaaDownloader):
                 retlist = []
                 for v in self.variables():
                     retlist.append(NoaaDownloader.get_inventory_byte_list(inv_lines, v))
-                if not len(retlist) == len(self.variables()):
+                if len(retlist) != len(self.variables()):
                     logger.error(
                         "Could not gather the inventory or missing variables detected. Trying again later."
                     )

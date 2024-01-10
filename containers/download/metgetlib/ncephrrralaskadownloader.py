@@ -28,7 +28,7 @@
 #
 ###################################################################################################
 
-from metbuild.gribdataattributes import NCEP_HRRR_ALASKA
+from metbuild.metfiletype import NCEP_HRRR_ALASKA
 
 from .noaadownloader import NoaaDownloader
 

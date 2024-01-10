@@ -28,8 +28,9 @@
 #
 ###################################################################################################
 
+from metbuild.metfiletype import NCEP_GFS
+
 from .noaadownloader import NoaaDownloader
-from metbuild.gribdataattributes import NCEP_GFS
 
 
 class NcepGfsdownloader(NoaaDownloader):
@@ -55,7 +56,7 @@ class NcepGfsdownloader(NoaaDownloader):
         return (
             "gfs."
             + date.strftime("%Y%m%d")
-            + "/{:02d}/atmos/gfs.t{:02d}z.pgrb2.0p25.f".format(hour, hour)
+            + f"/{hour:02d}/atmos/gfs.t{hour:02d}z.pgrb2.0p25.f"
         )
 
     @staticmethod
