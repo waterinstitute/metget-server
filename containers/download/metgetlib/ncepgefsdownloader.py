@@ -28,8 +28,9 @@
 #
 ###################################################################################################
 
+from metbuild.metfiletype import NCEP_GEFS
+
 from .noaadownloader import NoaaDownloader
-from metbuild.gribdataattributes import NCEP_GEFS
 
 
 class NcepGefsdownloader(NoaaDownloader):
@@ -57,7 +58,7 @@ class NcepGefsdownloader(NoaaDownloader):
     @staticmethod
     def _generate_prefix(date, hour) -> str:
         return (
-            "gefs." + date.strftime("%Y%m%d") + "/{:02d}/atmos/pgrb2sp25/g".format(hour)
+            "gefs." + date.strftime("%Y%m%d") + f"/{hour:02d}/atmos/pgrb2sp25/g"
         )
 
     @staticmethod
@@ -66,10 +67,11 @@ class NcepGefsdownloader(NoaaDownloader):
 
     # ...In the case of GEFS, we need to reimplement this function because we have to deal with ensemble members
     def _download_aws_big_data(self):
+        from datetime import datetime, timedelta
+
         import boto3
+
         from .metdb import Metdb
-        from datetime import datetime
-        from datetime import timedelta
 
         s3 = boto3.resource("s3")
         client = boto3.client("s3")
@@ -80,7 +82,7 @@ class NcepGefsdownloader(NoaaDownloader):
         end = datetime(
             self.enddate().year, self.enddate().month, self.enddate().day, 0, 0, 0
         )
-        date_range = [begin + timedelta(days=x) for x in range(0, (end - begin).days)]
+        date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
         pairs = []
         for d in date_range:

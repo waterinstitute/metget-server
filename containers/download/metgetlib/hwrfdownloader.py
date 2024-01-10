@@ -31,8 +31,9 @@
 #
 ###################################################################################################
 
+from metbuild.metfileattributes import NCEP_HWRF
+
 from .noaadownloader import NoaaDownloader
-from metbuild.gribdataattributes import NCEP_HWRF
 
 
 class HwrfDownloader(NoaaDownloader):
@@ -46,8 +47,8 @@ class HwrfDownloader(NoaaDownloader):
             self.add_download_variable(v["long_name"], v["name"])
 
     def download(self):
-        from .spyder import Spyder
         from .metdb import Metdb
+        from .spyder import Spyder
 
         num_download = 0
         s = Spyder(self.address())
@@ -77,11 +78,10 @@ class HwrfDownloader(NoaaDownloader):
 
     @staticmethod
     def generateGrbInvPairs(glist):
-        from datetime import datetime
-        from datetime import timedelta
+        from datetime import datetime, timedelta
 
         pairs = []
-        for i in range(0, len(glist)):
+        for i in range(len(glist)):
             v2 = glist[i].rsplit("/", 1)[-1]
             v3 = v2.rsplit(".")[1]
             v4 = v2.rsplit(".")[5][1:4]

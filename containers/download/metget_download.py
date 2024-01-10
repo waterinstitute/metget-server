@@ -109,7 +109,7 @@ def hwrf_download():
 def hafs_download():
     import logging
 
-    from metbuild.gribdataattributes import NCEP_HAFS_A
+    from metbuild.metfiletype import NCEP_HAFS_A
     from metgetlib.hafsdownloader import HafsDownloader
 
     logger = logging.getLogger(__name__)

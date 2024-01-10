@@ -28,8 +28,9 @@
 #
 ###################################################################################################
 
+from metbuild.metfiletype import NCEP_NAM
+
 from .noaadownloader import NoaaDownloader
-from metbuild.gribdataattributes import NCEP_NAM
 
 
 class NcepNamdownloader(NoaaDownloader):
@@ -52,7 +53,7 @@ class NcepNamdownloader(NoaaDownloader):
 
     @staticmethod
     def _generate_prefix(date, hour) -> str:
-        return "nam." + date.strftime("%Y%m%d") + "/nam.t{:02d}z.awphys".format(hour)
+        return "nam." + date.strftime("%Y%m%d") + f"/nam.t{hour:02d}z.awphys"
 
     @staticmethod
     def _filename_to_hour(filename) -> int:

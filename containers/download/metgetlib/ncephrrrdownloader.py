@@ -28,8 +28,9 @@
 #
 ###################################################################################################
 
+from metbuild.metfiletype import NCEP_HRRR
+
 from .noaadownloader import NoaaDownloader
-from metbuild.gribdataattributes import NCEP_HRRR
 
 
 class NcepHrrrdownloader(NoaaDownloader):
@@ -55,7 +56,7 @@ class NcepHrrrdownloader(NoaaDownloader):
         return (
             "hrrr."
             + date.strftime("%Y%m%d")
-            + "/conus/hrrr.t{:02d}z.wrfnatf".format(hour)
+            + f"/conus/hrrr.t{hour:02d}z.wrfnatf"
         )
 
     @staticmethod
