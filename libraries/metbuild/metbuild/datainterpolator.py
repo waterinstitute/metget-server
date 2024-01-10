@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 
-from typing import List
+from typing import List, Tuple, Union
 
 import numpy as np
 import xarray as xr
@@ -38,6 +38,7 @@ from .interpdata import InterpData
 from .output.outputgrid import OutputGrid
 from .metfileattributes import MetFileAttributes
 from .fileobj import FileObj
+from .triangulation import Triangulation
 
 
 class DataInterpolator:
@@ -45,12 +46,15 @@ class DataInterpolator:
     A class to interpolate data from a meteorological file to an OutputGrid object.
     """
 
-    def __init__(self, grid: OutputGrid):
+    def __init__(
+        self, grid: OutputGrid, triangulation: Union[Triangulation, None] = None
+    ):
         """
         Constructor for the GribDataInterpolator class.
 
         Args:
             grid (OutputGrid): The grid to interpolate to.
+            triangulation (Triangulation): The triangulation to use for interpolation.
 
         Returns:
             None
@@ -58,6 +62,7 @@ class DataInterpolator:
         self.__grid = grid
         self.__x = self.__grid.x_column(convert_360=True)
         self.__y = self.__grid.y_column()
+        self.__triangulation = triangulation
 
     def grid(self) -> OutputGrid:
         """
@@ -67,6 +72,24 @@ class DataInterpolator:
             OutputGrid: The grid to interpolate to.
         """
         return self.__grid
+
+    def triangulation(self) -> Triangulation:
+        """
+        Get the triangulation to interpolate to.
+
+        Returns:
+            Triangulation: The triangulation to interpolate to.
+        """
+        return self.__triangulation
+
+    def set_triangulation(self, t: Triangulation) -> None:
+        """
+        Set the triangulation to interpolate to.
+
+        Returns:
+            None
+        """
+        self.__triangulation = t
 
     def x(self) -> np.ndarray:
         """
@@ -85,6 +108,24 @@ class DataInterpolator:
             np.ndarray: The y column of the grid.
         """
         return self.__y
+
+    def x2d(self) -> np.ndarray:
+        """
+        Returns the x-array as a 2D array for interpolation purposes
+
+        Returns:
+            np.ndarray: The x column of the grid.
+        """
+        return np.tile(self.__x, (len(self.__y), 1))
+
+    def y2d(self) -> np.ndarray:
+        """
+        Returns the y-array as a 2D array for interpolation purposes
+
+        Returns:
+            np.ndarray: The y column of the grid.
+        """
+        return np.tile(self.__y, (len(self.__x), 1)).T
 
     def interpolate(self, **kwargs) -> xr.Dataset:
         """
@@ -133,7 +174,7 @@ class DataInterpolator:
         # ...Merge the data from the various files into a single xarray dataset
         return self.__merge_data(data, variable_type, apply_filter)
 
-    def __interpolate_fields(self, data: list) -> None:
+    def __interpolate_fields(self, data: List[InterpData]) -> None:
         """
         Interpolate the data to the user specified grid.
 
@@ -143,10 +184,90 @@ class DataInterpolator:
 
         """
         for data_item in data:
-            interp_data = data_item.dataset().interp(
-                latitude=self.__y, longitude=self.__x, method="linear"
-            )
+            if "points" in data_item.dataset().dims:
+                interp_data = self.__interpolate_with_triangulation(data_item)
+            else:
+                interp_data = data_item.dataset().interp(
+                    latitude=self.y(), longitude=self.x(), method="linear"
+                )
             data_item.set_interp_dataset(interp_data)
+
+    def __interpolate_with_triangulation(self, data_item: InterpData):
+        """
+        Interpolate the data to the user specified grid using triangulation.
+
+        Args:
+            data_item (InterpData): The data item to interpolate.
+
+        Returns:
+            xr.Dataset: The interpolated data.
+        """
+        from .triangulation import Triangulation
+        from matplotlib.tri import LinearTriInterpolator
+
+        constraints, points = self.__get_dataset_points_and_edges(data_item)
+
+        if self.__triangulation is None:
+            self.__triangulation = Triangulation(points, constraints)
+
+        interp_data = xr.Dataset(
+            {
+                "latitude": (["latitude"], self.y()),
+                "longitude": (["longitude"], self.x()),
+            }
+        )
+        for var in data_item.dataset():
+            if var in ("latitude", "longitude"):
+                continue
+
+            interpolator = LinearTriInterpolator(
+                self.__triangulation.triangulation(),
+                data_item.dataset()[var].to_numpy(),
+            )
+
+            ds = xr.DataArray(
+                interpolator(self.x2d(), self.y2d()),
+                dims=["latitude", "longitude"],
+            )
+            interp_data[var] = ds
+
+        interp_data.attrs = data_item.dataset().attrs
+
+        return interp_data
+
+    @staticmethod
+    def __get_dataset_points_and_edges(
+        data_item: InterpData,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get the points and edges from the dataset.
+
+        Args:
+            data_item (InterpData): The data item to interpolate.
+
+        Returns:
+            tuple: The points and edges.
+        """
+        points = np.array(
+            [
+                data_item.dataset().longitude.to_numpy(),
+                data_item.dataset().latitude.to_numpy(),
+            ]
+        ).T
+        # ... Generate the constraints from the edge indexes where
+        # The array is [[edge_1, edge_2], [edge_2, edge_3], ... [edge_n, edge_1]]
+        # where edge_indexes is a 1d array of the indexes of the points
+        edge_indexes = data_item.edge_index()[0]
+        constraints = np.array(
+            [
+                [edge_indexes[i], edge_indexes[i + 1]]
+                for i in range(len(edge_indexes) - 1)
+            ]
+        )
+        constraints = np.append(
+            constraints, [[edge_indexes[-1], edge_indexes[0]]], axis=0
+        )
+        return constraints, points
 
     def __merge_data(
         self, data: List[InterpData], variable_type: VariableType, apply_filter: bool
@@ -454,7 +575,9 @@ class DataInterpolator:
                 )
 
         var_name = str(file_type.variables()[next(iter(file_type.variables()))]["type"])
-        poly = DataInterpolator.__generate_dataset_polygon(dataset, var_name)
+        poly, edge_indexes = DataInterpolator.__generate_dataset_polygon(
+            dataset, var_name
+        )
 
         return InterpData(
             filename=filename,
@@ -463,6 +586,7 @@ class DataInterpolator:
             grid_obj=self.__grid,
             dataset=dataset,
             polygon=poly,
+            edge_index=edge_indexes,
         )
 
     def __xr_open_grib_format(
@@ -482,14 +606,17 @@ class DataInterpolator:
         Returns:
             InterpData: The dataset and associated information
         """
-
         dataset = None
+
         for var in file_type.selected_variables(variable_type):
-            grib_var_name = file_type.variable(var)["long_name"]
+            grib_var_name = file_type.variable(var)["grib_name"]
             ds = xr.open_dataset(
                 filename,
                 engine="cfgrib",
-#                backend_kwargs={"filter_by_keys": {"shortName": grib_var_name}},
+                backend_kwargs={
+                    "indexpath": filename + ".idx",
+                    "filter_by_keys": {"shortName": grib_var_name},
+                },
             )
 
             ds = ds * file_type.variable(var)["scale"]
@@ -506,11 +633,18 @@ class DataInterpolator:
             if grib_var_name in dataset:
                 dataset = dataset.rename({grib_var_name: standard_name})
 
+        # ...Rename the coordinates to the standard names
+        if "lon" in dataset.variables:
+            dataset = dataset.rename_vars({"lon": "longitude", "lat": "latitude"})
+
         var_name = str(file_type.variables()[next(iter(file_type.variables()))]["type"])
-        poly = DataInterpolator.__generate_dataset_polygon(
+        poly, edge_indexes = DataInterpolator.__generate_dataset_polygon(
             dataset,
             var_name,
         )
+
+        if len(dataset.latitude.shape) == 2:
+            dataset = DataInterpolator.__flatten_dataset(dataset)
 
         return InterpData(
             filename=filename,
@@ -519,10 +653,66 @@ class DataInterpolator:
             grid_obj=self.__grid,
             dataset=dataset,
             polygon=poly,
+            edge_index=edge_indexes,
         )
 
     @staticmethod
-    def __generate_dataset_polygon(dataset: xr.Dataset, variable_name: str) -> Polygon:
+    def __normalize_longitude(dataset: xr.Dataset) -> None:
+        """
+        Normalize the longitude to -180 to 180
+
+        Args:
+            dataset (xr.Dataset): The dataset to normalize
+
+        Returns:
+            None
+        """
+
+        dataset["longitude"] = xr.where(
+            dataset["longitude"] > 180.0,
+            dataset["longitude"] - 360.0,
+            dataset["longitude"],
+        )
+
+    @staticmethod
+    def __flatten_dataset(dataset: xr.Dataset) -> xr.Dataset:
+        """
+        Convert the coordinates from 2D to 1D
+
+        Args:
+            dataset (xr.Dataset): The dataset to convert
+
+        Returns:
+            xr.Dataset: The dataset with the coordinates converted
+        """
+
+        ds = xr.Dataset(
+            {
+                "longitude": (["points"], dataset.longitude.to_numpy().flatten()),
+                "latitude": (["points"], dataset.latitude.to_numpy().flatten()),
+            }
+        )
+        ds = ds.set_coords(["longitude", "latitude"])
+
+        for var in dataset:
+            if var in ("longitude", "latitude"):
+                continue
+
+            # ...Convert the variable to the new indexing
+            ds[var] = xr.DataArray(
+                dataset[var].to_numpy().flatten(),
+                dims=["points"],
+                coords={"longitude": ds.longitude, "latitude": ds.latitude},
+            )
+
+        ds.attrs = dataset.attrs
+
+        return ds
+
+    @staticmethod
+    def __generate_dataset_polygon(
+        dataset: xr.Dataset, variable_name: str
+    ) -> Tuple[Polygon, tuple]:
         """
         Generate a polygon around the boundary of the data.
 
@@ -536,17 +726,58 @@ class DataInterpolator:
         # ...Get the resolution of the dataset
         dataset_resolution = InterpData.calculate_resolution(dataset)
 
-        xy = np.meshgrid(dataset.longitude.values, dataset.latitude.to_numpy())
-        xy[0][xy[0] > 180.0] = xy[0][xy[0] > 180.0] - 360.0  # noqa: PLR2004
+        x_var = dataset.longitude.to_numpy()
+        y_var = dataset.latitude.to_numpy()
+
+        if len(x_var.shape) == 1:
+            xy = np.array(np.meshgrid(x_var, y_var))
+            is_2d_array = False
+        else:
+            xy = np.array([x_var, y_var])
+            is_2d_array = True
 
         arr = dataset[variable_name].to_numpy()
 
         # ...If there are no NAN values, then we assume we can just trace the corners
         n_nan = np.count_nonzero(np.isnan(arr))
 
-        if n_nan == 0:
-            # ...This is the simple case where we can just trace the boundary
-            # Draw from the corners
+        edge_indexes_1d = None
+
+        if is_2d_array:
+            # ...This is the simplest case where we can walk the boundary of the grid
+            # Walk the bottom row, side row, top row, and left row. Store the indexes in
+            # the array
+            edge_points = np.ndarray(((arr.shape[0] + arr.shape[1]) * 2, 2), dtype=int)
+            edge_points[0 : arr.shape[1]] = np.array(
+                [np.arange(arr.shape[1]), np.zeros(arr.shape[1])]
+            ).T
+            edge_points[arr.shape[1] : arr.shape[1] + arr.shape[0]] = np.array(
+                [np.full(arr.shape[0], arr.shape[1] - 1), np.arange(arr.shape[0])]
+            ).T
+            edge_points[
+                arr.shape[1] + arr.shape[0] : 2 * arr.shape[1] + arr.shape[0]
+            ] = np.array(
+                [
+                    np.arange(arr.shape[1] - 1, -1, -1),
+                    np.full(arr.shape[1], arr.shape[0] - 1),
+                ]
+            ).T
+            edge_points[
+                2 * arr.shape[1] + arr.shape[0] : 2 * arr.shape[1] + 2 * arr.shape[0]
+            ] = np.array(
+                [
+                    np.zeros(arr.shape[0]),
+                    np.arange(arr.shape[0] - 1, -1, -1),
+                ]
+            ).T
+            edge_points = edge_points.T
+            edge_points = (edge_points[1], edge_points[0])
+
+            # ... Generate the edge indexes as 1D indexes
+            edge_indexes_1d = np.ravel_multi_index(edge_points, arr.shape)
+
+        elif n_nan == 0:
+            # ...This is the simple case where we can just grab the corners
             edge_points = np.array(
                 [
                     [0, 0],
@@ -576,4 +807,7 @@ class DataInterpolator:
             msg = "Invalid polygon"
             raise ValueError(msg)
 
-        return polygon.simplify(dataset_resolution / 2.0)
+        if edge_indexes_1d is not None:
+            return polygon.simplify(dataset_resolution / 2.0), (edge_indexes_1d,)
+        else:
+            return polygon.simplify(dataset_resolution / 2.0), edge_points

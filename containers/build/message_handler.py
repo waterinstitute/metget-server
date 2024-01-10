@@ -29,7 +29,7 @@
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 from metbuild.domain import Domain
 from metbuild.filelist import Filelist
@@ -80,6 +80,8 @@ class MessageHandler:
         """
         import json
 
+        pre_download_files = False
+
         filelist_name = "filelist.json"
 
         log = logging.getLogger(__name__)
@@ -104,12 +106,13 @@ class MessageHandler:
             self.__handle_ongoing_restore(output_obj)
             return False
 
-        # ...Begin downloading data from s3
+        # ...Begin downloading data from s3 if necessary
         domain_data = MessageHandler.__download_files_from_s3(
             file_info["database_files"],
             self.input(),
             output_obj,
             file_info["nhc_files"],
+            pre_download_files,
         )
 
         if output_obj is None:
@@ -572,13 +575,12 @@ class MessageHandler:
         files_used_list = {}
 
         for i in range(input_data.num_domains()):
-            output_domain, _ = output_field.domain(i)
             MessageHandler.__process_domain(
                 i,
                 input_data,
                 data_type_key,
                 domain_data,
-                output_domain,
+                output_field,
                 files_used_list,
             )
 
@@ -594,7 +596,7 @@ class MessageHandler:
         input_data: Input,
         data_type_key: VariableType,
         domain_data: list,
-        output_domain: OutputDomain,
+        output_file: OutputFile,
         files_used_list: dict,
     ):
         """
@@ -641,11 +643,11 @@ class MessageHandler:
         )
 
         log.debug("Opening the output file(s) for domain {:d}".format(domain_index + 1))
-        output_domain.open()
+        output_file.domain(domain_index).open()
 
         log.debug("Processing initial data for domain {:d}".format(domain_index + 1))
         domain_files_used = MessageHandler.__process_initial_domain_data(
-            domain_data, domain_index, input_data, meteo_obj
+            domain_data, domain_index, input_data, output_file, meteo_obj
         )
 
         for t in MessageHandler.__date_span(
@@ -667,6 +669,7 @@ class MessageHandler:
                     input_data,
                     meteo_obj,
                     t,
+                    output_file,
                 )
 
             weight = meteo_obj.time_weight(t)
@@ -688,10 +691,10 @@ class MessageHandler:
                     domain_index + 1, t.strftime("%Y-%m-%d %H:%M")
                 )
             )
-            output_domain.write(dataset, data_type_key)
+            output_file.domain(domain_index).write(dataset, data_type_key)
 
         log.debug("Closing the output file(s) for domain {:d}".format(domain_index + 1))
-        output_domain.close()
+        output_file.domain(domain_index).close()
 
         files_used_list[input_data.domain(domain_index).name()] = domain_files_used
 
@@ -703,6 +706,7 @@ class MessageHandler:
         input_data: Input,
         meteo_obj: Meteorology,
         interpolation_time: datetime,
+        output_obj: OutputFile,
     ) -> list:
         """
         Processes the next domain time step when the next time is greater than the current time
@@ -713,6 +717,8 @@ class MessageHandler:
             domain_index (int): The index of the domain
             input_data (Input): The input data
             meteo_obj (Meteorology): The meteorology object
+            interpolation_time (datetime): The interpolation time
+            output_obj (OutputFile): The output object
 
         Returns:
             List[str]: The list of domain files used
@@ -721,11 +727,20 @@ class MessageHandler:
             interpolation_time, domain_data[domain_index]
         )
         next_time = domain_data[domain_index][index]["time"]
-        current_file = domain_data[domain_index][index]["filepath"]
+
+        current_file, _, _ = MessageHandler.__get_current_domain_file(
+            next_time,
+            domain_data,
+            domain_index,
+            index,
+            input_data,
+            output_obj,
+        )
+
         MessageHandler.__print_file_status(current_file, next_time)
         meteo_obj.set_next_file(
             MessageHandler.__generate_file_obj(
-                domain_data[domain_index][index]["filepath"],
+                current_file,
                 input_data.domain(domain_index).service(),
                 next_time,
             )
@@ -733,12 +748,44 @@ class MessageHandler:
 
         meteo_obj.process_files()
 
+        # ...Cleanup files
+        MessageHandler.__cleanup_temp_source_files(meteo_obj, domain_index, input_data)
+
         if meteo_obj.f1().time() != meteo_obj.f2().time():
             domain_files_used = MessageHandler.__append_domain_files(
                 domain_index, index, input_data, domain_data, domain_files_used
             )
 
         return domain_files_used
+
+    @staticmethod
+    def __cleanup_temp_source_files(
+        meteo_obj: Meteorology, domain_index: int, input_data: Input
+    ) -> None:
+        """
+        Cleans up the temporary grib files
+
+        Args:
+            meteo_obj (Meteorology): The meteorology object
+            domain_index (int): The index of the domain
+            input_data (Input): The input data
+
+        Returns:
+            None
+        """
+        from metbuild.enum import MetFileFormat
+
+        def remover(file_obj: FileObj) -> None:
+            for file, att in file_obj.files():
+                if os.path.exists(file):
+                    os.remove(file)
+                if att.file_format() is MetFileFormat.GRIB:
+                    index_file = file + ".idx"
+                    if os.path.exists(index_file):
+                        os.remove(index_file)
+
+        remover(meteo_obj.f1())
+        remover(meteo_obj.f2())
 
     @staticmethod
     def __append_domain_files(
@@ -779,6 +826,7 @@ class MessageHandler:
         domain_data: list,
         domain_index: int,
         input_data: Input,
+        output_obj: OutputFile,
         meteo_object: Meteorology,
     ) -> list:
         """
@@ -788,6 +836,7 @@ class MessageHandler:
             domain_data (list): The list of domain data
             domain_index (int): The index of the domain
             input_data (Input): The input data
+            output_obj (OutputFile): The output object
             meteo_object (Meteorology): The meteorology object
 
         Returns:
@@ -810,7 +859,17 @@ class MessageHandler:
             next_time, domain_data[domain_index]
         )
         next_time = domain_data[domain_index][index]["time"]
-        current_file = domain_data[domain_index][0]["filepath"]
+
+        # ...Get the path (and download if necessary)
+        current_file, s3_grib, s3_obj = MessageHandler.__get_current_domain_file(
+            current_time,
+            domain_data,
+            domain_index,
+            0,
+            input_data,
+            output_obj,
+        )
+
         MessageHandler.__print_file_status(current_file, current_time)
         meteo_object.set_next_file(
             MessageHandler.__generate_file_obj(
@@ -822,22 +881,138 @@ class MessageHandler:
             domain_index, 0, input_data, domain_data, domain_files_used
         )
 
+        current_file, s3_grib, s3_obj = MessageHandler.__get_current_domain_file(
+            current_time,
+            domain_data,
+            domain_index,
+            index,
+            input_data,
+            output_obj,
+        )
+
         meteo_object.set_next_file(
             MessageHandler.__generate_file_obj(
                 current_file, input_data.domain(domain_index).service(), next_time
             )
         )
-
-        current_file = domain_data[domain_index][index]["filepath"]
         MessageHandler.__print_file_status(current_file, next_time)
 
         meteo_object.process_files()
+
+        # ...Cleanup files
+        MessageHandler.__cleanup_temp_source_files(
+            meteo_object, domain_index, input_data
+        )
 
         domain_files_used = MessageHandler.__append_domain_files(
             domain_index, index, input_data, domain_data, domain_files_used
         )
 
         return domain_files_used
+
+    @staticmethod
+    def __get_current_domain_file(
+        current_time: datetime,
+        domain_data: list,
+        domain_index: int,
+        file_index: int,
+        input_data: Input,
+        output_obj: OutputFile,
+        s3_grib: Union[S3GribIO, None] = None,
+        s3_obj: Union[S3file, None] = None,
+    ) -> Tuple[str, S3GribIO, S3file]:
+        """
+        Gets the current domain file. If the file was downloaded already,
+        just return the file path. If not, download the file and return the file path
+        and the remote instances (so we don't need to create them again)
+
+        Args:
+            current_time (datetime): The current time
+            domain_data (list): The list of domain data
+            domain_index (int): The index of the domain
+            file_index (int): The index of the file
+            input_data (Input): The input data
+            output_obj (OutputFile): The output object
+            s3_grib (S3GribIO): The remote s3 grib instance
+            s3_obj (S3file): The s3 file instance
+
+        Returns:
+            Tuple[str, S3GribIO, S3file]: The current file, the remote s3 grib instance, and the remote s3 file instance
+        """
+        if domain_data[domain_index][file_index]["is_local"]:
+            current_file = domain_data[domain_index][file_index]["filepath"]
+        else:
+            if s3_obj is None:
+                s3_obj = S3file(os.environ["METGET_S3_BUCKET"])
+
+            if s3_grib is None:
+                s3_grib = MessageHandler.__generate_noaa_s3_remote_instance(
+                    input_data.domain(domain_index).service()
+                )
+
+            current_file = MessageHandler.__download_data_on_demand(
+                current_time,
+                file_index,
+                domain_data,
+                domain_index,
+                input_data,
+                output_obj,
+                s3_grib,
+                s3_obj,
+            )
+        return current_file, s3_grib, s3_obj
+
+    @staticmethod
+    def __download_data_on_demand(
+        current_time: datetime,
+        file_index: int,
+        domain_data: list,
+        domain_index: int,
+        input_data: Input,
+        output_obj: OutputFile,
+        s3_grib: S3GribIO,
+        s3_obj: S3file,
+    ) -> Union[str, List[str]]:
+        """
+        Downloads the data on demand right before interpolation
+
+        Args:
+            current_time (datetime): The current time
+            file_index (int): The index of the file
+            domain_data (list): The list of domain data
+            domain_index (int): The index of the domain
+            input_data (Input): The input data
+            output_obj (OutputFile): The output object
+            s3_grib (S3GribIO): The remote s3 grib instance
+            s3_obj (S3file): The s3 file instance
+
+        Returns:
+            str: The current file(s) on disk
+        """
+        if (
+            input_data.domain(domain_index).service() == "coamps-tc"
+            or input_data.domain(domain_index).service() == "coamps-ctcx"
+        ):
+            current_file = MessageHandler.__download_coamps_file_from_s3(
+                input_data.domain(domain_index),
+                domain_data[domain_index][file_index]["filepath"],
+                {"forecasttime": current_time},
+                output_obj,
+                s3_obj,
+            )
+        else:
+            current_file, _ = MessageHandler.__download_met_data_from_s3(
+                input_data.data_type(),
+                input_data.domain(domain_index),
+                {
+                    "filepath": domain_data[domain_index][file_index]["filepath"],
+                    "forecasttime": current_time,
+                },
+                output_obj,
+                s3_obj,
+                s3_grib,
+            )
+        return current_file
 
     @staticmethod
     def __generate_raw_files_list(domain_data, input_data) -> dict:
@@ -860,7 +1035,9 @@ class MessageHandler:
         return {"output_files": output_file_list, "files_used": files_used_list}
 
     @staticmethod
-    def __download_files_from_s3(db_files, input_data, met_field, nhc_data) -> list:
+    def __download_files_from_s3(
+        db_files, input_data, met_field, nhc_data, do_download: bool
+    ) -> list:
         """
         Downloads the files from S3 and generates the list of files used
 
@@ -869,6 +1046,7 @@ class MessageHandler:
             input_data (Input): The input data
             met_field (MeteorologyField): The meteorology field
             nhc_data (dict): The list of NHC data
+            do_download (bool): Whether to download the files
 
         Returns:
             List[str]: The list of files used
@@ -884,12 +1062,18 @@ class MessageHandler:
                 )
             else:
                 MessageHandler.__get_2d_forcing_files(
-                    input_data.data_type(), d, db_files, domain_data, i, met_field
+                    input_data.data_type(),
+                    d,
+                    db_files,
+                    domain_data,
+                    i,
+                    met_field,
+                    do_download,
                 )
         return domain_data
 
     @staticmethod
-    def __generate_noaa_s3_remote_instance(data_type: str) -> S3GribIO:
+    def __generate_noaa_s3_remote_instance(data_type: str) -> Union[S3GribIO, None]:
         """
         Generates the remote s3 grib instance for NOAA S3 archived files
 
@@ -899,36 +1083,14 @@ class MessageHandler:
         Returns:
             S3GribIO: The remote s3 grib instance
         """
-        from metbuild.metfiletype import (
-            NCEP_NAM,
-            NCEP_GFS,
-            NCEP_GEFS,
-            NCEP_HRRR,
-            NCEP_HRRR_ALASKA,
-            NCEP_WPC,
-        )
+        from metbuild.metfiletype import attributes_from_name
+        from metbuild.metfiletype import MetFileFormat
 
-        remote = None
-
-        if data_type == "gfs-ncep":
-            grib_attrs = NCEP_GFS
-        elif data_type == "nam-ncep":
-            grib_attrs = NCEP_NAM
-        elif data_type == "gefs-ncep":
-            grib_attrs = NCEP_GEFS
-        elif data_type == "hrrr-ncep":
-            grib_attrs = NCEP_HRRR
-        elif data_type == "hrrr-alaska-ncep":
-            grib_attrs = NCEP_HRRR_ALASKA
-        elif data_type == "wpc-ncep":
-            grib_attrs = NCEP_WPC
+        attributes = attributes_from_name(data_type)
+        if attributes.file_format() is MetFileFormat.GRIB:
+            return S3GribIO(attributes.bucket(), attributes.variables())
         else:
-            grib_attrs = None
-
-        if grib_attrs is not None:
-            remote = S3GribIO(grib_attrs.bucket(), grib_attrs.variables())
-
-        return remote
+            return None
 
     @staticmethod
     def __get_2d_forcing_files(
@@ -938,6 +1100,7 @@ class MessageHandler:
         domain_data: list,
         index: int,
         met_field,
+        do_download: bool,
     ) -> None:
         """
         Gets the 2D forcing files from s3
@@ -949,13 +1112,12 @@ class MessageHandler:
             domain_data (list): The list of domain data
             index (int): The index of the domain
             met_field (MeteorologyField): The meteorology field
+            do_download (bool): Whether this is a dry run and no files should be downloaded
 
         Returns:
             None
 
         """
-        import tempfile
-
         log = logging.getLogger(__name__)
 
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
@@ -970,48 +1132,118 @@ class MessageHandler:
         for item in f:
             if domain.service() == "coamps-tc" or domain.service() == "coamps-ctcx":
                 files = item["filepath"].split(",")
-                local_file_list = []
-                for ff in files:
-                    local_file = s3.download(ff, domain.service(), item["forecasttime"])
-                    if not met_field:
-                        new_file = os.path.basename(local_file)
-                        os.rename(local_file, new_file)
-                        local_file = new_file
-                    local_file_list.append(local_file)
+
+                if not do_download:
+                    local_file_list = files
+                    is_local = False
+                else:
+                    local_file_list = MessageHandler.__download_coamps_file_from_s3(
+                        domain, files, item, met_field, s3
+                    )
+                    is_local = True
+
                 domain_data[index].append(
-                    {"time": item["forecasttime"], "filepath": local_file_list}
+                    {
+                        "time": item["forecasttime"],
+                        "filepath": local_file_list,
+                        "is_local": is_local,
+                    }
                 )
             else:
-                if "s3://" in item["filepath"]:
-                    tempdir = tempfile.gettempdir()
-                    fn = os.path.split(item["filepath"])[1]
-                    fname = "{:s}.{:s}.{:s}".format(
-                        domain.service(),
-                        item["forecasttime"].strftime("%Y%m%d%H%M"),
-                        fn,
-                    )
-                    local_file = os.path.join(tempdir, fname)
-                    success, fatal = s3_remote.download(
-                        item["filepath"], local_file, data_type
-                    )
-                    if not success and fatal:
-                        raise RuntimeError(
-                            "Unable to download file {:s}".format(item["filepath"])
-                        )
-                else:
-                    local_file = s3.download(
-                        item["filepath"], domain.service(), item["forecasttime"]
-                    )
-                    success = True
-                if not met_field:
-                    new_file = os.path.basename(local_file)
-                    os.rename(local_file, new_file)
-                    local_file = new_file
-
-                if success:
+                if not do_download:
                     domain_data[index].append(
-                        {"time": item["forecasttime"], "filepath": local_file}
+                        {
+                            "time": item["forecasttime"],
+                            "filepath": item["filepath"],
+                            "is_local": False,
+                        }
                     )
+                else:
+                    local_file, success = MessageHandler.__download_met_data_from_s3(
+                        data_type, domain, item, met_field, s3, s3_remote
+                    )
+                    if success:
+                        domain_data[index].append(
+                            {
+                                "time": item["forecasttime"],
+                                "filepath": local_file,
+                                "is_local": True,
+                            }
+                        )
+
+    @staticmethod
+    def __download_met_data_from_s3(
+        data_type, domain, item, met_field, s3, s3_remote
+    ) -> Tuple[str, bool]:
+        """
+        Downloads the grib met data from s3
+
+        Args:
+            data_type (str): The data type
+            domain (Domain): The domain
+            item (dict): The item
+            met_field (OutputFile): The met field
+            s3 (S3file): The s3 file
+            s3_remote (S3GribIO): The remote s3 file
+
+        Returns:
+            Tuple[str, bool]: The local file and whether the download was successful
+        """
+
+        import tempfile
+
+        if "s3://" in item["filepath"]:
+            tempdir = tempfile.gettempdir()
+            fn = os.path.split(item["filepath"])[1]
+            fname = "{:s}.{:s}.{:s}".format(
+                domain.service(),
+                item["forecasttime"].strftime("%Y%m%d%H%M"),
+                fn,
+            )
+            local_file = os.path.join(tempdir, fname)
+            success, fatal = s3_remote.download(item["filepath"], local_file, data_type)
+            if not success and fatal:
+                raise RuntimeError(
+                    "Unable to download file {:s}".format(item["filepath"])
+                )
+        else:
+            local_file = s3.download(
+                item["filepath"], domain.service(), item["forecasttime"]
+            )
+            success = True
+        if not met_field:
+            new_file = os.path.basename(local_file)
+            os.rename(local_file, new_file)
+            local_file = new_file
+        return local_file, success
+
+    @staticmethod
+    def __download_coamps_file_from_s3(
+        domain: Domain, files: list, item: dict, met_field: OutputFile, s3: S3file
+    ) -> List[str]:
+        """
+        Downloads the coamps files from s3
+
+        Args:
+            domain (Domain): The domain
+            files (str): The file to download
+            item (dict): The item
+            met_field (OutputFile): The met field
+            s3 (S3file): The s3 file
+
+        Returns:
+            str: The local file
+        """
+
+        local_file_list = []
+        for ff in files:
+            local_file = s3.download(ff, domain.service(), item["forecasttime"])
+            if not met_field:
+                new_file = os.path.basename(local_file)
+                os.rename(local_file, new_file)
+                local_file = new_file
+            local_file_list.append(local_file)
+        return local_file_list
 
     @staticmethod
     def __print_file_status(filepath: any, time: datetime) -> None:
@@ -1025,7 +1257,7 @@ class MessageHandler:
 
         log = logging.getLogger(__name__)
 
-        if type(filepath) == list:
+        if isinstance(filepath, list):
             fnames = ""
             for fff in filepath:
                 if fnames == "":

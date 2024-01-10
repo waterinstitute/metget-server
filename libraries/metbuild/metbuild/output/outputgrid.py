@@ -209,7 +209,7 @@ class OutputGrid:
         y = np.arange(self.__y_lower_left, self.__y_upper_right, self.__y_resolution)
         self.__x_points = x
         self.__y_points = y
-        self.__grid_points = np.meshgrid(x, y)
+        self.__grid_points = np.array(np.meshgrid(x, y))
         self.__geoseries = GeoSeries(
             points_from_xy(
                 self.__grid_points[0].flatten(), self.__grid_points[1].flatten()

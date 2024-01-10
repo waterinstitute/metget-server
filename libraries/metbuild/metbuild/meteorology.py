@@ -36,6 +36,7 @@ from .datainterpolator import DataInterpolator
 from .enum import MeteorologicalSource, VariableType
 from .output.outputgrid import OutputGrid
 from .fileobj import FileObj
+from .triangulation import Triangulation
 
 
 class Meteorology:
@@ -185,6 +186,21 @@ class Meteorology:
             self.__file_2 = f_obj
         else:
             self.__file_1, self.__file_2 = self.__file_2, f_obj
+
+    def set_triangulation(self, triangulation: Triangulation) -> None:
+        """
+        Set the triangulation
+
+        Args:
+            triangulation (Triangulation): The triangulation
+
+        Returns:
+            None
+        """
+        if self.__interpolation_1:
+            self.__interpolation_1.set_triangulation(triangulation)
+        if self.__interpolation_2:
+            self.__interpolation_2.set_triangulation(triangulation)
 
     def process_files(self) -> None:
         """

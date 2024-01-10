@@ -26,41 +26,59 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+
 import numpy as np
+import matplotlib.tri
 
-from .outputgrid import OutputGrid
 
-
-class Dataset:
-    """
-    A class that represents interpolated meteorological data.
-    """
-
-    def __init__(self, n_params: int, grid: OutputGrid):
+class Triangulation:
+    def __init__(self, points: np.array, edges: np.array):
         """
-        Construct a Dataset object.
+        Constructor for the Triangulation class.
 
         Args:
-            grid (OutputGrid): The grid of the dataset.
+            points (np.array): The points to triangulate.
+            edges (np.array): The edges to triangulate.
+        """
+        self.__t_input = dict(vertices=points, segments=edges)
+        self.__mpl_triangulation = matplotlib.tri.Triangulation(
+            points[:, 0], points[:, 1], self.__generate_triangulation()
+        )
+
+    def points(self) -> np.array:
+        """
+        Returns the points.
 
         Returns:
-            None
+            np.array: The points.
         """
-        self.__grid = grid
-        self.__n_params = n_params
-        self.__values = np.zeros((n_params, grid.ni(), grid.nj()), dtype=float)
+        return self.__t_input["vertices"]
 
-    def n_parameters(self) -> int:
+    def edges(self) -> np.array:
         """
-        Get the number of parameters in the dataset.
-        """
-        return self.__n_params
-
-    def values(self) -> np.ndarray:
-        """
-        Get the values of the dataset.
+        Returns the edges.
 
         Returns:
-            np.ndarray: The values of the dataset.
+            np.array: The edges.
         """
-        return self.__values
+        return self.__t_input["segments"]
+
+    def __generate_triangulation(self) -> np.array:
+        """
+        Generates a triangulation from the points and edges.
+
+        Returns:
+            np.array: The triangulation.
+        """
+        import triangle as tri
+
+        return tri.triangulate(self.__t_input, "p")["triangles"]
+
+    def triangulation(self) -> matplotlib.tri.Triangulation:
+        """
+        Returns the triangulation.
+
+        Returns:
+            np.array: The triangulation.
+        """
+        return self.__mpl_triangulation
