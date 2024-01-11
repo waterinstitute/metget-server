@@ -18,4 +18,4 @@ RUN pip install --break-system-packages /tmp/metbuild/. && rm -rf /tmp/metbuild
 #...Install the metget-build entrypoint script(s)
 COPY containers/build/*.py /app/
 
-COPY request.json /app/
+#COPY request.json /app/
