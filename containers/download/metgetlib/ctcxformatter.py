@@ -390,7 +390,7 @@ class CtcxFormatter:
         vwind = [{}, {}, {}]
 
         with h5py.File(self.__filename, "r") as f:
-            for i, variable_name in enumerate(f.keys()):
+            for variable_name in f:
                 metadata = CtcxFormatter.parse_ctcx_variable(
                     variable_name, self.__filename
                 )

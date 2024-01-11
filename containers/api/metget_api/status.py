@@ -581,9 +581,8 @@ class Status:
                     if cycle[0] == cycle_maximum:
                         latest_cycle_length = dt
 
-                    if dt >= cycle_duration:
-                        if not latest_complete_cycle:
-                            latest_complete_cycle = cycle_time
+                    if dt >= cycle_duration and not latest_complete_cycle:
+                        latest_complete_cycle = cycle_time
 
                     if min_forecast_time:
                         min_forecast_time = min(cycle_min, min_forecast_time)

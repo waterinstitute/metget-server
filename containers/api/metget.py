@@ -27,6 +27,8 @@
 #
 ###################################################################################################
 
+from typing import ClassVar
+
 from flask import Flask, jsonify, make_response, redirect, request
 from flask_cors import CORS
 from flask_limiter import Limiter, RequestLimit
@@ -79,7 +81,9 @@ class MetGetStatus(Resource):
         limit: Maximum number of days worth of data to return. Default is 7
     """
 
-    decorators = [limiter.limit("10/second", on_breach=ratelimit_error_responder)]
+    decorators: ClassVar = [
+        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+    ]
 
     @staticmethod
     def get():
@@ -105,7 +109,9 @@ class MetGetBuild(Resource):
     This is found at the /build path
     """
 
-    decorators = [limiter.limit("10/second", on_breach=ratelimit_error_responder)]
+    decorators: ClassVar = [
+        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+    ]
 
     @staticmethod
     def post():
@@ -149,7 +155,9 @@ class MetGetCheckRequest(Resource):
     The request is specified as a query string parameter "request-id" to the get method
     """
 
-    decorators = [limiter.limit("10/second", on_breach=ratelimit_error_responder)]
+    decorators: ClassVar = [
+        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+    ]
 
     @staticmethod
     def get():
@@ -177,7 +185,9 @@ class MetGetTrack(Resource):
 
     """
 
-    decorators = [limiter.limit("10/second", on_breach=ratelimit_error_responder)]
+    decorators: ClassVar = [
+        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+    ]
 
     @staticmethod
     def get():
