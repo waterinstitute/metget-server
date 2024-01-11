@@ -117,11 +117,20 @@ def hafs_download():
     start, end = generate_default_date_range()
     hafs_a = HafsDownloader(start, end, NCEP_HAFS_A)
     hafs_b = HafsDownloader(start, end, NCEP_HAFS_B)
+
     logger.info(
-        f"Beginning to run HAFS from {start.isoformat():s} to {end.isoformat():s}"
+        f"Beginning to run HAFS-A from {start.isoformat():s} to {end.isoformat():s}"
     )
-    n = hafs_a.download()
-    n += hafs_b.download()
+    n_hafs_a = hafs_a.download()
+    logger.info(f"HAFS A complete. {n_hafs_a:d} files downloaded")
+
+    logger.info(
+        f"Beginning to run HAFS-B from {start.isoformat():s} to {end.isoformat():s}"
+    )
+    n_hafs_b = hafs_b.download()
+    logger.info(f"HAFS B complete. {n_hafs_b:d} files downloaded")
+
+    n = n_hafs_a + n_hafs_b
     logger.info(f"HAFS A and B complete. {n:d} files downloaded")
 
     return n
