@@ -17,20 +17,23 @@ jobs:
     name: Build metget-server api container
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout metget-server
-        uses: actions/checkout@v3
-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_LOGIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Build and push metget-api Docker image
-        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./containers/api/Dockerfile
@@ -39,27 +42,28 @@ jobs:
           platforms: linux/amd64
           tags: thewaterinstitute/metget-api:${{ inputs.tag }}
           labels: org.metget.metget-server
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build-metget-database:
     name: Build metget-server database container
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout metget-server
-        uses: actions/checkout@v3
-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_LOGIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Build and push metget-database Docker image
-        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./containers/database/Dockerfile
@@ -68,27 +72,28 @@ jobs:
           platforms: linux/amd64
           tags: thewaterinstitute/metget-database:${{ inputs.tag }}
           labels: org.metget.metget-server
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build-metget-download:
     name: Build metget-server download container
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout metget-server
-        uses: actions/checkout@v3
-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_LOGIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Build and push metget-download Docker image
-        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./containers/download/Dockerfile
@@ -97,27 +102,28 @@ jobs:
           platforms: linux/amd64
           tags: thewaterinstitute/metget-download:${{ inputs.tag }}
           labels: org.metget.metget-server
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build-metget-rebuild:
     name: Build metget-server rebuild container
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout metget-server
-        uses: actions/checkout@v3
-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_LOGIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Build and push metget-rebuild Docker image
-        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./containers/rebuild/Dockerfile
@@ -126,27 +132,28 @@ jobs:
           platforms: linux/amd64
           tags: thewaterinstitute/metget-rebuild:${{ inputs.tag }}
           labels: org.metget.metget-server
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build-metget-keymanager:
     name: Build metget-server keymanager container
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout metget-server
-        uses: actions/checkout@v3
-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_LOGIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Build and push metget-keymanager Docker image
-        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./containers/keymanager/Dockerfile
@@ -155,27 +162,28 @@ jobs:
           platforms: linux/amd64
           tags: thewaterinstitute/metget-keymanager:${{ inputs.tag }}
           labels: org.metget.metget-server
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build-metget-build:
     name: Build metget-server build container
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout metget-server
-        uses: actions/checkout@v3
-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_LOGIN_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_LOGIN_USERNAME }} --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_LOGIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Build and push metget-build Docker image
-        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./containers/build/Dockerfile
@@ -184,5 +192,3 @@ jobs:
           platforms: linux/amd64
           tags: thewaterinstitute/metget-build:${{ inputs.tag }}
           labels: org.metget.metget-server
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
