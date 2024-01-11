@@ -51,3 +51,35 @@ spec:
             configMapKeyRef:
               name: {{ .Release.Name }}-configmap
               key: database.apikey_table
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: username
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: password
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: aws-region
+              key: password
+        - name: METGET_S3_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-configmap
+              key: s3.storage_bucket
+        - name: COAMPS_S3_BUCKET
+          value: {{ .Values.s3.coamps_storage_bucket }}
+        - name: COAMPS_AWS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-coamps-credentials
+              key: username
+        - name: COAMPS_AWS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: aws-coamps-credentials
+              key: password
