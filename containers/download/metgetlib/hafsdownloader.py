@@ -74,8 +74,9 @@ class HafsDownloader(NoaaDownloader):
             return self.__download_http()
 
     def __download_s3(self) -> int:
-        import boto3
         from datetime import timedelta
+
+        import boto3
 
         s3 = boto3.resource("s3")
         client = boto3.client("s3")
@@ -85,7 +86,7 @@ class HafsDownloader(NoaaDownloader):
             self.begindate().year, self.begindate().month, self.begindate().day
         )
         end = datetime(self.enddate().year, self.enddate().month, self.enddate().day)
-        date_range = [begin + timedelta(days=x) for x in range(0, (end - begin).days)]
+        date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
         n = 0
         for d in date_range:
@@ -95,7 +96,7 @@ class HafsDownloader(NoaaDownloader):
                     + "/"
                     + d.strftime("%Y%m%d")
                     + "/"
-                    + "{:02d}".format(hr)
+                    + f"{hr:02d}"
                 )
                 for page in paginator.paginate(
                     Bucket=self.big_data_bucket(), Prefix=prefix

@@ -28,7 +28,7 @@
 ###################################################################################################
 
 import logging
-from typing import List, Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 
 class S3GribIO:

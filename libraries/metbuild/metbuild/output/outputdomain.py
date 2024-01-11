@@ -32,8 +32,8 @@ from typing import List, TextIO, Union
 
 import xarray as xr
 
-from .outputgrid import OutputGrid
 from ..enum import VariableType
+from .outputgrid import OutputGrid
 
 
 class OutputDomain:

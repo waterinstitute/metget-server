@@ -30,7 +30,6 @@
 from .enum import MetDataType, MetFileFormat
 from .metfileattributes import MetFileAttributes
 
-
 NCEP_GFS = MetFileAttributes(
     name="GFS-NCEP",
     table="gfs_ncep",
@@ -626,4 +625,5 @@ def attributes_from_name(name: str) -> MetFileAttributes:
     for met_file_attributes in MET_FILE_ATTRIBUTES_LIST:
         if met_file_attributes.name().lower() == name.lower():
             return met_file_attributes
-    raise ValueError(f"Unknown met file attributes name: {name}")
+    msg = f"Unknown met file attributes name: {name}"
+    raise ValueError(msg)

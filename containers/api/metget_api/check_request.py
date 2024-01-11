@@ -44,10 +44,10 @@ class CheckRequest:
         Returns:
             A tuple containing the response message and status code
         """
-        from metbuild.tables import RequestTable
-        from metbuild.database import Database
-
         import os
+
+        from metbuild.database import Database
+        from metbuild.tables import RequestTable
 
         if "request-id" in request.args:
             request_id = request.args["request-id"]
@@ -76,14 +76,14 @@ class CheckRequest:
             return {
                 "statusCode": 400,
                 "body": {
-                    "message": "ERROR: Request '{:s}' was not found".format(request_id)
+                    "message": f"ERROR: Request '{request_id:s}' was not found"
                 },
             }, 400
         elif len(query_result) > 1:
             return {
                 "statusCode": 400,
                 "body": {
-                    "message": "ERROR: Request '{:s}' is ambiguous".format(request_id)
+                    "message": f"ERROR: Request '{request_id:s}' is ambiguous"
                 },
             }, 400
         else:

@@ -27,10 +27,11 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-from metbuild.tables import RequestTable, RequestEnum
-from metbuild.input import Input
-from typing import Union
 import logging
+from typing import Union
+
+from metbuild.input import Input
+from metbuild.tables import RequestEnum, RequestTable
 
 
 class BuildRequest:
@@ -105,9 +106,10 @@ class BuildRequest:
         Returns:
             None
         """
-        import pika
-        import os
         import json
+        import os
+
+        import pika
 
         log = logging.getLogger(__name__)
 
@@ -189,7 +191,7 @@ class BuildRequest:
         This method is used to validate the request
         """
 
-        log = logging.getLogger(__name__)
+        logging.getLogger(__name__)
 
         # ...Step 1: Check if the input was even parsed correctly
         if not self.__input_obj.valid():

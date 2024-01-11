@@ -28,14 +28,14 @@
 ###################################################################################################
 import copy
 from datetime import datetime
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 
 from .datainterpolator import DataInterpolator
 from .enum import MeteorologicalSource, VariableType
-from .output.outputgrid import OutputGrid
 from .fileobj import FileObj
+from .output.outputgrid import OutputGrid
 from .triangulation import Triangulation
 
 
