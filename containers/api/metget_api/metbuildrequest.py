@@ -159,7 +159,7 @@ class MetBuildRequest:
         Returns:
             A tuple containing the credit information and a boolean indicating if the request is authorized
         """
-        from metget_api.access_control import AccessControl
+        from .access_control import AccessControl
 
         credit_dict = AccessControl.get_credit_balance(api_key)
 

@@ -32,7 +32,7 @@ kind: Service
 metadata:
   labels:
     component: rabbitmq
-  name: {{ .Release.Name }}-rabbitmq-service
+  name: metget-rabbitmq-service
 spec:
   ports:
     - port: 5672

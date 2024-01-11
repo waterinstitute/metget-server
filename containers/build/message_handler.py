@@ -510,7 +510,9 @@ class MessageHandler:
         return output_file
 
     @staticmethod
-    def __generate_file_obj(filename: str, service: str, time: datetime) -> FileObj:
+    def __generate_file_obj(
+        filename: Union[str, list], service: str, time: datetime
+    ) -> FileObj:
         """
         Generates the file object
 
@@ -527,6 +529,8 @@ class MessageHandler:
             NCEP_HRRR_ALASKA,
             NCEP_WPC,
             COAMPS_TC,
+            NCEP_HAFS_A,
+            NCEP_HAFS_B,
         )
 
         if service == "gfs-ncep":
@@ -543,10 +547,20 @@ class MessageHandler:
             file_type = NCEP_WPC
         elif service == "coamps-tc":
             file_type = COAMPS_TC
+        elif service == "ncep-hafs-a":
+            file_type = NCEP_HAFS_A
+        elif service == "ncep-hafs-b":
+            file_type = NCEP_HAFS_B
         else:
             raise RuntimeError("Invalid service selected: " + service)
 
-        return FileObj(filename, file_type, time)
+        if isinstance(filename, list):
+            file_type_list = []
+            for _ in filename:
+                file_type_list.append(file_type)
+            return FileObj(filename, file_type_list, time)
+        else:
+            return FileObj(filename, file_type, time)
 
     @staticmethod
     def __interpolate_wind_fields(
@@ -810,6 +824,8 @@ class MessageHandler:
         if (
             input_data.domain(domain_index).service() == "coamps-tc"
             or input_data.domain(domain_index).service() == "coamps-ctcx"
+            or input_data.domain(domain_index).service() == "ncep-hafs-a"
+            or input_data.domain(domain_index).service() == "ncep-hafs-b"
         ):
             for current_file in domain_data[domain_index][index]["filepath"]:
                 domain_files_used.append(os.path.basename(current_file))
@@ -999,6 +1015,18 @@ class MessageHandler:
                 output_obj,
                 s3_obj,
             )
+        elif "hafs" in input_data.domain(domain_index).service():
+            current_file = []
+            for r_file in domain_data[domain_index][file_index]["filepath"]:
+                this_file, _ = MessageHandler.__download_met_data_from_s3(
+                    input_data.data_type(),
+                    input_data.domain(domain_index),
+                    {"filepath": r_file, "forecasttime": current_time},
+                    output_obj,
+                    s3_obj,
+                    s3_grib,
+                )
+                current_file.append(this_file)
         else:
             current_file, _ = MessageHandler.__download_met_data_from_s3(
                 input_data.data_type(),
@@ -1129,7 +1157,11 @@ class MessageHandler:
                 "No data found for domain {:d}. Giving up.".format(index)
             )
         for item in f:
-            if domain.service() == "coamps-tc" or domain.service() == "coamps-ctcx":
+            if (
+                domain.service() == "coamps-tc"
+                or domain.service() == "coamps-ctcx"
+                or "hafs" in domain.service()
+            ):
                 files = item["filepath"].split(",")
 
                 if not do_download:

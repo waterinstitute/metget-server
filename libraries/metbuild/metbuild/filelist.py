@@ -109,7 +109,9 @@ class Filelist:
         if not isinstance(self.__storm_year, int) and self.__storm_year is not None:
             msg = "storm_year must be of type int"
             raise TypeError(msg)
-        if not isinstance(self.__storm, int) and self.__storm is not None:
+        if (
+            not isinstance(self.__storm, int) and not isinstance(self.__storm, str)
+        ) and self.__storm is not None:
             msg = "storm must be of type int"
             raise TypeError(msg)
         if not isinstance(self.__advisory, int) and self.__advisory is not None:
@@ -665,9 +667,9 @@ class Filelist:
         """
         from .tables import HafsATable, HafsBTable
 
-        if hafs_type in ("hafs_a", "hafs"):
+        if hafs_type == "ncep-hafs-a":
             return self.__query_storm_file_list(HafsATable)
-        elif hafs_type == "hafs_b":
+        elif hafs_type == "ncep-hafs-b":
             return self.__query_storm_file_list(HafsBTable)
         else:
             self.__error.append(f"Invalid HAFS type: '{hafs_type:s}'")

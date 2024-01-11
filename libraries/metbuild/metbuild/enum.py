@@ -98,7 +98,7 @@ class MeteorologicalSource(Enum):
             result = MeteorologicalSource.WPC
         elif data_type in ("coamps-tc", "coamps-ctcx"):
             result = MeteorologicalSource.COAMPS
-        elif data_type in ("hafs", "hafs-a", "hafs-b"):
+        elif data_type in ("ncep-hafs-a", "ncep-hafs-b"):
             result = MeteorologicalSource.HAFS
         else:
             msg = f"Invalid meteorological source: {data_type:s}"
