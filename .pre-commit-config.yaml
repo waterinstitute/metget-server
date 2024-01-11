@@ -20,4 +20,3 @@ repos:
           #                "--ignore", "E501,PT004,RET505,RET506,RET507,RET508,SIM108,PLR2004",
           #                "--unsafe-fixes",
           #        ]
-
