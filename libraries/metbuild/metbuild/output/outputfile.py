@@ -29,10 +29,11 @@
 
 from datetime import datetime
 from typing import List, Tuple, Union
+import xarray as xr
 
-from .dataset import Dataset
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
+from ..enum import VariableType
 
 
 class OutputFile:
@@ -54,13 +55,16 @@ class OutputFile:
         self.__domains: List[OutputDomain] = []
         self.__filenames: Union[List[str], str] = []
 
-    def write(self, index: int, dataset: List[Dataset]) -> None:
+    def write(
+        self, index: int, dataset: List[xr.Dataset], variable_type: List[VariableType]
+    ) -> None:
         """
         Write the meteorological field to a file.
 
         Args:
             index (int): The index of the time step.
             dataset (Dataset): The dataset to write.
+            variable_type (VariableType): The variable type to write.
 
         Returns:
             None
