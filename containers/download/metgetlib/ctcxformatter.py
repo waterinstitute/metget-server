@@ -38,7 +38,7 @@ class CtcxDomain:
     Class to hold the data for a single domain of a CTCX snapshot.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         cycle_time: datetime,
         forecast_time: datetime,

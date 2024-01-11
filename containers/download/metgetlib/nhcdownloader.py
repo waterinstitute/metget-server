@@ -70,7 +70,7 @@ ATCF_KEYS = [
 
 
 class NhcDownloader:
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         dblocation=".",
         use_besttrack=True,
@@ -163,7 +163,7 @@ class NhcDownloader:
             adv_number = f"{int(split[1]):03}" + split[2]
         return adv_number
 
-    def read_nhc_rss_feed(self, rss):
+    def read_nhc_rss_feed(self, rss):  # noqa: PLR0912, PLR0915
         import logging
         from datetime import datetime
 
@@ -380,7 +380,7 @@ class NhcDownloader:
         #     return n
 
     @staticmethod
-    def print_forecast_data(
+    def print_forecast_data(  # noqa: PLR0913
         year, basin, storm_name, storm_number, advisory_number, forecast_data
     ):
         print(
@@ -669,7 +669,7 @@ class NhcDownloader:
 
         NhcDownloader.write_nhc_data(nhc_data, filepath)
 
-    def download_forecast_ftp(self):
+    def download_forecast_ftp(self):  # noqa: PLR0912, PLR0915
         import logging
         import os
         import tempfile
@@ -835,7 +835,7 @@ class NhcDownloader:
     def generate_geojson(self, filename: str):
         return self.__generate_track(filename)
 
-    def download_hindcast(self):
+    def download_hindcast(self):  # noqa: PLR0912, PLR0915
         import logging
         import os.path
         import tempfile
@@ -883,7 +883,7 @@ class NhcDownloader:
                     try:
                         with open(file_path, "wb") as out_file:
                             ftp.retrbinary("RETR " + f, out_file.write)
-                    except:
+                    except:  # noqa: E722
                         logger.error("Error getting file from NHC FTP")
                         continue
 
@@ -955,7 +955,7 @@ class NhcDownloader:
                 return []
         except KeyboardInterrupt:
             raise
-        except:
+        except:  # noqa: E722
             return []
 
         soup = BeautifulSoup(response_text, "html.parser")

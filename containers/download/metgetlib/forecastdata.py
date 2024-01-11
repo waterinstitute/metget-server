@@ -214,7 +214,7 @@ class ForecastData:
     def pressure(self):
         return self.__pressure
 
-    def set_isotach(self, speed, d1, d2, d3, d4):
+    def set_isotach(self, speed, d1, d2, d3, d4):  # noqa: PLR0913
         from .isotach import Isotach
 
         self.__isotach[speed] = Isotach(speed, d1, d2, d3, d4)

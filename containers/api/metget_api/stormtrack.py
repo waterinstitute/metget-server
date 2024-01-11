@@ -117,7 +117,7 @@ class StormTrackQueryStringParameters:
         """
         return self.__type
 
-    def __parse_request(self, request: flask.Request):
+    def __parse_request(self, request: flask.Request):  # noqa: PLR0912
         """
         Parses the query string parameters from the request
 

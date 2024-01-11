@@ -49,7 +49,7 @@ class Metdb:
         """
         del self.__database
 
-    def get_nhc_md5(
+    def get_nhc_md5(  # noqa: PLR0913
         self, mettype: str, year: int, basin: str, storm: str, advisory: int = 0
     ) -> str:
         """
@@ -149,7 +149,7 @@ class Metdb:
             else:
                 return []
 
-    def has(self, datatype: str, metadata: dict) -> bool:
+    def has(self, datatype: str, metadata: dict) -> bool:  # noqa: PLR0911
         """
         Check if a file exists in the database
 
