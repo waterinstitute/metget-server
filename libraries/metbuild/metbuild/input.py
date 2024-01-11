@@ -53,6 +53,7 @@ class Input:
             "y_end": And(Use(float), lambda n: -90 <= n <= 90),
             "di": And(Use(float), lambda n: n > 0),
             "dj": And(Use(float), lambda n: n > 0),
+            Optional("storm"): Use(str),
             Optional("basin"): Or("al", "ep", "wp"),
             Optional("advisory"): And(Use(int), lambda n: n > 0),
             Optional("storm_year", default=datetime.utcnow().year): And(

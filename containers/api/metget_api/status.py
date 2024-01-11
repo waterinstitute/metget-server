@@ -37,7 +37,8 @@ AVAILABLE_MET_MODELS = [
     "gefs",
     "nam",
     "hwrf",
-    "hafs",
+    "hafs-a",
+    "hafs-b",
     "hrrr",
     "hrrr-alaska",
     "nhc",
@@ -51,7 +52,8 @@ MET_MODEL_FORECAST_DURATION = {
     "gefs": 240,
     "nam": 84,
     "hwrf": 126,
-    "hafs": 126,
+    "hafs-a": 126,
+    "hafs-b": 126,
     "hrrr": 48,
     "hrrr-alaska": 48,
     "coamps": 126,
@@ -96,7 +98,8 @@ class Status:
             - gfs
             - nam
             - hwrf
-            - hafs
+            - hafs-a
+            - hafs-b
             - hrrr
             - hrrr-alaska
             - wpc
@@ -153,9 +156,19 @@ class Status:
                 end_dt,
                 storm,
             )
-        elif status_type == "hafs":
+        elif status_type == "hafs-a":
             s = Status.__get_status_hafs(
-                MET_MODEL_FORECAST_DURATION["hafs"],
+                MET_MODEL_FORECAST_DURATION["hafs-a"],
+                "a",
+                time_limit,
+                start_dt,
+                end_dt,
+                storm,
+            )
+        elif status_type == "hafs-b":
+            s = Status.__get_status_hafs(
+                MET_MODEL_FORECAST_DURATION["hafs-b"],
+                "b",
                 time_limit,
                 start_dt,
                 end_dt,
@@ -783,8 +796,9 @@ class Status:
         )
 
     @staticmethod
-    def __get_status_hafs(
+    def __get_status_hafs(  # noqa: PLR0913
         cycle_duration: int,
+        hafs_type: str,
         limit: timedelta,
         start: datetime,
         end: datetime,
@@ -795,6 +809,7 @@ class Status:
 
         Args:
             cycle_duration: The duration of the cycle in hours
+            hafs_type: The type of HAFS model to use (i.e. HAFS-A: a or HAFS-B: b)
             limit: The limit in days to use when generating the status
             start: The start date to use when generating the status
             end: The end date to use when generating the status
@@ -803,16 +818,27 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from metbuild.tables import HafsATable
+        from metbuild.tables import HafsATable, HafsBTable
 
-        return Status.__get_status_deterministic_storm_type(
-            HafsATable,
-            cycle_duration,
-            limit,
-            start,
-            end,
-            storm,
-        )
+        if hafs_type == "a":
+            return Status.__get_status_deterministic_storm_type(
+                HafsATable,
+                cycle_duration,
+                limit,
+                start,
+                end,
+                storm,
+            )
+        elif hafs_type == "b":
+            return Status.__get_status_deterministic_storm_type(
+                HafsBTable,
+                cycle_duration,
+                limit,
+                start,
+                end,
+                storm,
+            )
+        return None
 
     @staticmethod
     def __get_status_coamps(

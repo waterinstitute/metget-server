@@ -412,7 +412,7 @@ NCEP_WPC = MetFileAttributes(
 )
 
 NCEP_HAFS_A = MetFileAttributes(
-    name="HAFS-A",
+    name="NCEP-HAFS-A",
     table="ncep_hafs_a",
     file_format=MetFileFormat.GRIB,
     bucket="noaa-nws-hafs-pds",
@@ -476,7 +476,7 @@ NCEP_HAFS_A = MetFileAttributes(
 )
 
 NCEP_HAFS_B = MetFileAttributes(
-    name="HAFS-B",
+    name="NCEP-HAFS-B",
     table="ncep_hafs_b",
     file_format=MetFileFormat.GRIB,
     bucket=NCEP_HAFS_A.bucket(),

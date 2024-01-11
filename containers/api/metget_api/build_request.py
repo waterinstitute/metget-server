@@ -64,7 +64,7 @@ class BuildRequest:
         self.__source_ip = source_ip
         self.__request_json = request_json
         self.__no_construct = no_construct
-        self.__input_obj = Input(self.__request_json, self.__no_construct)
+        self.__input_obj = Input(self.__request_json)
         self.__error = []
 
     def error(self) -> list:
@@ -128,13 +128,13 @@ class BuildRequest:
             log.warning("Request was not transmitted. Will only be added to database.")
 
         RequestTable.add_request(
-            self.__request_id,
-            request_status,
-            self.__api_key,
-            self.__source_ip,
-            self.__request_json,
-            message,
-            credits,
+            request_id=self.__request_id,
+            request_status=request_status,
+            api_key=self.__api_key,
+            source_ip=self.__source_ip,
+            input_data=self.__request_json,
+            message=message,
+            credit=credits,
         )
 
     @staticmethod
@@ -292,17 +292,17 @@ class BuildRequest:
         from metbuild.filelist import Filelist
 
         file_list = Filelist(
-            service,
-            param,
-            start,
-            end,
-            tau,
-            storm_year,
-            storm,
-            basin,
-            advisory,
-            nowcast,
-            multiple_forecasts,
-            ensemble_member,
+            service=service,
+            param=param,
+            start=start,
+            end=end,
+            tau=tau,
+            storm_year=storm_year,
+            storm=storm,
+            basin=basin,
+            advisory=advisory,
+            nowcast=nowcast,
+            multiple_forecasts=multiple_forecasts,
+            ensemble_member=ensemble_member,
         )
         return file_list.files()

@@ -60,7 +60,6 @@ class AccessControl:
 
         from metbuild.tables import AuthTable
 
-        api_key_hash = AccessControl.hash_access_token(str(api_key))
         with Database() as db, db.session() as session:
             api_key_db = (
                 session.query(
@@ -68,7 +67,7 @@ class AccessControl:
                     AuthTable.key,
                 )
                 .filter(AuthTable.key == api_key)
-                .filter(AuthTable.enabled is True)
+                .filter(AuthTable.enabled == True)  # noqa: E712
                 .filter(AuthTable.expiration >= datetime.utcnow())
                 .first()
             )
@@ -76,9 +75,10 @@ class AccessControl:
         if api_key_db is None:
             return False
 
+        api_key_hash = AccessControl.hash_access_token(str(api_key))
         api_key_db_hash = AccessControl.hash_access_token(api_key_db.key.strip())
 
-        return api_key_db_hash == api_key_hash
+        return bool(api_key_db_hash == api_key_hash)
 
     @staticmethod
     def check_authorization_token(headers) -> bool:

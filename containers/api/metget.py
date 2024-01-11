@@ -27,6 +27,7 @@
 #
 ###################################################################################################
 
+import logging
 from typing import ClassVar
 
 from flask import Flask, jsonify, make_response, redirect, request
@@ -45,6 +46,8 @@ limiter = Limiter(
 )
 
 CORS(application)
+
+application.logger.setLevel(logging.INFO)
 
 
 def ratelimit_error_responder(request_limit: RequestLimit):

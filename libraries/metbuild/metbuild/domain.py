@@ -41,9 +41,8 @@ VALID_SERVICES = [
     "nhc",
     "hrrr-conus",
     "hrrr-alaska",
-    "hafs",
-    "hafs-a",
-    "hafs-b",
+    "ncep-hafs-a",
+    "ncep-hafs-b",
 ]
 
 
@@ -200,7 +199,7 @@ class Domain:
 
     def __get_storm(self) -> None:
         """
-        Gets the storm name for the domain from the json object if the service is hwrf or coamps-tc
+        Gets the storm name for the domain from the json object if the service is hwrf, coamps-tc, hafs-a/b, or nhc
 
         Returns:
             None
