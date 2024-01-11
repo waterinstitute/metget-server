@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -69,9 +68,7 @@ class S3file:
 
         logger = logging.getLogger(__name__)
         try:
-            self.__client.download_file(
-                self.__bucket, remote_path, local_path
-            )
+            self.__client.download_file(self.__bucket, remote_path, local_path)
         except ClientError as e:
             logger.error(str(e))
             return False
