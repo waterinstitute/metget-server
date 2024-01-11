@@ -14,8 +14,8 @@ RUN pip install --break-system-packages /tmp/metbuild/. && rm -rf /tmp/metbuild
 COPY containers/api/metget_api /app/metget_api/.
 COPY containers/api/metget.py /app/.
 
-#ENTRYPOINT ["gunicorn"]
-#CMD ["-w","4","metget:application","--bind","0.0.0.0:8080","--timeout","120"]
+ENTRYPOINT ["gunicorn"]
+CMD ["-w","4","metget:application","--bind","0.0.0.0:8080","--timeout","120"]
 
-ENTRYPOINT ["python3"]
-CMD [ "metget.py" ]
+#ENTRYPOINT ["python3"]
+#CMD [ "metget.py" ]
