@@ -655,7 +655,6 @@ class MessageHandler:
             input_data.end_date(),
             timedelta(seconds=input_data.time_step()),
         ):
-
             if t > meteo_obj.f2().time():
                 log.debug(
                     "Processing next domain time step: {:s} > {:s}".format(

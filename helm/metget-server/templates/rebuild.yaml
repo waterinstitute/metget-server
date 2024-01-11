@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: 
+metadata:
   name: {{ .Release.Name }}-rebuild
 spec:
   replicas: 1
   selector:
-    matchLabels: 
+    matchLabels:
       app: {{ .Release.Name }}-rebuild
   template:
     metadata:
@@ -30,7 +30,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-database-secret
-              key: username  
+              key: username
         - name: METGET_DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:

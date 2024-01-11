@@ -76,7 +76,6 @@ def main():
     json_data = None
 
     try:
-
         if args.request_json:
             with open(args.request_json, "r") as f:
                 message = f.read()

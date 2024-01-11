@@ -78,7 +78,6 @@ def rebuild_gefs(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hafs(start: datetime, end: datetime) -> int:
-
     log = logging.getLogger(__name__)
 
     n_added_a, n_not_added_a = rebuild_hafs_subtype("a", start, end)
@@ -102,7 +101,6 @@ def has_hafs_data(
     forecast_time: datetime,
     tau: int,
 ) -> bool:
-
     has_hafs = (
         session.query(table)
         .filter(
@@ -172,7 +170,6 @@ def rebuild_hafs_subtype(
                                 forecast_time,
                                 forecast_hour,
                             ):
-
                                 filepath = [
                                     bucket + "/" + obj["Key"],
                                     bucket + "/" + storm_file,
