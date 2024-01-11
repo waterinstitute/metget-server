@@ -63,6 +63,7 @@ class NoaaDownloader:
         end,
         use_aws_big_data=False,
         do_archive=True,
+        verbose=True,
     ):
         """
         Constructor for the NoaaDownloader class. Initializes the class variables
@@ -74,6 +75,7 @@ class NoaaDownloader:
                 end (datetime): end date for downloading
                 use_aws_big_data (bool): Use AWS S3 for downloading big data'
                 do_archive (bool): Archive the downloaded data. True indicates that the data will be archived in the s3 bucket. False indicates it will be left on the remote server
+                verbose (bool): Print verbose output
         """
 
         self.__mettype = mettype
@@ -87,6 +89,7 @@ class NoaaDownloader:
         self.__cycles = None
         self.__variables = []
         self.__do_archive = do_archive
+        self.__verbose = verbose
 
         if self.__do_archive:
             self.__s3file = S3file()
@@ -103,6 +106,15 @@ class NoaaDownloader:
             status_forcelist=[302, 429, 500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "OPTIONS"],
         )
+
+    def verbose(self) -> bool:
+        """
+        Returns whether to print verbose output
+
+        Returns:
+            bool: True if printing verbose output, else False
+        """
+        return self.__verbose
 
     def do_archive(self):
         """
@@ -605,6 +617,9 @@ class NoaaDownloader:
         Returns:
             int: number of files downloaded
         """
+
+        log = logging.getLogger(__name__)
+
         s3 = boto3.resource("s3")
         client = boto3.client("s3")
         bucket = s3.Bucket(self.big_data_bucket())
@@ -618,6 +633,9 @@ class NoaaDownloader:
 
         pairs = []
         for d in date_range:
+            if self.verbose():
+                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)
                 objects = bucket.objects.filter(Prefix=prefix)

@@ -26,7 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
+import logging
 from datetime import datetime
 from typing import Tuple
 
@@ -77,6 +77,8 @@ class HafsDownloader(NoaaDownloader):
 
         import boto3
 
+        log = logging.getLogger(__name__)
+
         s3 = boto3.resource("s3")
         client = boto3.client("s3")
         bucket = s3.Bucket(self.big_data_bucket())
@@ -89,6 +91,9 @@ class HafsDownloader(NoaaDownloader):
 
         n = 0
         for d in date_range:
+            if self.verbose():
+                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+
             for hr in self.cycles():
                 prefix = (
                     self.__hafs_version[0:-1]
