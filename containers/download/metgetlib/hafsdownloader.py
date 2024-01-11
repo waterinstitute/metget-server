@@ -211,7 +211,9 @@ class HafsDownloader(NoaaDownloader):
 
         return num_download
 
-    def get_grib_files(self, info: dict, client=None) -> Tuple[list, int, int]:
+    def get_grib_files(  # noqa: PLR0915
+        self, info: dict, client=None
+    ) -> Tuple[list, int, int]:
         import logging
         import os
         import tempfile

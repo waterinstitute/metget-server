@@ -39,7 +39,7 @@ class BuildRequest:
     and initiate the k8s process within argo
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         request_id: str,
         api_key: str,
@@ -185,7 +185,7 @@ class BuildRequest:
             dt.append(f["tau"])
         return dt
 
-    def validate(self) -> bool:
+    def validate(self) -> bool:  # noqa: PLR0911, PLR0912
         """
         This method is used to validate the request
         """
@@ -271,7 +271,7 @@ class BuildRequest:
         return True
 
     @staticmethod
-    def __generate_file_list(
+    def __generate_file_list(  # noqa: PLR0913
         service,
         param,
         start,

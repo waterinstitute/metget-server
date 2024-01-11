@@ -54,7 +54,7 @@ class NoaaDownloader:
     Parent class for downloading noaa grib format data
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mettype,
         metstring,
@@ -446,7 +446,9 @@ class NoaaDownloader:
         else:
             return None, 0, 0
 
-    def __get_grib_noaa_servers(self, info: dict) -> Tuple[Union[str, None], int, int]:
+    def __get_grib_noaa_servers(  # noqa: PLR0915
+        self, info: dict
+    ) -> Tuple[Union[str, None], int, int]:
         """
         Gets the grib based upon the input data
 
@@ -529,7 +531,7 @@ class NoaaDownloader:
                                         f.write(chunk)
                         except KeyboardInterrupt:
                             raise
-                        except:
+                        except:  # noqa: E722
                             logger.warning(
                                 "NOAA Server stopped responding. Trying again later"
                             )

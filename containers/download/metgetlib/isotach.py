@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 class Isotach:
-    def __init__(self, speed, d1=0, d2=0, d3=0, d4=0):
+    def __init__(self, speed, d1=0, d2=0, d3=0, d4=0):  # noqa: PLR0913
         self.__speed = speed
         self.__distance = [d1, d2, d3, d4]
 

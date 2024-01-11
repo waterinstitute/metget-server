@@ -338,7 +338,7 @@ class Input:
         """
         return self.__strict
 
-    def __parse(self) -> None:
+    def __parse(self) -> None:  # noqa: PLR0915
         """
         Parses the input data
         """

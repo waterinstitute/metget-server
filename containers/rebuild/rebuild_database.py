@@ -92,7 +92,7 @@ def rebuild_hafs(start: datetime, end: datetime) -> int:
     return n
 
 
-def has_hafs_data(
+def has_hafs_data(  # noqa: PLR0913
     session: Session,
     table,
     storm_name: str,
@@ -322,7 +322,7 @@ def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
     return FeatureCollection(features=points)
 
 
-def nhc_download_data(table) -> int:
+def nhc_download_data(table) -> int:  # noqa: PLR0915
     import logging
     import os
     import tempfile
