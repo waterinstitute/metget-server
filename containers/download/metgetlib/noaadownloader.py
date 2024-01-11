@@ -98,7 +98,7 @@ class NoaaDownloader:
     def http_retry_strategy() -> Retry:
         # ...Note: Status 302 is NOAA speak for "chill out", not a redirect as in normal http
         return RetryLogger(
-            total=30,
+            total=10,
             redirect=6,
             backoff_factor=1,
             status_forcelist=[302, 429, 500, 502, 503, 504],
