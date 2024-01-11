@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Tuple, Union
 
 import boto3
-from requests.packages.urllib3.util.retry import Retry
+from requests.adapters import Retry
 
 from .metdb import Metdb
 from .s3file import S3file
@@ -102,7 +102,7 @@ class NoaaDownloader:
             redirect=6,
             backoff_factor=1,
             status_forcelist=[302, 429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            allowed_methods=["HEAD", "GET", "OPTIONS"],
         )
 
     def do_archive(self):
@@ -579,7 +579,7 @@ class NoaaDownloader:
 
         """
         msg = "Override method not implemented"
-        raise RuntimeError(msg)
+        raise NotImplementedError(msg)
 
     @staticmethod
     def _filename_to_hour(filename: str) -> int:
@@ -595,7 +595,7 @@ class NoaaDownloader:
         This method is meant to be overridden by the child classes
         """
         msg = "Override method not implemented"
-        raise RuntimeError(msg)
+        raise NotImplementedError(msg)
 
     def _download_aws_big_data(self) -> int:
         """
@@ -665,7 +665,7 @@ class NoaaDownloader:
             return self._download_aws_big_data()
         else:
             msg = "Override method not implemented"
-            raise RuntimeError(msg)
+            raise NotImplementedError(msg)
 
     @staticmethod
     def linkToTime(t):
