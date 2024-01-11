@@ -65,11 +65,6 @@ spec:
             configMapKeyRef:
               name: {{ .Release.Name }}-configmap
               key: s3.storage_bucket
-        - name: METGET_DATABASE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
-              key: database.name
         - name: COAMPS_S3_BUCKET
           value: {{ .Values.s3.coamps_storage_bucket }}
         - name: COAMPS_AWS_KEY
