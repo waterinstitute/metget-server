@@ -117,7 +117,9 @@ def has_hafs_data(
     return has_hafs > 0
 
 
-def rebuild_hafs_subtype(type: str, start: datetime, end: datetime) -> Tuple[int, int]:
+def rebuild_hafs_subtype(
+    hafs_type: str, start: datetime, end: datetime
+) -> Tuple[int, int]:
     import boto3
     import os
     from datetime import timedelta
@@ -126,14 +128,14 @@ def rebuild_hafs_subtype(type: str, start: datetime, end: datetime) -> Tuple[int
 
     log = logging.getLogger(__name__)
 
-    if type == "a":
+    if hafs_type == "a":
         folder = "ncep_hafs_a"
         table = HafsATable
-    elif type == "b":
+    elif hafs_type == "b":
         folder = "ncep_hafs_b"
         table = HafsBTable
     else:
-        raise ValueError("Invalid HAFS subtype: {}".format(type))
+        raise ValueError("Invalid HAFS subtype: {}".format(hafs_type))
 
     client = boto3.client("s3")
     paginator = client.get_paginator("list_objects_v2")
@@ -142,7 +144,7 @@ def rebuild_hafs_subtype(type: str, start: datetime, end: datetime) -> Tuple[int
     prefix = f"{folder}"
 
     log.info(
-        f"Beginning to run NCEP-HAFS-{type} from {start.isoformat():s} to {end.isoformat():s}"
+        f"Beginning to run NCEP-HAFS-{hafs_type} from {start.isoformat():s} to {end.isoformat():s}"
     )
 
     n_added = 0
