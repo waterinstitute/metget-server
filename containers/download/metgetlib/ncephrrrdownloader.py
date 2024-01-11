@@ -49,15 +49,13 @@ class NcepHrrrdownloader(NoaaDownloader):
         self.set_big_data_bucket(NCEP_HRRR.bucket())
         self.set_cycles(NCEP_HRRR.cycles())
         for v in NCEP_HRRR.variables():
-            self.add_download_variable(v["long_name"], v["name"])
+            self.add_download_variable(
+                NCEP_HRRR.variables()[v]["long_name"], NCEP_HRRR.variables()[v]["name"]
+            )
 
     @staticmethod
     def _generate_prefix(date, hour) -> str:
-        return (
-            "hrrr."
-            + date.strftime("%Y%m%d")
-            + f"/conus/hrrr.t{hour:02d}z.wrfnatf"
-        )
+        return "hrrr." + date.strftime("%Y%m%d") + f"/conus/hrrr.t{hour:02d}z.wrfnatf"
 
     @staticmethod
     def _filename_to_hour(filename) -> int:

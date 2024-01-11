@@ -55,7 +55,9 @@ class HafsDownloader(NoaaDownloader):
         self.__hafs_type = hafs_type
         self.set_cycles(hafs_type.cycles())
         for v in hafs_type.variables():
-            self.add_download_variable(v["long_name"], v["name"])
+            self.add_download_variable(
+                hafs_type.variables()[v]["long_name"], hafs_type.variables()[v]["name"]
+            )
 
     def download(self) -> int:
         from metgetlib.spyder import Spyder

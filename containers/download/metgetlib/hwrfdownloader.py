@@ -44,7 +44,9 @@ class HwrfDownloader(NoaaDownloader):
         )
         self.set_cycles(NCEP_HWRF.cycles())
         for v in NCEP_HWRF.variables():
-            self.add_download_variable(v["long_name"], v["name"])
+            self.add_download_variable(
+                NCEP_HWRF.variables()[v]["long_name"], NCEP_HWRF.variables()[v]["name"]
+            )
 
     def download(self):
         from .metdb import Metdb

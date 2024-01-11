@@ -49,7 +49,9 @@ class NcepNamdownloader(NoaaDownloader):
         self.set_big_data_bucket(NCEP_NAM.bucket())
         self.set_cycles(NCEP_NAM.cycles())
         for v in NCEP_NAM.variables():
-            self.add_download_variable(v["long_name"], v["name"])
+            self.add_download_variable(
+                NCEP_NAM.variables()[v]["long_name"], NCEP_NAM.variables()[v]["name"]
+            )
 
     @staticmethod
     def _generate_prefix(date, hour) -> str:

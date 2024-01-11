@@ -47,7 +47,9 @@ class NcepGefsdownloader(NoaaDownloader):
             do_archive=False,
         )
         for v in NCEP_GEFS.variables():
-            self.add_download_variable(v["long_name"], v["name"])
+            self.add_download_variable(
+                NCEP_GEFS.variables()[v]["long_name"], NCEP_GEFS.variables()[v]["name"]
+            )
         self.set_big_data_bucket(NCEP_GEFS.bucket())
         self.set_cycles(NCEP_GEFS.cycles())
         self.__members = NCEP_GEFS.ensemble_members()
@@ -57,9 +59,7 @@ class NcepGefsdownloader(NoaaDownloader):
 
     @staticmethod
     def _generate_prefix(date, hour) -> str:
-        return (
-            "gefs." + date.strftime("%Y%m%d") + f"/{hour:02d}/atmos/pgrb2sp25/g"
-        )
+        return "gefs." + date.strftime("%Y%m%d") + f"/{hour:02d}/atmos/pgrb2sp25/g"
 
     @staticmethod
     def _filename_to_hour(filename) -> int:
