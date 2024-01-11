@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -103,10 +102,10 @@ class CtcxDomain:
             metadata: The metadata for the variable to return.
         """
         if metadata["raw_name"] not in self.__fid:
-            msg = "Variable {:s} not found in file {:s}".format(metadata["name"], self.__filename)
-            raise Exception(
-                msg
+            msg = "Variable {:s} not found in file {:s}".format(
+                metadata["name"], self.__filename
             )
+            raise Exception(msg)
         return np.reshape(
             self.__fid[metadata["raw_name"]][:], (metadata["ny"], metadata["nx"])
         )

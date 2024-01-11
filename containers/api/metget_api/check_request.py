@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -75,16 +74,12 @@ class CheckRequest:
         if len(query_result) == 0:
             return {
                 "statusCode": 400,
-                "body": {
-                    "message": f"ERROR: Request '{request_id:s}' was not found"
-                },
+                "body": {"message": f"ERROR: Request '{request_id:s}' was not found"},
             }, 400
         elif len(query_result) > 1:
             return {
                 "statusCode": 400,
-                "body": {
-                    "message": f"ERROR: Request '{request_id:s}' is ambiguous"
-                },
+                "body": {"message": f"ERROR: Request '{request_id:s}' is ambiguous"},
             }, 400
         else:
             row = query_result[0]
