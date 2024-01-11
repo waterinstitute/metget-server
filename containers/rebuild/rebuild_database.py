@@ -86,9 +86,7 @@ def rebuild_hafs(start: datetime, end: datetime) -> int:
     n = n_added_a + n_added_b
     n_found = n_not_added_a + n_not_added_b
 
-    log.info(
-        f"NCEP-HAFS complete. {n:d} files added and {n_found:d} files already in database"
-    )
+    log.info(f"NCEP-HAFS complete. {n:d} files added ")
 
     return n
 
@@ -119,14 +117,14 @@ def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
     import logging
     from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
 
-    from metgetlib.hafsdownloader import Hafsdownloader
+    from metgetlib.hafsdownloader import HafsDownloader
 
     log = logging.getLogger(__name__)
 
     if hafs_type == "a":
-        hafs = Hafsdownloader(NCEP_HAFS_A, start, end)
+        hafs = HafsDownloader(start, end, NCEP_HAFS_A)
     elif hafs_type == "b":
-        hafs = Hafsdownloader(NCEP_HAFS_B, start, end)
+        hafs = HafsDownloader(start, end, NCEP_HAFS_B)
     else:
         raise ValueError(f"Invalid HAFS type: {hafs_type}")
 
