@@ -105,7 +105,6 @@ class HafsDownloader(NoaaDownloader):
                             if "parent.atm" in obj["Key"] and obj["Key"].endswith(
                                 ".grb2"
                             ):
-
                                 # Extract the metadata from the path
                                 keys = obj["Key"].split("/")[-1].split(".")
                                 storm_name = keys[0]
