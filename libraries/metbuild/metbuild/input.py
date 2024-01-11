@@ -26,12 +26,12 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
-from .domain import Domain, VALID_SERVICES
+from .domain import VALID_SERVICES, Domain
 
 VALID_DATA_TYPES = ["wind_pressure", "rain", "ice", "humidity", "temperature"]
 
@@ -47,17 +47,17 @@ class Input:
             "name": str,
             "service": Or(*VALID_SERVICES),
             "level": And(Use(int), lambda n: n >= 0),
-            "x_init": And(Use(float), lambda n: -180 <= n <= 180),  # noqa: PLR2004
-            "y_init": And(Use(float), lambda n: -90 <= n <= 90),  # noqa: PLR2004
-            "x_end": And(Use(float), lambda n: -180 <= n <= 180),  # noqa: PLR2004
-            "y_end": And(Use(float), lambda n: -90 <= n <= 90),  # noqa: PLR2004
+            "x_init": And(Use(float), lambda n: -180 <= n <= 180),
+            "y_init": And(Use(float), lambda n: -90 <= n <= 90),
+            "x_end": And(Use(float), lambda n: -180 <= n <= 180),
+            "y_end": And(Use(float), lambda n: -90 <= n <= 90),
             "di": And(Use(float), lambda n: n > 0),
             "dj": And(Use(float), lambda n: n > 0),
             Optional("basin"): Or("al", "ep", "wp"),
             Optional("advisory"): And(Use(int), lambda n: n > 0),
             Optional("storm_year", default=datetime.utcnow().year): And(
                 Use(int), lambda n: n > 1990
-            ),  # noqa: PLR2004
+            ),
             Optional("tau"): And(Use(int), lambda n: n >= 0),
         }
     )

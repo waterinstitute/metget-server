@@ -28,12 +28,13 @@
 ###################################################################################################
 
 from typing import List
+
 import xarray as xr
 
+from ..enum import VariableType
 from .outputfile import OutputFile
 from .outputgrid import OutputGrid
 from .owiasciidomain import OwiAsciiDomain
-from ..enum import VariableType
 
 
 class OwiAsciiOutput(OutputFile):

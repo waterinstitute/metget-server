@@ -2,9 +2,10 @@
 
 import logging
 from datetime import datetime
-from sqlalchemy.orm import Session
-from typing import Tuple, List
+from typing import List
+
 from geojson import FeatureCollection
+from sqlalchemy.orm import Session
 
 
 def rebuild_gfs(start: datetime, end: datetime) -> int:
@@ -50,7 +51,6 @@ def rebuild_hrrr(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
-    from metgetlib.ncephrrralaskadownloader import NcepHrrrAlaskaDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ def rebuild_hafs(start: datetime, end: datetime) -> int:
     n_added_b, n_not_added_b = rebuild_hafs_subtype("b", start, end)
 
     n = n_added_a + n_added_b
-    n_found = n_not_added_a + n_not_added_b
+    n_not_added_a + n_not_added_b
 
     log.info(f"NCEP-HAFS complete. {n:d} files added ")
 
@@ -115,8 +115,8 @@ def has_hafs_data(
 
 def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
     import logging
-    from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
 
+    from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
     from metgetlib.hafsdownloader import HafsDownloader
 
     log = logging.getLogger(__name__)
@@ -126,7 +126,8 @@ def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
     elif hafs_type == "b":
         hafs = HafsDownloader(start, end, NCEP_HAFS_B)
     else:
-        raise ValueError(f"Invalid HAFS type: {hafs_type}")
+        msg = f"Invalid HAFS type: {hafs_type}"
+        raise ValueError(msg)
 
     log.info(
         f"Beginning to run NCEP-HAFS-{hafs_type} from {start.isoformat():s} to {end.isoformat():s}"
@@ -146,7 +147,8 @@ def rebuild_coamps(start: datetime, end: datetime) -> int:
     logger = logging.getLogger(__name__)
 
     if "COAMPS_S3_BUCKET" in os.environ:
-        raise ValueError("Environment variable 'COAMPS_S3_BUCKET' not set")
+        msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
+        raise ValueError(msg)
 
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
@@ -165,7 +167,8 @@ def rebuild_ctcx(start: datetime, end: datetime) -> int:
     logger = logging.getLogger(__name__)
 
     if "COAMPS_S3_BUCKET" in os.environ:
-        raise ValueError("Environment variable 'COAMPS_S3_BUCKET' not set")
+        msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
+        raise ValueError(msg)
 
     ctcx = CtcxDownloader()
     n = ctcx.download(start, end)
@@ -283,7 +286,8 @@ def nhc_position_to_float(position: str) -> float:
     elif position[-1] == "W":
         return -1 * float(position[:-1]) / 10.0
     else:
-        raise ValueError(f"Invalid position: {position}")
+        msg = f"Invalid position: {position}"
+        raise ValueError(msg)
 
 
 def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
@@ -319,13 +323,14 @@ def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
 
 def nhc_download_data(table) -> int:
     import logging
-    import boto3
     import os
     import tempfile
+
+    import boto3
     from metbuild.database import Database
     from metbuild.tables import NhcBtkTable, NhcFcstTable
 
-    logger = logging.getLogger(__name__)
+    logging.getLogger(__name__)
 
     bucket = os.environ["METGET_S3_BUCKET"]
     client = boto3.client("s3")
@@ -336,7 +341,8 @@ def nhc_download_data(table) -> int:
     elif table == NhcFcstTable:
         prefix = "nhc/forecast"
     else:
-        raise ValueError("Invalid table type: {}".format(table))
+        msg = f"Invalid table type: {table}"
+        raise ValueError(msg)
 
     n = 0
     with Database() as db, db.session() as session:
@@ -354,7 +360,8 @@ def nhc_download_data(table) -> int:
                         storm_id = int(keys[4])
                         advisory = int(keys[5].split(".")[0])
                     else:
-                        raise ValueError("Invalid table type: {}".format(table))
+                        msg = f"Invalid table type: {table}"
+                        raise ValueError(msg)
 
                     with tempfile.NamedTemporaryFile() as t_file:
                         client.download_file(bucket, obj["Key"], t_file.name)
@@ -386,7 +393,8 @@ def nhc_download_data(table) -> int:
                             .count()
                         )
                     else:
-                        raise ValueError("Invalid table type: {}".format(table))
+                        msg = f"Invalid table type: {table}"
+                        raise ValueError(msg)
 
                     if found == 0:
                         if table == NhcBtkTable:
@@ -434,11 +442,12 @@ def nhc_download_data(table) -> int:
 
 def rebuild_nhc() -> int:
     import logging
+
     from metbuild.tables import NhcBtkTable, NhcFcstTable
 
     log = logging.getLogger(__name__)
 
-    log.info(f"Beginning to run NHC rebuild")
+    log.info("Beginning to run NHC rebuild")
 
     n = nhc_download_data(NhcBtkTable)
     n += nhc_download_data(NhcFcstTable)
@@ -461,7 +470,8 @@ def check_for_environment_variables():
 
     for env_var in required_env_vars:
         if env_var not in os.environ:
-            raise ValueError(f"Environment variable {env_var} not set")
+            msg = f"Environment variable {env_var} not set"
+            raise ValueError(msg)
 
 
 def main():
@@ -508,7 +518,8 @@ def main():
     elif args.source == "nhc":
         rebuild_nhc()
     else:
-        raise ValueError("Invalid source type: {}".format(args.source))
+        msg = f"Invalid source type: {args.source}"
+        raise ValueError(msg)
 
 
 if __name__ == "__main__":

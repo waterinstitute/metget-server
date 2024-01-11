@@ -52,7 +52,7 @@ class S3file:
         logger = logging.getLogger(__name__)
         # Upload the file
         try:
-            response = self.__client.upload_file(
+            self.__client.upload_file(
                 local_file,
                 self.__bucket,
                 remote_path,
@@ -69,7 +69,7 @@ class S3file:
 
         logger = logging.getLogger(__name__)
         try:
-            response = self.__client.download_file(
+            self.__client.download_file(
                 self.__bucket, remote_path, local_path
             )
         except ClientError as e:

@@ -34,10 +34,10 @@ import xarray as xr
 from shapely import Polygon
 
 from .enum import MetFileFormat, VariableType
-from .interpdata import InterpData
-from .output.outputgrid import OutputGrid
-from .metfileattributes import MetFileAttributes
 from .fileobj import FileObj
+from .interpdata import InterpData
+from .metfileattributes import MetFileAttributes
+from .output.outputgrid import OutputGrid
 from .triangulation import Triangulation
 
 
@@ -202,8 +202,9 @@ class DataInterpolator:
         Returns:
             xr.Dataset: The interpolated data.
         """
-        from .triangulation import Triangulation
         from matplotlib.tri import LinearTriInterpolator
+
+        from .triangulation import Triangulation
 
         constraints, points = self.__get_dataset_points_and_edges(data_item)
 

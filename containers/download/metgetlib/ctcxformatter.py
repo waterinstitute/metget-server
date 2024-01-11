@@ -27,10 +27,11 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import h5py
-from datetime import datetime
-import numpy as np
 import logging
+from datetime import datetime
+
+import h5py
+import numpy as np
 
 
 class CtcxDomain:
@@ -101,11 +102,10 @@ class CtcxDomain:
         Args:
             metadata: The metadata for the variable to return.
         """
-        if metadata["raw_name"] not in self.__fid.keys():
+        if metadata["raw_name"] not in self.__fid:
+            msg = "Variable {:s} not found in file {:s}".format(metadata["name"], self.__filename)
             raise Exception(
-                "Variable {:s} not found in file {:s}".format(
-                    metadata["name"], self.__filename
-                )
+                msg
             )
         return np.reshape(
             self.__fid[metadata["raw_name"]][:], (metadata["ny"], metadata["nx"])
@@ -197,7 +197,7 @@ class CtcxSnapshot:
         import os
 
         coldstart_str = self.cycle_time().strftime("%Y%m%d%H")
-        tau_str = "{:03d}".format(self.domain(0).tau())
+        tau_str = f"{self.domain(0).tau():03d}"
 
         file_format_string = "{:s}_d{:02d}_{:s}_tau{:s}.nc"
 
@@ -407,7 +407,7 @@ class CtcxFormatter:
                     pressure[metadata["domain"] - 1][metadata["tau"]] = metadata
 
         self.__n_time_steps = len(list(pressure[0].keys()))
-        log.debug("Found {:d} time steps".format(self.__n_time_steps))
+        log.debug(f"Found {self.__n_time_steps:d} time steps")
 
         assert len(list(pressure[0].keys())) == len(list(uwind[0].keys()))
         assert len(list(pressure[0].keys())) == len(list(vwind[0].keys()))

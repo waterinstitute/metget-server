@@ -27,8 +27,8 @@
 #
 ###################################################################################################
 
-import numpy as np
 import matplotlib.tri
+import numpy as np
 
 
 class Triangulation:
@@ -40,7 +40,7 @@ class Triangulation:
             points (np.array): The points to triangulate.
             edges (np.array): The edges to triangulate.
         """
-        self.__t_input = dict(vertices=points, segments=edges)
+        self.__t_input = {"vertices": points, "segments": edges}
         self.__mpl_triangulation = matplotlib.tri.Triangulation(
             points[:, 0], points[:, 1], self.__generate_triangulation()
         )

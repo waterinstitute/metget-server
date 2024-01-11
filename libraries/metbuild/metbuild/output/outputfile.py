@@ -28,12 +28,13 @@
 ###################################################################################################
 
 from datetime import datetime
-from typing import List, Tuple, Union
+from typing import List, Union
+
 import xarray as xr
 
+from ..enum import VariableType
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
-from ..enum import VariableType
 
 
 class OutputFile:

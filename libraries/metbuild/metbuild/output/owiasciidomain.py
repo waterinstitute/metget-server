@@ -33,9 +33,9 @@ from typing import List, TextIO, Union
 import numpy as np
 import xarray as xr
 
+from ..enum import VariableType
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
-from ..enum import VariableType
 
 
 class OwiAsciiDomain(OutputDomain):
@@ -208,9 +208,9 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             str: The formatted value.
         """
-        if value <= -100.0:  # noqa: PLR2004
+        if value <= -100.0:
             return f"{value:8.3f}"
-        elif value < 0.0 or value >= 100.0:  # noqa: PLR2004
+        elif value < 0.0 or value >= 100.0:
             return f"{value:8.4f}"
         else:
             return f"{value:8.5f}"
@@ -295,10 +295,12 @@ class OwiAsciiDomain(OutputDomain):
         elif isinstance(self.fid(), list):
             # ...Handle the special case for a pack of 2 files (pressure and wind-u/v)
             if variable_type != VariableType.WIND_PRESSURE:
-                raise ValueError("Only wind pressure is supported for multiple files")
+                msg = "Only wind pressure is supported for multiple files"
+                raise ValueError(msg)
 
             if len(self.fid()) != 2:
-                raise ValueError("Only 2 files are supported for wind pressure")
+                msg = "Only 2 files are supported for wind pressure"
+                raise ValueError(msg)
 
             header = OwiAsciiDomain.__generate_record_header(
                 self.start_date(), self.grid_obj()

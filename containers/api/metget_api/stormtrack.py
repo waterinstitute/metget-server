@@ -146,10 +146,8 @@ class StormTrackQueryStringParameters:
 
         if "type" in request.args:
             self.__type = request.args["type"]
-            if self.__type != "best" and self.__type != "forecast":
-                self.__error_message = "Invalid track type specified: {:s}".format(
-                    self.__type
-                )
+            if self.__type not in ("best", "forecast"):
+                self.__error_message = f"Invalid track type specified: {self.__type:s}"
         else:
             self.__error_message = "Query string parameter 'type' not provided"
 
@@ -158,7 +156,7 @@ class StormTrackQueryStringParameters:
                 advisory_str = request.args["advisory"]
                 try:
                     advisory_int = int(advisory_str)
-                    self.__advisory = "{:03d}".format(advisory_int)
+                    self.__advisory = f"{advisory_int:03d}"
                 except ValueError:
                     self.__advisory = advisory_str
             else:
@@ -176,7 +174,6 @@ class StormTrack:
         """
         Constructor for StormTrack class
         """
-        pass
 
     @staticmethod
     def get(request: flask.Request) -> Tuple[dict, int]:
@@ -242,8 +239,8 @@ class StormTrack:
             GEOJSON data for the best track
         """
 
-        from metbuild.tables import NhcBtkTable
         from metbuild.database import Database
+        from metbuild.tables import NhcBtkTable
 
         with Database() as db, db.session() as session:
             query = session.query(NhcBtkTable.geometry_data).filter(
@@ -265,8 +262,8 @@ class StormTrack:
             GEOJSON data for the forecast track
         """
 
-        from metbuild.tables import NhcFcstTable
         from metbuild.database import Database
+        from metbuild.tables import NhcFcstTable
 
         with Database() as db, db.session() as session:
             query = session.query(NhcFcstTable.geometry_data).filter(

@@ -57,8 +57,9 @@ class AccessControl:
         Keys are hashed before being compared to the database to prevent
         accidental exposure of the keys and/or sql injection
         """
-        from metbuild.tables import AuthTable
         from datetime import datetime
+
+        from metbuild.tables import AuthTable
 
         api_key_hash = AccessControl.hash_access_token(str(api_key))
         with Database() as db, db.session() as session:
@@ -68,7 +69,7 @@ class AccessControl:
                     AuthTable.key,
                 )
                 .filter(AuthTable.key == api_key)
-                .filter(AuthTable.enabled == True)
+                .filter(AuthTable.enabled is True)
                 .filter(AuthTable.expiration >= datetime.utcnow())
                 .first()
             )
@@ -91,10 +92,7 @@ class AccessControl:
         """
         user_token = headers.get("x-api-key")
         gatekeeper = AccessControl()
-        if gatekeeper.is_authorized(user_token):
-            return True
-        else:
-            return False
+        return bool(gatekeeper.is_authorized(user_token))
 
     @staticmethod
     def unauthorized_response():
@@ -115,10 +113,10 @@ class AccessControl:
         Returns:
             dict: A dictionary containing the credit limit, credits used, and credit balance
         """
-        from metbuild.tables import RequestTable
-        from metbuild.tables import AuthTable
-        from metbuild.database import Database
         from datetime import datetime, timedelta
+
+        from metbuild.database import Database
+        from metbuild.tables import AuthTable, RequestTable
         from sqlalchemy import func, or_
 
         with Database() as db, db.session() as session:

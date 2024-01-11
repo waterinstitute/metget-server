@@ -114,7 +114,8 @@ class Database:
             if "METGET_DATABASE" not in os.environ:
                 log.error("METGET_DATABASE not set")
 
-            raise RuntimeError("Database environment variables not set")
+            msg = "Database environment variables not set"
+            raise RuntimeError(msg)
 
         db_host = os.environ["METGET_DATABASE_SERVICE_HOST"]
         db_password = os.environ["METGET_DATABASE_PASSWORD"]

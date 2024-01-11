@@ -1,6 +1,7 @@
-from .metfileattributes import MetFileAttributes
 from datetime import datetime
-from typing import Union, Tuple, List
+from typing import List, Tuple, Union
+
+from .metfileattributes import MetFileAttributes
 
 
 class FileObj:
