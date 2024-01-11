@@ -51,6 +51,8 @@ def rebuild_hrrr(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
+    from metgetlib.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
+
     logger = logging.getLogger(__name__)
 
     hrrr = NcepHrrrAlaskadownloader(start, end)

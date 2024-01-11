@@ -563,9 +563,7 @@ class NhcDownloader:
 
     @staticmethod
     def sanitize_keys(line, key, value):
-        if key not in line:
-            line[key] = value
-        elif line[key] == "":
+        if key not in line or line[key] == "":
             line[key] = value
 
     @staticmethod
@@ -745,9 +743,8 @@ class NhcDownloader:
                                 )
                             )
                             temp_file_path = tempfile.gettempdir() + "/" + fn
-                            ftp.retrbinary(
-                                "RETR " + f, open(temp_file_path, "wb").write
-                            )
+                            with open(temp_file_path, "wb") as out_file:
+                                ftp.retrbinary("RETR " + f, out_file.write)
                             (
                                 start_date,
                                 end_date,
@@ -762,12 +759,11 @@ class NhcDownloader:
                             md5_in_db = self.__database.get_nhc_fcst_md5(
                                 year, basin, storm, None
                             )
-                            if len(md5_in_db) != 0:
-                                if md5 in md5_in_db:
-                                    logger.warning(
-                                        "Forecast MD5 exists in database. Discarding this data"
-                                    )
-                                    continue
+                            if len(md5_in_db) != 0 and md5 in md5_in_db:
+                                logger.warning(
+                                    "Forecast MD5 exists in database. Discarding this data"
+                                )
+                                continue
 
                             data = {
                                 "year": year,
@@ -885,7 +881,8 @@ class NhcDownloader:
                         remote_path = None
 
                     try:
-                        ftp.retrbinary("RETR " + f, open(file_path, "wb").write)
+                        with open(file_path, "wb") as out_file:
+                            ftp.retrbinary("RETR " + f, out_file.write)
                     except:
                         logger.error("Error getting file from NHC FTP")
                         continue
@@ -983,10 +980,10 @@ class NhcDownloader:
         with open(filename) as csvfile:
             reader = csv.reader(csvfile)
             line = 0
-            for l in reader:
-                lastline = l
+            for this_line in reader:
+                lastline = this_line
                 if line == 0:
-                    firstline = l
+                    firstline = this_line
                 line += 1
 
         start_date = datetime.strptime(str.strip(firstline[2]), "%Y%m%d%H")
@@ -1002,10 +999,13 @@ class NhcDownloader:
 
 def basin2string(basin_abbrev):
     basin_abbrev = basin_abbrev.lower()
-    if basin_abbrev == "ep":
-        return "Eastern Pacific"
-    elif basin_abbrev == "al":
-        return "Atlantic"
-    elif basin_abbrev == "cp":
-        return "Central Pacific"
-    return basin_abbrev
+
+    basin_dict = {
+        "ep": "Eastern Pacific",
+        "al": "Atlantic",
+        "cp": "Central Pacific",
+    }
+    if basin_abbrev in basin_dict:
+        return basin_dict[basin_abbrev]
+    else:
+        return basin_abbrev

@@ -54,17 +54,16 @@ class HwrfDownloader(NoaaDownloader):
 
         links = s.filelist()
         files = []
-        for l in links:
-            if "hwrf." in l:
-                s2 = Spyder(l)
+        for this_link in links:
+            if "hwrf." in this_link:
+                s2 = Spyder(this_link)
                 l2 = s2.filelist()
                 for ll in l2:
                     s3 = Spyder(ll)
                     l3 = s3.filelist()
                     for lll in l3:
-                        if "hwrfprs.storm" in lll:
-                            if "idx" not in lll:
-                                files.append(lll)
+                        if "hwrfprs.storm" in lll and ".idx" not in lll:
+                            files.append(lll)
         pairs = self.generateGrbInvPairs(files)
         for p in pairs:
             fpath, n, _ = self.getgrib(p, p["cycledate"])

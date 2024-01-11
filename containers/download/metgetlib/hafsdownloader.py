@@ -182,9 +182,9 @@ class HafsDownloader(NoaaDownloader):
         files = []
 
         links = s.filelist()
-        for l in links:
-            if self.__hafs_version in l:
-                s2 = Spyder(l)
+        for this_link in links:
+            if self.__hafs_version in this_link:
+                s2 = Spyder(this_link)
                 l2 = s2.filelist()
                 for ll in l2:
                     s3 = Spyder(ll)
@@ -234,7 +234,7 @@ class HafsDownloader(NoaaDownloader):
                 inventory_file = info["inv"][i]
                 inv = http.get(inventory_file, timeout=5)
                 if inv.status_code == 302:
-                    logger.error("Inventory file response: {:s}", inv.text)
+                    logger.error(f"Inventory file response: {inv.text:s}")
                     return None, 0, 1
                 inv_lines = str(inv.text).split("\n")
                 retlist = []

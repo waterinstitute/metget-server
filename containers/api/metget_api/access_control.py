@@ -78,10 +78,7 @@ class AccessControl:
 
         api_key_db_hash = AccessControl.hash_access_token(api_key_db.key.strip())
 
-        if api_key_db_hash != api_key_hash:
-            return False
-        else:
-            return True
+        return api_key_db_hash == api_key_hash
 
     @staticmethod
     def check_authorization_token(headers) -> bool:

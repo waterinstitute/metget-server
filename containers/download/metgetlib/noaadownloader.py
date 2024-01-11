@@ -345,7 +345,7 @@ class NoaaDownloader:
                     sleep(sleep_interval)
                     if tries > max_tries:
                         msg = f"Could not find key {key} in bucket {bucket}"
-                        raise RuntimeError(msg)
+                        raise RuntimeError(msg) from e
                 else:
                     raise e
 
@@ -478,7 +478,7 @@ class NoaaDownloader:
                 inv = http.get(info["inv"], timeout=30)
                 inv.raise_for_status()
                 if inv.status_code == 302:
-                    logger.error("RESP: ", inv.text)
+                    logger.error("RESP: ".format())
                 inv_lines = str(inv.text).split("\n")
                 retlist = []
                 for v in self.variables():

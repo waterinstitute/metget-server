@@ -98,12 +98,14 @@ class WpcDownloader:
                 # ...The WPC FTP server likes to kick people off. That's annoying,
                 #   but we are annoying-er
                 try:
-                    ftp.retrbinary(f"RETR {f:s}", open(temp_file_path, "wb").write)
+                    with open(temp_file_path, "wb") as out_file:
+                        ftp.retrbinary(f"RETR {f:s}", out_file.write)
                 except ConnectionResetError:
                     ftp = FTP(ftp_address)
                     ftp.login()
                     ftp.cwd(ftp_folder)
-                    ftp.retrbinary(f"RETR {f:s}", open(temp_file_path, "wb").write)
+                    with open(temp_file_path, "wb") as out_file:
+                        ftp.retrbinary(f"RETR {f:s}", out_file.write)
 
                 s3.upload_file(temp_file_path, remote_path)
                 db.add(data_pair, "wpc_ncep", remote_path)
