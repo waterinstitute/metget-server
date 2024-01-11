@@ -36,6 +36,8 @@ containers:
     image: thewaterinstitute/metget-build
   key_manager:
     image: thewaterinstitute/metget-keymanager
+  rebuild:
+    image: thewaterinstitute/metget-rebuild
 
 #####################################################
 # Authentication Information

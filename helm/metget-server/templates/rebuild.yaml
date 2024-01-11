@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata: 
-  name: {{ .Release.Name }}-keymanager
+  name: {{ .Release.Name }}-rebuild
 spec:
   replicas: 1
   selector:
     matchLabels: 
-      app: {{ .Release.Name }}-keymanager
+      app: {{ .Release.Name }}-rebuild
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-keymanager
+        app: {{ .Release.Name }}-rebuild
     spec:
       terminationGracePeriodSeconds: 5
       containers:
-      - image: {{ .Values.containers.key_manager.image }}:{{ .Values.containers.version }}
+      - image: {{ .Values.containers.rebuild.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
-        name: {{ .Release.Name }}-keymanager
+        name: {{ .Release.Name }}-rebuild
         resources:
           requests:
             memory: 1Gi
