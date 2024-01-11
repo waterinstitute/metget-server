@@ -115,96 +115,28 @@ def has_hafs_data(
     return has_hafs > 0
 
 
-def rebuild_hafs_subtype(
-    hafs_type: str, start: datetime, end: datetime
-) -> Tuple[int, int]:
-    import boto3
-    import os
-    from datetime import timedelta
-    from metbuild.database import Database
-    from metbuild.tables import HafsATable, HafsBTable
+def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
+    import logging
+    from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
+
+    from metgetlib.hafsdownloader import Hafsdownloader
 
     log = logging.getLogger(__name__)
 
     if hafs_type == "a":
-        folder = "ncep_hafs_a"
-        table = HafsATable
+        hafs = Hafsdownloader(NCEP_HAFS_A, start, end)
     elif hafs_type == "b":
-        folder = "ncep_hafs_b"
-        table = HafsBTable
+        hafs = Hafsdownloader(NCEP_HAFS_B, start, end)
     else:
-        raise ValueError("Invalid HAFS subtype: {}".format(hafs_type))
-
-    client = boto3.client("s3")
-    paginator = client.get_paginator("list_objects_v2")
-    bucket = os.environ["METGET_S3_BUCKET"]
-
-    prefix = f"{folder}"
+        raise ValueError(f"Invalid HAFS type: {hafs_type}")
 
     log.info(
         f"Beginning to run NCEP-HAFS-{hafs_type} from {start.isoformat():s} to {end.isoformat():s}"
     )
+    n = hafs.download()
+    log.info(f"NCEP-HAFS-{hafs_type} complete. {n:d} files downloaded")
 
-    n_added = 0
-    n_not_added = 0
-    with Database() as db, db.session() as session:
-        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-            if "Contents" in page:
-                for obj in page["Contents"]:
-                    if "hfsa.parent.atm" in obj["Key"]:
-                        keys = obj["Key"].split("/")[4].split(".")
-                        storm_id = keys[0]
-                        cycle = keys[1]
-                        forecast_hour = int(keys[5][1:])
-                        cycle_time = datetime.strptime(cycle, "%Y%m%d%H")
-
-                        if start <= cycle_time <= end:
-                            storm_file = obj["Key"].replace(".parent.atm", ".storm.atm")
-                            forecast_time = cycle_time + timedelta(hours=forecast_hour)
-
-                            if not has_hafs_data(
-                                session,
-                                table,
-                                storm_id,
-                                cycle_time,
-                                forecast_time,
-                                forecast_hour,
-                            ):
-                                filepath = [
-                                    bucket + "/" + obj["Key"],
-                                    bucket + "/" + storm_file,
-                                ]
-                                filepath = ",".join(filepath)
-
-                                url = [
-                                    "https://"
-                                    + bucket
-                                    + ".s3.amazonaws.com/"
-                                    + obj["Key"],
-                                    "https://"
-                                    + bucket
-                                    + ".s3.amazonaws.com/"
-                                    + storm_file,
-                                ]
-                                url = ",".join(url)
-
-                                record = table(
-                                    forecastcycle=cycle_time,
-                                    stormname=storm_id,
-                                    forecasttime=forecast_time,
-                                    tau=forecast_hour,
-                                    filepath=filepath,
-                                    url=url,
-                                    accessed=datetime.now(),
-                                )
-                                session.add(record)
-                                n_added += 1
-                            else:
-                                n_not_added += 1
-            if n_added > 0:
-                session.commit()
-
-    return n_added, n_not_added
+    return n
 
 
 def rebuild_coamps(start: datetime, end: datetime) -> int:

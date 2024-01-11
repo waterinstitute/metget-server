@@ -416,7 +416,7 @@ NCEP_HAFS_A = MetFileAttributes(
     name="HAFS-A",
     table="ncep_hafs_a",
     file_format=MetFileFormat.GRIB,
-    bucket=None,
+    bucket="noaa-nws-hafs-pds",
     variables={
         MetDataType.WIND_U: {
             "type": MetDataType.WIND_U,
@@ -480,7 +480,7 @@ NCEP_HAFS_B = MetFileAttributes(
     name="HAFS-B",
     table="ncep_hafs_b",
     file_format=MetFileFormat.GRIB,
-    bucket=None,
+    bucket=NCEP_HAFS_A.bucket(),
     variables=NCEP_HAFS_A.variables(),
     cycles=NCEP_HAFS_A.cycles(),
 )

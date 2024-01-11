@@ -109,18 +109,21 @@ def hwrf_download():
 def hafs_download():
     import logging
 
-    from metbuild.metfiletype import NCEP_HAFS_A
+    from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
     from metgetlib.hafsdownloader import HafsDownloader
 
     logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
-    hafs = HafsDownloader(start, end, NCEP_HAFS_A)
+    hafs_a = HafsDownloader(start, end, NCEP_HAFS_A)
+    hafs_b = HafsDownloader(start, end, NCEP_HAFS_B)
     logger.info(
         f"Beginning to run HAFS from {start.isoformat():s} to {end.isoformat():s}"
     )
-    n = hafs.download()
-    logger.info(f"HAFS complete. {n:d} files downloaded")
+    n = hafs_a.download()
+    n += hafs_b.download()
+    logger.info(f"HAFS A and B complete. {n:d} files downloaded")
+
     return n
 
 

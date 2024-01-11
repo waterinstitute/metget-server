@@ -50,9 +50,17 @@ class HafsDownloader(NoaaDownloader):
             raise ValueError(msg)
 
         NoaaDownloader.__init__(
-            self, hafs_type.table(), hafs_type.name(), address, begin, end
+            self,
+            hafs_type.table(),
+            hafs_type.name(),
+            address,
+            begin,
+            end,
+            use_aws_big_data=True,
+            do_archive=False,
         )
         self.__hafs_type = hafs_type
+        self.set_big_data_bucket(hafs_type.bucket())
         self.set_cycles(hafs_type.cycles())
         for v in hafs_type.variables():
             self.add_download_variable(
@@ -60,6 +68,114 @@ class HafsDownloader(NoaaDownloader):
             )
 
     def download(self) -> int:
+        if self.use_big_data():
+            return self.__download_s3()
+        else:
+            return self.__download_http()
+
+    def __download_s3(self) -> int:
+        import boto3
+        from datetime import timedelta
+
+        s3 = boto3.resource("s3")
+        client = boto3.client("s3")
+        bucket = s3.Bucket(self.big_data_bucket())
+        paginator = client.get_paginator("list_objects_v2")
+        begin = datetime(
+            self.begindate().year, self.begindate().month, self.begindate().day
+        )
+        end = datetime(self.enddate().year, self.enddate().month, self.enddate().day)
+        date_range = [begin + timedelta(days=x) for x in range(0, (end - begin).days)]
+
+        n = 0
+        for d in date_range:
+            for hr in self.cycles():
+                prefix = (
+                    self.__hafs_version[0:-1]
+                    + "/"
+                    + d.strftime("%Y%m%d")
+                    + "/"
+                    + "{:02d}".format(hr)
+                )
+                for page in paginator.paginate(
+                    Bucket=self.big_data_bucket(), Prefix=prefix
+                ):
+                    if "Contents" in page:
+                        for obj in page["Contents"]:
+                            if "parent.atm" in obj["Key"] and obj["Key"].endswith(
+                                ".grb2"
+                            ):
+
+                                # Extract the metadata from the path
+                                keys = obj["Key"].split("/")[-1].split(".")
+                                storm_name = keys[0]
+                                cycle_date = datetime.strptime(keys[1], "%Y%m%d%H")
+                                forecast_hour = int(keys[5][1:])
+                                forecast_date = cycle_date + timedelta(
+                                    hours=forecast_hour
+                                )
+
+                                # Check that the corresponding files exist
+                                storm_file = obj["Key"].replace(
+                                    ".parent.atm", ".storm.atm"
+                                )
+                                found_files_on_s3 = (
+                                    HafsDownloader.__check_s3_for_hafs_file(
+                                        bucket,
+                                        [
+                                            storm_file,
+                                            obj["Key"] + ".idx",
+                                            storm_file + ".idx",
+                                        ],
+                                    )
+                                )
+                                if not found_files_on_s3:
+                                    continue
+
+                                # Generate the metadata and add to the list
+                                metadata = {
+                                    "name": storm_name,
+                                    "cycledate": cycle_date,
+                                    "forecastdate": forecast_date,
+                                    "grb": [storm_file, obj["Key"]],
+                                    "inv": [
+                                        storm_file + ".idx",
+                                        obj["Key"] + ".idx",
+                                    ],
+                                }
+                                path_found = self.database().has(
+                                    self.mettype(), metadata
+                                )
+
+                                if not path_found:
+                                    filepath = [
+                                        "s3://"
+                                        + self.big_data_bucket()
+                                        + "/"
+                                        + storm_file,
+                                        "s3://"
+                                        + self.big_data_bucket()
+                                        + "/"
+                                        + obj["Key"],
+                                    ]
+                                    filepath_str = ",".join(filepath)
+                                    self.database().add(
+                                        metadata, self.mettype(), filepath_str
+                                    )
+                                    n += 1
+
+        return n
+
+    @staticmethod
+    def __check_s3_for_hafs_file(bucket, filenames: list) -> bool:
+        for filename in filenames:
+            check_objs = list(bucket.objects.filter(Prefix=filename))
+            check_keys = [o.key for o in check_objs]
+            if filename not in check_keys:
+                return False
+        return True
+
+    def __download_http(self) -> int:
         from metgetlib.spyder import Spyder
 
         num_download = 0
