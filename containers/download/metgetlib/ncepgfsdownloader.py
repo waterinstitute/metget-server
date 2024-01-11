@@ -49,7 +49,9 @@ class NcepGfsdownloader(NoaaDownloader):
         self.set_big_data_bucket(NCEP_GFS.bucket())
         self.set_cycles(NCEP_GFS.cycles())
         for v in NCEP_GFS.variables():
-            self.add_download_variable(v["long_name"], v["name"])
+            self.add_download_variable(
+                NCEP_GFS.variables()[v]["long_name"], NCEP_GFS.variables()[v]["name"]
+            )
 
     @staticmethod
     def _generate_prefix(date, hour) -> str:
