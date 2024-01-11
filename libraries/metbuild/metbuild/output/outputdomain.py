@@ -33,7 +33,6 @@ from typing import List, TextIO, Union
 import xarray as xr
 
 from .outputgrid import OutputGrid
-from .dataset import Dataset
 from ..enum import VariableType
 
 

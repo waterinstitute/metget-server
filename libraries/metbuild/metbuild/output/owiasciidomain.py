@@ -33,7 +33,6 @@ from typing import List, TextIO, Union
 import numpy as np
 import xarray as xr
 
-from .dataset import Dataset
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
 from ..enum import VariableType

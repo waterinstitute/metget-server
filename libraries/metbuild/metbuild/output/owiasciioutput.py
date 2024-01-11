@@ -27,10 +27,13 @@
 #
 ###################################################################################################
 
-from .dataset import Dataset
+from typing import List
+import xarray as xr
+
 from .outputfile import OutputFile
 from .outputgrid import OutputGrid
 from .owiasciidomain import OwiAsciiDomain
+from ..enum import VariableType
 
 
 class OwiAsciiOutput(OutputFile):
@@ -65,13 +68,16 @@ class OwiAsciiOutput(OutputFile):
         )
         self._add_domain(domain, filename)
 
-    def write(self, index: int, dataset: Dataset):
+    def write(
+        self, index: int, dataset: List[xr.Dataset], variable_types: List[VariableType]
+    ) -> None:
         """
         Write the OWI ASCII output file.
 
         Args:
             index (int): The index of the time step.
             dataset (Dataset): The dataset to write.
+            variable_types (VariableType): The variable type to write.
 
         Returns:
             None
