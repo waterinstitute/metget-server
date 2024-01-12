@@ -124,13 +124,14 @@ class OutputDomain:
         msg = "OutputDomain.close() is not implemented"
         raise NotImplementedError(msg)
 
-    def write(self, data: xr.Dataset, variable_type: VariableType) -> None:
+    def write(self, data: xr.Dataset, variable_type: VariableType, **kwargs) -> None:
         """
         Write data to the domain file
 
         Args:
             data (Dataset): The data to write to the domain file.
             variable_type (VariableType): The type of meteorological variable
+            **kwargs: Additional keyword arguments
 
         Returns:
             None

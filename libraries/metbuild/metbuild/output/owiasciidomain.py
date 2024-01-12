@@ -270,13 +270,14 @@ class OwiAsciiDomain(OutputDomain):
         if counter != 0:
             fid.write("\n")
 
-    def write(self, data: xr.Dataset, variable_type: VariableType) -> None:
+    def write(self, data: xr.Dataset, variable_type: VariableType, **kwargs) -> None:
         """
         Write the meteorological output domain.
 
         Args:
             data (Dataset): The dataset to write.
             variable_type (VariableType): The type of meteorological variable.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             None

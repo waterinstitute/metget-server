@@ -27,7 +27,8 @@
 #
 ###################################################################################################
 
-from typing import List
+from datetime import datetime
+from typing import List, Union
 
 import xarray as xr
 
@@ -42,7 +43,13 @@ class OwiAsciiOutput(OutputFile):
     A class to represent an OWI ASCII output file.
     """
 
-    def __init__(self, start_time, end_time, time_step, compression: bool = False):
+    def __init__(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        time_step: int,
+        compression: bool = False,
+    ):
         """
         Construct an OWI ASCII output file.
         """
@@ -55,7 +62,7 @@ class OwiAsciiOutput(OutputFile):
         """
         return self.__compression
 
-    def add_domain(self, grid: OutputGrid, filename: str):
+    def add_domain(self, grid: OutputGrid, filename: Union[List[str], str]) -> None:
         """
         Add a domain to the OWI ASCII output file.
         """

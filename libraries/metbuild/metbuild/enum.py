@@ -51,6 +51,128 @@ class MetDataType(Enum):
     def __str__(self):
         return self.name.lower()
 
+    def cf_long_name(self):  # noqa: PLR0911, PLR0912
+        if self == MetDataType.PRESSURE:
+            return "air pressure at sea level"
+        elif self == MetDataType.WIND_U:
+            return "e/w wind velocity"
+        elif self == MetDataType.WIND_V:
+            return "n/s wind velocity"
+        elif self == MetDataType.TEMPERATURE:
+            return "air temperature at sea level"
+        elif self == MetDataType.HUMIDITY:
+            return "specific humidity"
+        elif self == MetDataType.PRECIPITATION:
+            return "precipitation rate"
+        elif self == MetDataType.ICE:
+            return "ice depth"
+        elif self == MetDataType.SURFACE_STRESS_U:
+            return "eastward surface stress"
+        elif self == MetDataType.SURFACE_STRESS_V:
+            return "northward surface stress"
+        elif self == MetDataType.SURFACE_LATENT_HEAT_FLUX:
+            return "surface latent heat flux"
+        elif self == MetDataType.SURFACE_SENSIBLE_HEAT_FLUX:
+            return "surface sensible heat flux"
+        elif self == MetDataType.SURFACE_LONGWAVE_FLUX:
+            return "surface longwave radiation flux"
+        elif self == MetDataType.SURFACE_SOLAR_FLUX:
+            return "surface solar radiation flux"
+        elif self == MetDataType.SURFACE_NET_RADIATION_FLUX:
+            return "surface net radiation flux"
+        else:
+            return "unknown"
+
+    def units(self):  # noqa: PLR0911
+        if self == MetDataType.PRESSURE:
+            return "mb"
+        elif self in (MetDataType.WIND_U, MetDataType.WIND_V):
+            return "m/s"
+        elif self == MetDataType.TEMPERATURE:
+            return "C"
+        elif self == MetDataType.HUMIDITY:
+            return "kg/kg"
+        elif self == MetDataType.PRECIPITATION:
+            return "mm/hr"
+        elif self == MetDataType.ICE:
+            return "m"
+        elif self in (
+            MetDataType.SURFACE_STRESS_U,
+            MetDataType.SURFACE_STRESS_V,
+            MetDataType.SURFACE_LATENT_HEAT_FLUX,
+            MetDataType.SURFACE_SENSIBLE_HEAT_FLUX,
+            MetDataType.SURFACE_LONGWAVE_FLUX,
+            MetDataType.SURFACE_SOLAR_FLUX,
+            MetDataType.SURFACE_NET_RADIATION_FLUX,
+        ):
+            return "W/m^2"
+        else:
+            return "unknown"
+
+    def cf_standard_name(self):  # noqa: PLR0911, PLR0912
+        if self == MetDataType.PRESSURE:
+            return "air_pressure_at_sea_level"
+        elif self == MetDataType.WIND_U:
+            return "eastward_wind"
+        elif self == MetDataType.WIND_V:
+            return "northward_wind"
+        elif self == MetDataType.TEMPERATURE:
+            return "air_temperature_at_sea_level"
+        elif self == MetDataType.HUMIDITY:
+            return "specific_humidity"
+        elif self == MetDataType.PRECIPITATION:
+            return "precipitation_rate"
+        elif self == MetDataType.ICE:
+            return "ice_depth"
+        elif self == MetDataType.SURFACE_STRESS_U:
+            return "eastward_surface_stress"
+        elif self == MetDataType.SURFACE_STRESS_V:
+            return "northward_surface_stress"
+        elif self == MetDataType.SURFACE_LATENT_HEAT_FLUX:
+            return "surface_latent_heat_flux"
+        elif self == MetDataType.SURFACE_SENSIBLE_HEAT_FLUX:
+            return "surface_sensible_heat_flux"
+        elif self == MetDataType.SURFACE_LONGWAVE_FLUX:
+            return "surface_longwave_radiation_flux"
+        elif self == MetDataType.SURFACE_SOLAR_FLUX:
+            return "surface_solar_radiation_flux"
+        elif self == MetDataType.SURFACE_NET_RADIATION_FLUX:
+            return "surface_net_radiation_flux"
+        else:
+            return "unknown"
+
+    def netcdf_var_name(self):  # noqa: PLR0911, PLR0912
+        if self == MetDataType.PRESSURE:
+            return "mslp"
+        elif self == MetDataType.WIND_U:
+            return "wind_u"
+        elif self == MetDataType.WIND_V:
+            return "wind_v"
+        elif self == MetDataType.TEMPERATURE:
+            return "temperature"
+        elif self == MetDataType.HUMIDITY:
+            return "humidity"
+        elif self == MetDataType.PRECIPITATION:
+            return "precipitation"
+        elif self == MetDataType.ICE:
+            return "ice"
+        elif self == MetDataType.SURFACE_STRESS_U:
+            return "surface_stress_u"
+        elif self == MetDataType.SURFACE_STRESS_V:
+            return "surface_stress_v"
+        elif self == MetDataType.SURFACE_LATENT_HEAT_FLUX:
+            return "surface_latent_heat_flux"
+        elif self == MetDataType.SURFACE_SENSIBLE_HEAT_FLUX:
+            return "surface_sensible_heat_flux"
+        elif self == MetDataType.SURFACE_LONGWAVE_FLUX:
+            return "surface_longwave_flux"
+        elif self == MetDataType.SURFACE_SOLAR_FLUX:
+            return "surface_solar_flux"
+        elif self == MetDataType.SURFACE_NET_RADIATION_FLUX:
+            return "surface_net_radiation_flux"
+        else:
+            return "unknown"
+
 
 class MetFileFormat(Enum):
     GRIB = 1

@@ -38,7 +38,6 @@ from metbuild.s3file import S3file
 from metbuild.tables import RequestTable
 from metbuild.s3gribio import S3GribIO
 from metbuild.output.outputfile import OutputFile
-from metbuild.output.outputdomain import OutputDomain
 from metbuild.enum import VariableType, MeteorologicalSource
 from metbuild.fileobj import FileObj
 from metbuild.meteorology import Meteorology
@@ -339,6 +338,7 @@ class MessageHandler:
             The output file object
         """
         from metbuild.output.owiasciioutput import OwiAsciiOutput
+        from metbuild.output.netcdfoutput import NetcdfOutput
 
         log = logging.getLogger(__name__)
 
@@ -347,7 +347,6 @@ class MessageHandler:
             or input_data.format() == "owi-ascii"
             or input_data.format() == "adcirc-ascii"
         ):
-            log.info("Compression: " + str(input_data.compression()))
             return OwiAsciiOutput(
                 input_data.start_date(),
                 input_data.end_date(),
@@ -356,8 +355,14 @@ class MessageHandler:
             )
         # elif output_format == "owi-netcdf" or output_format == "adcirc-netcdf":
         #     return pymetbuild.OwiNetcdf(start, end, time_step, filename)
-        # elif output_format == "hec-netcdf":
-        #     return pymetbuild.RasNetcdf(start, end, time_step, filename)
+        elif (
+            input_data.format() == "hec-netcdf"
+            or input_data.format() == "netcdf"
+            or input_data.format() == "cf-netcdf"
+        ):
+            return NetcdfOutput(
+                input_data.start_date(), input_data.end_date(), input_data.time_step()
+            )
         # elif output_format == "delft3d":
         #     return pymetbuild.DelftOutput(start, end, time_step, filename)
         elif input_data.format() == "raw":
@@ -403,8 +408,11 @@ class MessageHandler:
             if input_data.compression():
                 for i, s in enumerate(fns):
                     fns[i] = s + ".gz"
-
-            met_object.add_domain(d.grid(), fns)
+        elif output_format == "hec-netcdf" or output_format == "netcdf":
+            if not input_data.filename().endswith(".nc"):
+                fns = [input_data.filename() + ".nc"]
+            else:
+                fns = [input_data.filename()]
         # elif output_format == "owi-netcdf":
         #     group = d.name()
         #     met_object.add_domain(d.grid(), [group])
@@ -438,6 +446,10 @@ class MessageHandler:
         #     met_object.add_domain(d.grid(), variables)
         else:
             raise RuntimeError("Invalid output format selected: " + output_format)
+
+        met_object.add_domain(
+            grid=d.grid(), filename=fns, variable=input_data.data_type()
+        )
 
     @staticmethod
     def __merge_nhc_tracks(
