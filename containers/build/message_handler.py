@@ -161,11 +161,17 @@ class MessageHandler:
         log = logging.getLogger(__name__)
 
         s3up = S3file(os.environ["METGET_S3_BUCKET_UPLOAD"])
+
         for domain_files in output_file_list:
-            for f in domain_files:
-                path = os.path.join(self.input().request_id(), f)
-                s3up.upload_file(f, path)
-                os.remove(f)
+            if isinstance(domain_files, list):
+                for f in domain_files:
+                    path = os.path.join(self.input().request_id(), f)
+                    s3up.upload_file(f, path)
+                    os.remove(f)
+            else:
+                path = os.path.join(self.input().request_id(), domain_files)
+                s3up.upload_file(domain_files, path)
+                os.remove(domain_files)
 
         with open(filelist_name, "w") as of:
             of.write(json.dumps(output_file_dict, indent=2))
@@ -226,7 +232,7 @@ class MessageHandler:
         log = logging.getLogger(__name__)
 
         for i in range(input_data.num_domains()):
-            if met_field:
+            if met_field is not None:
                 log.info("Generating met domain object for domain {:d}".format(i))
                 MessageHandler.__generate_met_domain(input_data, met_field, i)
 
@@ -386,6 +392,8 @@ class MessageHandler:
             The met domain object
         """
 
+        log = logging.getLogger(__name__)
+
         d = input_data.domain(index)
         output_format = input_data.format()
         if (
@@ -417,40 +425,10 @@ class MessageHandler:
                 fns = [input_data.filename() + ".nc"]
             else:
                 fns = [input_data.filename()]
-        # elif output_format == "owi-netcdf":
-        #     group = d.name()
-        #     met_object.add_domain(d.grid(), [group])
-        # elif output_format == "hec-netcdf":
-        #     if input_data.data_type() == "wind_pressure":
-        #         variables = ["wind_u", "wind_v", "mslp"]
-        #     elif input_data.data_type() == "wind":
-        #         variables = ["wind_u", "wind_v"]
-        #     elif input_data.data_type() == "rain":
-        #         variables = ["rain"]
-        #     elif input_data.data_type() == "humidity":
-        #         variables = ["humidity"]
-        #     elif input_data.data_type() == "ice":
-        #         variables = ["ice"]
-        #     else:
-        #         raise RuntimeError("Invalid variable requested")
-        #     met_object.add_domain(d.grid(), variables)
-        # elif output_format == "delft3d":
-        #     if input_data.data_type() == "wind_pressure":
-        #         variables = ["wind_u", "wind_v", "mslp"]
-        #     elif input_data.data_type() == "wind":
-        #         variables = ["wind_u", "wind_v"]
-        #     elif input_data.data_type() == "rain":
-        #         variables = ["rain"]
-        #     elif input_data.data_type() == "humidity":
-        #         variables = ["humidity"]
-        #     elif input_data.data_type() == "ice":
-        #         variables = ["ice"]
-        #     else:
-        #         raise RuntimeError("Invalid variable requested")
-        #     met_object.add_domain(d.grid(), variables)
         else:
             raise RuntimeError("Invalid output format selected: " + output_format)
 
+        log.info("Adding domain {:d} to output object".format(index + 1))
         met_object.add_domain(
             grid=d.grid(), filename=fns, variable=input_data.data_type()
         )
@@ -615,6 +593,10 @@ class MessageHandler:
             )
 
         output_file_list = output_field.filenames()
+        if not isinstance(output_file_list, list):
+            output_file_list = [output_file_list]
+
+        log.info("Generated output files: {:s}".format(", ".join(output_file_list)))
 
         log.info("Finished interpolating meteorological fields")
 
@@ -720,7 +702,7 @@ class MessageHandler:
                     domain_index + 1, t.strftime("%Y-%m-%d %H:%M")
                 )
             )
-            output_file.domain(domain_index).write(dataset, data_type_key)
+            output_file.domain(domain_index).write(dataset, data_type_key, time=t)
 
         log.debug("Closing the output file(s) for domain {:d}".format(domain_index + 1))
         output_file.domain(domain_index).close()

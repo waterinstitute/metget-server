@@ -638,7 +638,7 @@ class DataInterpolator:
         if "lon" in dataset.variables:
             dataset = dataset.rename_vars({"lon": "longitude", "lat": "latitude"})
 
-        var_name = str(file_type.variables()[next(iter(file_type.variables()))]["type"])
+        var_name = str(file_type.selected_variables(variable_type)[0])
         poly, edge_indexes = DataInterpolator.__generate_dataset_polygon(
             dataset,
             var_name,

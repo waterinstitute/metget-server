@@ -79,7 +79,9 @@ class OutputFile:
         msg = "OutputFile.add_domain() is not implemented"
         raise NotImplementedError(msg)
 
-    def _add_domain(self, domain, filename: Union[List[str], str]) -> None:
+    def _add_domain(
+        self, domain: OutputDomain, filename: Union[List[str], str]
+    ) -> None:
         """
         Add a domain to the meteorological field.
 
