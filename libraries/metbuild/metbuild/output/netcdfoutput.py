@@ -26,6 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import logging
 from datetime import datetime
 from typing import List, Union
 
@@ -47,6 +48,11 @@ class NetcdfOutput(OutputFile):
         Construct a NetCDF output file.
         """
         super().__init__(start_time, end_time, time_step)
+
+    def close(self) -> None:
+        """
+        Close the NetCDF output file.
+        """
 
     def write(
         self,
@@ -91,17 +97,36 @@ class NetcdfOutput(OutputFile):
         Returns:
             None
         """
-        if isinstance(filename, list):
+        log = logging.getLogger(__name__)
+
+        if isinstance(filename, list) and len(filename) > 1:
             msg = "NetCDF output files only support one output filename."
             raise RuntimeError(msg)
+        elif isinstance(filename, list):
+            filename = filename[0]
+
+        log.info(f"Adding output domain to NetCDF output file: {filename}")
 
         if self.num_domains() > 0:
-            msg = "NetCDF output files only support one output domain."
+            msg = "NetCDF output files only support one output domain. ({} already added)".format(
+                self.num_domains()
+            )
             raise RuntimeError(msg)
 
         variable = kwargs.get("variable")
+        if isinstance(variable, list):
+            if len(variable) > 1:
+                msg = "NetCDF output files only support one output variable. ({} found)".format(
+                    len(variable)
+                )
+                raise RuntimeError(msg)
+
+            variable = variable[0]
+        elif isinstance(variable, str):
+            variable = VariableType.from_string(variable)
+
         if not isinstance(variable, VariableType):
-            msg = "variable must be of type VariableType"
+            msg = f"variable must be of type VariableType (is {type(variable)})"
             raise TypeError(msg)
 
         domain = NetcdfDomain(

@@ -26,7 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
+import logging
 from datetime import datetime
 
 import numpy as np
@@ -199,7 +199,7 @@ class NetcdfDomain(OutputDomain):
         self.__dataset.date_created = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def close(self) -> None:
-        pass
+        self.__dataset.close()
 
     def write(
         self,
@@ -220,6 +220,8 @@ class NetcdfDomain(OutputDomain):
         Returns:
             None
         """
+        log = logging.getLogger(__name__)
+
         time = kwargs.get("time")
         if not isinstance(time, datetime):
             msg = "time must be of type datetime"
@@ -233,6 +235,12 @@ class NetcdfDomain(OutputDomain):
         self.__dataset.variables["time"][index] = (
             time - self.start_date()
         ).total_seconds() / 60.0
+
+        log.info(
+            "Writing to netCDF for time: {:s} at index: {:d}".format(
+                time.strftime("%Y-%m-%d %H:%M"), index
+            )
+        )
 
         for v in variables:
             self.__dataset.variables[v.netcdf_var_name()][index, :, :] = dataset[
