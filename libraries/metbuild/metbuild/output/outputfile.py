@@ -73,7 +73,9 @@ class OutputFile:
         msg = "OutputFile.write() is not implemented"
         raise NotImplementedError(msg)
 
-    def add_domain(self, grid: OutputGrid, filename: Union[List[str], str]) -> None:
+    def add_domain(
+        self, grid: OutputGrid, filename: Union[List[str], str], **kwargs
+    ) -> None:
         msg = "OutputFile.add_domain() is not implemented"
         raise NotImplementedError(msg)
 
@@ -178,6 +180,16 @@ class OutputFile:
                     os.remove(f)
             else:
                 os.remove(filename)
+
+    def open(self) -> None:
+        """
+        Open the meteorological field file(s)
+
+        Returns:
+            None
+        """
+        for domain in self.__domains:
+            domain.open()
 
     def close(self) -> None:
         """
