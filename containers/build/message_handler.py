@@ -408,7 +408,11 @@ class MessageHandler:
             if input_data.compression():
                 for i, s in enumerate(fns):
                     fns[i] = s + ".gz"
-        elif output_format == "hec-netcdf" or output_format == "netcdf":
+        elif (
+            output_format == "hec-netcdf"
+            or output_format == "netcdf"
+            or output_format == "cf-netcdf"
+        ):
             if not input_data.filename().endswith(".nc"):
                 fns = [input_data.filename() + ".nc"]
             else:
