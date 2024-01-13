@@ -37,8 +37,8 @@ AVAILABLE_MET_MODELS = [
     "gefs",
     "nam",
     "hwrf",
-    "hafs-a",
-    "hafs-b",
+    "hafsa",
+    "hafsb",
     "hrrr",
     "hrrr-alaska",
     "nhc",
@@ -52,8 +52,8 @@ MET_MODEL_FORECAST_DURATION = {
     "gefs": 240,
     "nam": 84,
     "hwrf": 126,
-    "hafs-a": 126,
-    "hafs-b": 126,
+    "hafsa": 126,
+    "hafsb": 126,
     "hrrr": 48,
     "hrrr-alaska": 48,
     "coamps": 126,
@@ -98,8 +98,8 @@ class Status:
             - gfs
             - nam
             - hwrf
-            - hafs-a
-            - hafs-b
+            - hafsa
+            - hafsb
             - hrrr
             - hrrr-alaska
             - wpc
@@ -156,18 +156,18 @@ class Status:
                 end_dt,
                 storm,
             )
-        elif status_type == "hafs-a":
+        elif status_type == "hafsa":
             s = Status.__get_status_hafs(
-                MET_MODEL_FORECAST_DURATION["hafs-a"],
+                MET_MODEL_FORECAST_DURATION["hafsa"],
                 "a",
                 time_limit,
                 start_dt,
                 end_dt,
                 storm,
             )
-        elif status_type == "hafs-b":
+        elif status_type == "hafsb":
             s = Status.__get_status_hafs(
-                MET_MODEL_FORECAST_DURATION["hafs-b"],
+                MET_MODEL_FORECAST_DURATION["hafsb"],
                 "b",
                 time_limit,
                 start_dt,
