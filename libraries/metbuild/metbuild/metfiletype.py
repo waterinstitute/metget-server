@@ -78,7 +78,7 @@ NCEP_GFS = MetFileAttributes(
             "long_name": "PRATE",
             "var_name": "prate",
             "grib_name": "prate",
-            "scale": 1.0,
+            "scale": 3600.0,
             "is_accumulated": False,
         },
         MetDataType.HUMIDITY: {
@@ -141,8 +141,8 @@ NCEP_NAM = MetFileAttributes(
             "name": "accumulated_precip",
             "long_name": "APCP",
             "var_name": "apcp",
-            "grib_name": "apcp",
-            "scale": 1.0,
+            "grib_name": "acpcp",
+            "scale": 3600.0,
             "is_accumulated": True,
         },
         MetDataType.HUMIDITY: {
@@ -215,7 +215,7 @@ NCEP_GEFS = MetFileAttributes(
             "long_name": "APCP",
             "var_name": "apcp",
             "grib_name": "apcp",
-            "scale": 1.0,
+            "scale": 3600.0,
             "is_accumulated": True,
         },
         MetDataType.HUMIDITY: {
@@ -367,7 +367,7 @@ NCEP_HWRF = MetFileAttributes(
             "long_name": "APCP",
             "var_name": "apcp",
             "grib_name": "apcp",
-            "scale": 1.0,
+            "scale": 3600.0,
             "is_accumulated": True,
         },
         MetDataType.HUMIDITY: {
@@ -450,7 +450,7 @@ NCEP_HAFS_A = MetFileAttributes(
             "long_name": "PRATE",
             "var_name": "prate",
             "grib_name": "prate",
-            "scale": 1.0,
+            "scale": 3600.0,
             "is_accumulated": False,
         },
         MetDataType.HUMIDITY: {

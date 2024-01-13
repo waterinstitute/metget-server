@@ -217,6 +217,7 @@ class Meteorology:
                 variable_type=self.__data_type_key,
                 apply_filter=False,
             )
+
         self.__interpolation_result_2 = self.__interpolation_2.interpolate(
             f_obj=self.__file_2,
             variable_type=self.__data_type_key,
