@@ -173,6 +173,17 @@ class MetDataType(Enum):
         else:
             return "unknown"
 
+    def default_value(self) -> float:
+        """
+        Get the default value for the variable.
+        """
+        if self == MetDataType.PRESSURE:
+            return 1013.0
+        elif self == MetDataType.TEMPERATURE:
+            return 20.0
+        else:
+            return 0.0
+
 
 class MetFileFormat(Enum):
     GRIB = 1

@@ -62,7 +62,9 @@ class OwiAsciiOutput(OutputFile):
         """
         return self.__compression
 
-    def add_domain(self, grid: OutputGrid, filename: Union[List[str], str]) -> None:
+    def add_domain(
+        self, grid: OutputGrid, filename: Union[List[str], str], **kwargs
+    ) -> None:
         """
         Add a domain to the OWI ASCII output file.
         """

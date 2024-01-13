@@ -172,7 +172,34 @@ class DataInterpolator:
         self.__interpolate_fields(data)
 
         # ...Merge the data from the various files into a single xarray dataset
-        return self.__merge_data(data, variable_type, apply_filter)
+        merged_data = self.__merge_data(data, variable_type, apply_filter)
+
+        # ...Remove nan values from the output dataset
+        return DataInterpolator.__remove_nan_values(merged_data, variable_type)
+
+    @staticmethod
+    def __remove_nan_values(
+        data: xr.Dataset, variable_type: VariableType
+    ) -> xr.Dataset:
+        """
+        Remove the nan values from the dataset and replace with
+        the appropriate fill value.
+
+        Args:
+            data (xr.Dataset): The dataset to remove the nan values from.
+
+        Returns:
+            xr.Dataset: The dataset with the nan values removed.
+        """
+        variable_list = variable_type.select()
+        for var in variable_list:
+            default_value = var.default_value()
+            if default_value is not None:
+                data[str(var)] = data[str(var)].where(
+                    ~np.isnan(data[str(var)]),
+                    default_value,
+                )
+        return data
 
     def __interpolate_fields(self, data: List[InterpData]) -> None:
         """
@@ -622,6 +649,10 @@ class DataInterpolator:
 
             ds = ds * file_type.variable(var)["scale"]
 
+            if file_type.variables()[var]["is_accumulated"]:
+                step_scaling = 1.0 / ds.variables[var].attrs.get("GRIB_stepUnits")
+                ds = ds * step_scaling
+
             if dataset is None:
                 dataset = ds
             else:
@@ -805,8 +836,10 @@ class DataInterpolator:
         ring = DataInterpolator.__order_points(list(zip(ring_x, ring_y)))
         polygon = Polygon(ring)
         if not polygon.is_valid:
-            msg = "Invalid polygon"
-            raise ValueError(msg)
+            polygon = polygon.buffer(0.0)
+            if not polygon.is_valid:
+                msg = "Invalid polygon"
+                raise ValueError(msg)
 
         if edge_indexes_1d is not None:
             return polygon.simplify(dataset_resolution / 2.0), (edge_indexes_1d,)

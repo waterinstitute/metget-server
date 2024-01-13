@@ -596,7 +596,13 @@ class MessageHandler:
         if not isinstance(output_file_list, list):
             output_file_list = [output_file_list]
 
-        log.info("Generated output files: {:s}".format(", ".join(output_file_list)))
+        if len(output_file_list) == 1:
+            output_file_list = output_file_list[0]
+
+        if isinstance(output_file_list, list):
+            log.info("Generated output files: {:s}".format(", ".join(output_file_list)))
+        else:
+            log.info("Generated output file: {:s}".format(output_file_list))
 
         log.info("Finished interpolating meteorological fields")
 

@@ -286,13 +286,20 @@ class OwiAsciiDomain(OutputDomain):
 
         keys = variable_type.select()
 
-        if isinstance(self.fid(), TextIO):
-            self.fid().write(
+        if isinstance(self.fid(), TextIO) or (
+            isinstance(self.fid(), list) and len(self.fid()) == 1
+        ):
+            if isinstance(self.fid(), list):
+                fid = self.fid()[0]
+            else:
+                fid = self.fid()
+
+            fid.write(
                 OwiAsciiDomain.__generate_record_header(
                     self.start_date(), self.grid_obj()
                 )
             )
-            OwiAsciiDomain.__write_record(self.fid(), data[str(keys[0])].to_numpy())
+            OwiAsciiDomain.__write_record(fid, data[str(keys[0])].to_numpy())
         elif isinstance(self.fid(), list):
             # ...Handle the special case for a pack of 2 files (pressure and wind-u/v)
             if variable_type != VariableType.WIND_PRESSURE:
