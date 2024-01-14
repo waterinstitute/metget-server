@@ -101,7 +101,7 @@ class Meteorology:
         # Initialize other attributes
         self.__file_1: Union[None, FileObj] = None
         self.__file_2: Union[None, FileObj] = None
-        self.__interpolation_1 = DataInterpolator(self.__grid)
+        self.__interpolation_1 = DataInterpolator(self.__grid, self.__backfill)
         self.__interpolation_2 = copy.deepcopy(self.__interpolation_1)
         self.__interpolation_result_1: Union[None, xr.Dataset] = None
         self.__interpolation_result_2: Union[None, xr.Dataset] = None

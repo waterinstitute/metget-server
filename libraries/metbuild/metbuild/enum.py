@@ -184,6 +184,12 @@ class MetDataType(Enum):
         else:
             return 0.0
 
+    def fill_value(self) -> float:
+        """
+        Get the fill value for the variable.
+        """
+        return -999.0
+
 
 class MetFileFormat(Enum):
     GRIB = 1
@@ -214,7 +220,6 @@ class MeteorologicalSource(Enum):
         Returns:
             The MeteorologicalSource corresponding to the string
         """
-        result = None
         if data_type == "gfs-ncep":
             result = MeteorologicalSource.GFS
         elif data_type == "gefs-ncep":

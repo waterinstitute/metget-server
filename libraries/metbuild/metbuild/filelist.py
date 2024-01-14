@@ -27,12 +27,15 @@
 #
 ###################################################################################################
 
+import logging
 from datetime import datetime
-from typing import Union
+from typing import List, Union
 
 from sqlalchemy import func
 
 from .database import Database
+from .enum import MetDataType, VariableType
+from .metfileattributes import MetFileAttributes
 from .tables import TableBase
 
 
@@ -80,21 +83,22 @@ class Filelist:
             msg = f"Missing required arguments: {', '.join(missing_args)}"
             raise ValueError(msg)
 
-        self.__service = kwargs.get("service", None)
-        self.__param = kwargs.get("param", None)
-        self.__start = kwargs.get("start", None)
-        self.__end = kwargs.get("end", None)
-        self.__tau = kwargs.get("tau", None)
-        self.__storm_year = kwargs.get("storm_year", None)
-        self.__storm = kwargs.get("storm", None)
-        self.__basin = kwargs.get("basin", None)
-        self.__advisory = kwargs.get("advisory", None)
-        self.__nowcast = kwargs.get("nowcast", None)
-        self.__multiple_forecasts = kwargs.get("multiple_forecasts", None)
-        self.__ensemble_member = kwargs.get("ensemble_member", None)
+        self.__service: Union[str, None] = kwargs.get("service", None)
+        self.__param: Union[str, None] = kwargs.get("param", None)
+        self.__start: Union[datetime, None] = kwargs.get("start", None)
+        self.__end: Union[datetime, None] = kwargs.get("end", None)
+        self.__tau: Union[int, None] = kwargs.get("tau", None)
+        self.__storm_year: Union[int, None] = kwargs.get("storm_year", None)
+        self.__storm: Union[str, None] = kwargs.get("storm", None)
+        self.__basin: Union[str, None] = kwargs.get("basin", None)
+        self.__advisory: Union[int, None] = kwargs.get("advisory", None)
+        self.__nowcast: Union[bool, None] = kwargs.get("nowcast", None)
+        self.__multiple_forecasts: Union[bool, None] = kwargs.get(
+            "multiple_forecasts", None
+        )
+        self.__ensemble_member: Union[bool, None] = kwargs.get("ensemble_member", None)
         self.__error = []
         self.__valid = False
-        self.__files = self.__query_files()
 
         # Type checking
         if not isinstance(self.__start, datetime):
@@ -123,6 +127,91 @@ class Filelist:
         if not isinstance(self.__multiple_forecasts, bool):
             msg = "multiple_forecasts must be of type bool"
             raise TypeError(msg)
+
+        # ...Check if the tau parameter needs to be updated
+        self.__check_tau_parameter()
+
+        # Query the database for the files
+        self.__files = self.__query_files()
+
+    def __check_tau_parameter(self):
+        """
+        This method is used to check if the tau parameter needs to be updated
+        because the parameter is an accumulated parameter and tau is 0
+        """
+
+        log = logging.getLogger(__name__)
+
+        # ...If the parameter is an accumulated parameter, we need tau to be greater than 0
+        service_var = Filelist.__get_service_type(self.__service)
+
+        # ...Get the variable type
+        variable_type = Filelist.__get_variable_type(self.__param)[0]
+
+        accumulated = service_var.variable(variable_type).get("is_accumulated", False)
+        if accumulated and self.__tau == 0:
+            log.warning("Accumulated parameter and tau is 0, setting tau to 1")
+            self.__tau = 1
+
+    @staticmethod
+    def __get_variable_type(parameter) -> List[MetDataType]:
+        """
+        This method is used to get the variable type of the parameter
+
+        Args:
+            parameter (str): The parameter to get the variable type for
+
+        Returns:
+            VariableType: The variable type of the parameter
+        """
+        return VariableType.from_string(parameter).select()
+
+    @staticmethod
+    def __get_service_type(service: str) -> MetFileAttributes:
+        """
+        This method is used to get the service type
+
+        Args:
+            service (str): The service to get the type for
+
+        Returns:
+            MetFileAttributes: The service type
+        """
+        from .metfiletype import (
+            COAMPS_TC,
+            NCEP_GEFS,
+            NCEP_GFS,
+            NCEP_HAFS_A,
+            NCEP_HAFS_B,
+            NCEP_HRRR,
+            NCEP_HRRR_ALASKA,
+            NCEP_NAM,
+            NCEP_WPC,
+        )
+
+        if service == "gfs-ncep":
+            service_metadata = NCEP_GFS
+        elif service == "nam-ncep":
+            service_metadata = NCEP_NAM
+        elif service == "hrrr-conus":
+            service_metadata = NCEP_HRRR
+        elif service == "hrrr-alaska":
+            service_metadata = NCEP_HRRR_ALASKA
+        elif service == "gefs-ncep":
+            service_metadata = NCEP_GEFS
+        elif service == "wpc-ncep":
+            service_metadata = NCEP_WPC
+        elif service == "ncep-hafs-a":
+            service_metadata = NCEP_HAFS_A
+        elif service == "ncep-hafs-b":
+            service_metadata = NCEP_HAFS_B
+        elif service == "coamps-tc":
+            service_metadata = COAMPS_TC
+        else:
+            msg = f"Invalid service: '{service:s}'"
+            raise ValueError(msg)
+
+        return service_metadata
 
     @staticmethod
     def __rows2dicts(data: list) -> list:
@@ -185,7 +274,6 @@ class Filelist:
         """
 
         self.__valid = True
-        result = None
         if self.__service == "gfs-ncep":
             result = self.__query_files_gfs_ncep()
         elif self.__service == "nam-ncep":
@@ -284,7 +372,9 @@ class Filelist:
                 .all()
             )
 
-    def __query_generic_file_list_single_forecast(self, table: TableBase) -> list:
+    def __query_generic_file_list_single_forecast(
+        self, table: TableBase
+    ) -> Union[list, None]:
         """
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for "generic" services that
@@ -654,7 +744,7 @@ class Filelist:
 
         return self.__query_storm_file_list(HwrfTable)
 
-    def __query_files_hafs(self, hafs_type: str) -> list:
+    def __query_files_hafs(self, hafs_type: str) -> Union[list, None]:
         """
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for HAFS (A and B).

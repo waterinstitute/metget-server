@@ -139,8 +139,8 @@ NCEP_NAM = MetFileAttributes(
         MetDataType.PRECIPITATION: {
             "type": MetDataType.PRECIPITATION,
             "name": "accumulated_precip",
-            "long_name": "APCP",
-            "var_name": "apcp",
+            "long_name": "ACPCP",
+            "var_name": "acpcp",
             "grib_name": "acpcp",
             "scale": 3600.0,
             "is_accumulated": True,
