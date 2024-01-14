@@ -144,7 +144,12 @@ class MessageHandler:
 
         return True
 
-    def __upload_files_to_s3(self, output_file_list, output_file_dict, filelist_name):
+    def __upload_files_to_s3(
+        self,
+        output_file_list: list,
+        output_file_dict: dict,
+        filelist_name: str,
+    ):
         """
         Uploads the files to the SE
 
@@ -596,7 +601,7 @@ class MessageHandler:
         if not isinstance(output_file_list, list):
             output_file_list = [output_file_list]
 
-        if len(output_file_list) == 1:
+        if len(output_file_list) == 1 and isinstance(output_file_list[0], list):
             output_file_list = output_file_list[0]
 
         if isinstance(output_file_list, list):

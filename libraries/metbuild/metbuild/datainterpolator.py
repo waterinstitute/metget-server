@@ -47,13 +47,17 @@ class DataInterpolator:
     """
 
     def __init__(
-        self, grid: OutputGrid, triangulation: Union[Triangulation, None] = None
+        self,
+        grid: OutputGrid,
+        backfill_flag: bool,
+        triangulation: Union[Triangulation, None] = None,
     ):
         """
         Constructor for the GribDataInterpolator class.
 
         Args:
             grid (OutputGrid): The grid to interpolate to.
+            backfill_flag (bool): Whether to backfill missing data.
             triangulation (Triangulation): The triangulation to use for interpolation.
 
         Returns:
@@ -62,6 +66,7 @@ class DataInterpolator:
         self.__grid = grid
         self.__x = self.__grid.x_column(convert_360=True)
         self.__y = self.__grid.y_column()
+        self.__backfill_flag = backfill_flag
         self.__triangulation = triangulation
 
     def grid(self) -> OutputGrid:
@@ -175,11 +180,10 @@ class DataInterpolator:
         merged_data = self.__merge_data(data, variable_type, apply_filter)
 
         # ...Remove nan values from the output dataset
-        return DataInterpolator.__remove_nan_values(merged_data, variable_type)
+        return self.__remove_nan_values(merged_data, variable_type)
 
-    @staticmethod
     def __remove_nan_values(
-        data: xr.Dataset, variable_type: VariableType
+        self, data: xr.Dataset, variable_type: VariableType
     ) -> xr.Dataset:
         """
         Remove the nan values from the dataset and replace with
@@ -193,7 +197,11 @@ class DataInterpolator:
         """
         variable_list = variable_type.select()
         for var in variable_list:
-            default_value = var.default_value()
+            if self.__backfill_flag:
+                default_value = var.fill_value()
+            else:
+                default_value = var.default_value()
+
             if default_value is not None:
                 data[str(var)] = data[str(var)].where(
                     ~np.isnan(data[str(var)]),
@@ -257,6 +265,7 @@ class DataInterpolator:
                 interpolator(self.x2d(), self.y2d()),
                 dims=["latitude", "longitude"],
             )
+            ds.attrs = data_item.dataset()[var].attrs
             interp_data[var] = ds
 
         interp_data.attrs = data_item.dataset().attrs
@@ -602,7 +611,7 @@ class DataInterpolator:
                     ]
                 )
 
-        var_name = str(file_type.variables()[next(iter(file_type.variables()))]["type"])
+        var_name = str(file_type.selected_variables(variable_type)[0])
         poly, edge_indexes = DataInterpolator.__generate_dataset_polygon(
             dataset, var_name
         )
@@ -634,10 +643,15 @@ class DataInterpolator:
         Returns:
             InterpData: The dataset and associated information
         """
+        import logging
+
         dataset = None
+
+        log = logging.getLogger(__name__)
 
         for var in file_type.selected_variables(variable_type):
             grib_var_name = file_type.variable(var)["grib_name"]
+            log.info(f"Reading variable: {grib_var_name}")
             ds = xr.open_dataset(
                 filename,
                 engine="cfgrib",
@@ -649,8 +663,13 @@ class DataInterpolator:
 
             ds = ds * file_type.variable(var)["scale"]
 
-            if file_type.variables()[var]["is_accumulated"]:
-                step_scaling = 1.0 / ds.variables[var].attrs.get("GRIB_stepUnits")
+            if (
+                file_type.variables()[var]["is_accumulated"]
+                and "GRIB_stepUnits" in ds.variables[grib_var_name].attrs
+            ):
+                step_scaling = 1.0 / ds.variables[grib_var_name].attrs.get(
+                    "GRIB_stepUnits"
+                )
                 ds = ds * step_scaling
 
             if dataset is None:
