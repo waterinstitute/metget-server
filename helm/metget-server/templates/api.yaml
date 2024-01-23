@@ -24,6 +24,24 @@ spec:
             memory: 1Gi
           limits:
             memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /healthz/live
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 30
+        startupProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 30
         env:
         - name: METGET_DATABASE_USER
           valueFrom:
@@ -74,6 +92,7 @@ spec:
         ports:
         - name: api-port
           containerPort: 8080
+          protocol: TCP
 ---
 apiVersion: v1
 kind: Service
