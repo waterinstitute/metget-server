@@ -246,8 +246,8 @@ NCEP_GEFS = MetFileAttributes(
     ensemble_members=["avg", "c00", *[f"p{i:02d}" for i in range(1, 31)]],
 )
 
-NCEP_HRRR = MetFileAttributes(
-    name="HRRR-NCEP",
+HRRR_CONUS = MetFileAttributes(
+    name="HRRR-CONUS",
     table="hrrr_ncep",
     file_format=MetFileFormat.GRIB,
     bucket="noaa-hrrr-bdp-pds",
@@ -319,13 +319,13 @@ NCEP_HRRR = MetFileAttributes(
     cycles=list(range(24)),
 )
 
-NCEP_HRRR_ALASKA = MetFileAttributes(
-    name="HRRR-ALASKA-NCEP",
+HRRR_ALASKA = MetFileAttributes(
+    name="HRRR-ALASKA",
     table="hrrr_alaska_ncep",
     file_format=MetFileFormat.GRIB,
     bucket="noaa-hrrr-bdp-pds",
-    variables=NCEP_HRRR.variables(),
-    cycles=NCEP_HRRR.cycles(),
+    variables=HRRR_CONUS.variables(),
+    cycles=HRRR_CONUS.cycles(),
 )
 
 NCEP_HWRF = MetFileAttributes(
@@ -602,8 +602,8 @@ MET_FILE_ATTRIBUTES_LIST = [
     NCEP_GFS,
     NCEP_GEFS,
     NCEP_NAM,
-    NCEP_HRRR,
-    NCEP_HRRR_ALASKA,
+    HRRR_CONUS,
+    HRRR_ALASKA,
     NCEP_HWRF,
     NCEP_WPC,
     NCEP_HAFS_A,

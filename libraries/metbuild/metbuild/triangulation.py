@@ -26,6 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from __future__ import annotations
 
 import matplotlib.tri
 import numpy as np
@@ -44,6 +45,20 @@ class Triangulation:
         self.__mpl_triangulation = matplotlib.tri.Triangulation(
             points[:, 0], points[:, 1], self.__generate_triangulation()
         )
+
+    @staticmethod
+    def matches(tri: Triangulation, points: np.array) -> bool:
+        """
+        Determines if the points match the triangulation.
+
+        Args:
+            tri (Triangulation): The triangulation.
+            points (np.array): The points.
+
+        Returns:
+            bool: True if the points match the triangulation, False otherwise.
+        """
+        return np.array_equal(tri.points(), points)
 
     def points(self) -> np.array:
         """

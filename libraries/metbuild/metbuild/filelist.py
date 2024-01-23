@@ -179,12 +179,12 @@ class Filelist:
         """
         from .metfiletype import (
             COAMPS_TC,
+            HRRR_ALASKA,
+            HRRR_CONUS,
             NCEP_GEFS,
             NCEP_GFS,
             NCEP_HAFS_A,
             NCEP_HAFS_B,
-            NCEP_HRRR,
-            NCEP_HRRR_ALASKA,
             NCEP_NAM,
             NCEP_WPC,
         )
@@ -194,9 +194,9 @@ class Filelist:
         elif service == "nam-ncep":
             service_metadata = NCEP_NAM
         elif service == "hrrr-conus":
-            service_metadata = NCEP_HRRR
+            service_metadata = HRRR_CONUS
         elif service == "hrrr-alaska":
-            service_metadata = NCEP_HRRR_ALASKA
+            service_metadata = HRRR_ALASKA
         elif service == "gefs-ncep":
             service_metadata = NCEP_GEFS
         elif service == "wpc-ncep":

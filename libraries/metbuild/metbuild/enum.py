@@ -228,7 +228,7 @@ class MeteorologicalSource(Enum):
             result = MeteorologicalSource.NAM
         elif data_type == "hwrf":
             result = MeteorologicalSource.HWRF
-        elif data_type == "hrrr-ncep":
+        elif data_type == "hrrr-conus":
             result = MeteorologicalSource.HRRR_CONUS
         elif data_type == "hrrr-alaska":
             result = MeteorologicalSource.HRRR_ALASKA

@@ -243,7 +243,9 @@ class DataInterpolator:
 
         constraints, points = self.__get_dataset_points_and_edges(data_item)
 
-        if self.__triangulation is None:
+        if self.__triangulation is None or not Triangulation.matches(
+            self.__triangulation, points
+        ):
             self.__triangulation = Triangulation(points, constraints)
 
         interp_data = xr.Dataset(

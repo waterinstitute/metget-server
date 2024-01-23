@@ -93,13 +93,13 @@ spec:
                               key: rabbit.queue
                         - name: METGET_REQUEST_JSON
                           value: '{{ "{{" }}inputs.parameters.message{{ "}}" }}'
-                      command: [python3, metget_build.py]
+                      command: [ metget-build ]
                       resources:
                         requests:
                           memory: 2Gi
                           ephemeral-storage: 4Gi
                         limits:
-                          memory: 3Gi
+                          memory: 4Gi
                           ephemeral-storage: 8Gi
           parameters:
             - src:

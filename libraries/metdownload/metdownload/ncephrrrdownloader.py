@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 
-from metbuild.metfiletype import NCEP_HRRR
+from metbuild.metfiletype import HRRR_CONUS
 
 from .noaadownloader import NoaaDownloader
 
@@ -37,19 +37,20 @@ class NcepHrrrdownloader(NoaaDownloader):
         address = None
         NoaaDownloader.__init__(
             self,
-            NCEP_HRRR.table(),
-            NCEP_HRRR.name(),
+            HRRR_CONUS.table(),
+            HRRR_CONUS.name(),
             address,
             begin,
             end,
             use_aws_big_data=True,
             do_archive=False,
         )
-        self.set_big_data_bucket(NCEP_HRRR.bucket())
-        self.set_cycles(NCEP_HRRR.cycles())
-        for v in NCEP_HRRR.variables():
+        self.set_big_data_bucket(HRRR_CONUS.bucket())
+        self.set_cycles(HRRR_CONUS.cycles())
+        for v in HRRR_CONUS.variables():
             self.add_download_variable(
-                NCEP_HRRR.variables()[v]["long_name"], NCEP_HRRR.variables()[v]["name"]
+                HRRR_CONUS.variables()[v]["long_name"],
+                HRRR_CONUS.variables()[v]["name"],
             )
 
     @staticmethod

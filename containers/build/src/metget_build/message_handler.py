@@ -29,18 +29,18 @@
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Tuple, Union, List
+from typing import List, Tuple, Union
 
 from metbuild.domain import Domain
+from metbuild.enum import MeteorologicalSource, VariableType
 from metbuild.filelist import Filelist
-from metbuild.input import Input
-from metbuild.s3file import S3file
-from metbuild.tables import RequestTable
-from metbuild.s3gribio import S3GribIO
-from metbuild.output.outputfile import OutputFile
-from metbuild.enum import VariableType, MeteorologicalSource
 from metbuild.fileobj import FileObj
+from metbuild.input import Input
 from metbuild.meteorology import Meteorology
+from metbuild.output.outputfile import OutputFile
+from metbuild.s3file import S3file
+from metbuild.s3gribio import S3GribIO
+from metbuild.tables import RequestTable
 
 
 class MessageHandler:
@@ -88,13 +88,11 @@ class MessageHandler:
         log.info("Processing message")
         log.info(json.dumps(self.input().json()))
 
-        log.info(
-            "Found {:d} domains in input request".format(self.input().num_domains())
-        )
+        log.info(f"Found {self.input().num_domains():d} domains in input request")
 
         output_obj = MessageHandler.__generate_output_field(self.input())
 
-        log.info("Generating type key for {:s}".format(self.input().data_type()))
+        log.info(f"Generating type key for {self.input().data_type():s}")
         data_type_key = MessageHandler.__generate_datatype_key(self.input().data_type())
 
         # ...Take a first pass on the data and check for restore status
@@ -183,11 +181,7 @@ class MessageHandler:
 
         filelist_path = os.path.join(self.input().request_id(), filelist_name)
         s3up.upload_file(filelist_name, filelist_path)
-        log.info(
-            "Finished processing message with id '{:s}'".format(
-                self.input().request_id()
-            )
-        )
+        log.info(f"Finished processing message with id '{self.input().request_id():s}'")
         os.remove(filelist_name)
 
     def __handle_ongoing_restore(self, met_field: OutputFile) -> None:
@@ -238,16 +232,14 @@ class MessageHandler:
 
         for i in range(input_data.num_domains()):
             if met_field is not None:
-                log.info("Generating met domain object for domain {:d}".format(i))
+                log.info(f"Generating met domain object for domain {i:d}")
                 MessageHandler.__generate_met_domain(input_data, met_field, i)
 
             log.info("Querying database for available data")
             filelist = MessageHandler.__generate_filelist_obj(
                 input_data.domain(i), input_data
             )
-            log.info(
-                "Selected {:d} files for interpolation".format(len(filelist.files()))
-            )
+            log.info(f"Selected {len(filelist.files()):d} files for interpolation")
 
             if input_data.domain(i).service() == "nhc":
                 nhc_data[i] = filelist.files()
@@ -255,7 +247,8 @@ class MessageHandler:
                 db_files.append(filelist.files())
                 if len(filelist.files()) < 2:
                     log.error("No data found for domain " + str(i) + ". Giving up.")
-                    raise RuntimeError("No data found for domain")
+                    msg = "No data found for domain"
+                    raise RuntimeError(msg)
                 ongoing_restore = MessageHandler.__check_glacier_restore(
                     input_data.domain(i), filelist.files()
                 )
@@ -348,10 +341,10 @@ class MessageHandler:
         Returns:
             The output file object
         """
-        from metbuild.output.owiasciioutput import OwiAsciiOutput
         from metbuild.output.netcdfoutput import NetcdfOutput
+        from metbuild.output.owiasciioutput import OwiAsciiOutput
 
-        log = logging.getLogger(__name__)
+        # log = logging.getLogger(__name__)
 
         if (
             input_data.format() == "ascii"
@@ -379,9 +372,8 @@ class MessageHandler:
         elif input_data.format() == "raw":
             return None
         else:
-            raise RuntimeError(
-                "Invalid output format selected: {:s}".format(input_data.format())
-            )
+            msg = f"Invalid output format selected: {input_data.format():s}"
+            raise RuntimeError(msg)
 
     @staticmethod
     def __generate_met_domain(input_data: Input, met_object: OutputFile, index: int):
@@ -401,14 +393,10 @@ class MessageHandler:
 
         d = input_data.domain(index)
         output_format = input_data.format()
-        if (
-            output_format == "ascii"
-            or output_format == "owi-ascii"
-            or output_format == "adcirc-ascii"
-        ):
+        if output_format in ("ascii", "owi-ascii", "adcirc-ascii"):
             if input_data.data_type() == "wind_pressure":
-                fn1 = input_data.filename() + "_" + "{:02d}".format(index) + ".pre"
-                fn2 = input_data.filename() + "_" + "{:02d}".format(index) + ".wnd"
+                fn1 = input_data.filename() + "_" + f"{index:02d}" + ".pre"
+                fn2 = input_data.filename() + "_" + f"{index:02d}" + ".wnd"
                 fns = [fn1, fn2]
             elif input_data.data_type() == "rain":
                 fns = [input_data.filename() + ".precip"]
@@ -417,15 +405,12 @@ class MessageHandler:
             elif input_data.data_type() == "ice":
                 fns = [input_data.filename() + ".ice"]
             else:
-                raise RuntimeError("Invalid variable requested")
+                msg = "Invalid variable requested"
+                raise RuntimeError(msg)
             if input_data.compression():
                 for i, s in enumerate(fns):
                     fns[i] = s + ".gz"
-        elif (
-            output_format == "hec-netcdf"
-            or output_format == "netcdf"
-            or output_format == "cf-netcdf"
-        ):
+        elif output_format in ("hec-netcdf", "netcdf", "cf-netcdf"):
             if not input_data.filename().endswith(".nc"):
                 fns = [input_data.filename() + ".nc"]
             else:
@@ -433,7 +418,7 @@ class MessageHandler:
         else:
             raise RuntimeError("Invalid output format selected: " + output_format)
 
-        log.info("Adding domain {:d} to output object".format(index + 1))
+        log.info(f"Adding domain {index + 1:d} to output object")
         met_object.add_domain(
             grid=d.grid(), filename=fns, variable=input_data.data_type()
         )
@@ -489,7 +474,7 @@ class MessageHandler:
                 if line["date"] <= fcst_lines[0]["date"]:
                     time_list.append(line["date"])
                     dt = int((line["date"] - start_date).total_seconds() / 3600.0)
-                    dt_str = "{:4d}".format(dt)
+                    dt_str = f"{dt:4d}"
                     sub1 = line["line"][:8]
                     sub2 = line["line"][18:29]
                     sub3 = line["line"][33:]
@@ -499,7 +484,7 @@ class MessageHandler:
             for line in fcst_lines:
                 if line["date"] not in time_list:
                     dt = int((line["date"] - start_date).total_seconds() / 3600.0)
-                    dt_str = "{:4d}".format(dt)
+                    dt_str = f"{dt:4d}"
                     sub1 = line["line"][:8]
                     sub2 = line["line"][18:29]
                     sub3 = line["line"][33:]
@@ -509,7 +494,7 @@ class MessageHandler:
         return output_file
 
     @staticmethod
-    def __generate_file_obj(
+    def __generate_file_obj(  # noqa: PLR0912
         filename: Union[str, list], service: str, time: datetime
     ) -> FileObj:
         """
@@ -521,15 +506,15 @@ class MessageHandler:
             time (datetime): The time
         """
         from metbuild.metfiletype import (
-            NCEP_GFS,
-            NCEP_NAM,
-            NCEP_GEFS,
-            NCEP_HRRR,
-            NCEP_HRRR_ALASKA,
-            NCEP_WPC,
             COAMPS_TC,
+            HRRR_ALASKA,
+            HRRR_CONUS,
+            NCEP_GEFS,
+            NCEP_GFS,
             NCEP_HAFS_A,
             NCEP_HAFS_B,
+            NCEP_NAM,
+            NCEP_WPC,
         )
 
         if service == "gfs-ncep":
@@ -538,10 +523,10 @@ class MessageHandler:
             file_type = NCEP_NAM
         elif service == "gefs-ncep":
             file_type = NCEP_GEFS
-        elif service == "hrrr-ncep":
-            file_type = NCEP_HRRR
+        elif service == "hrrr-conus":
+            file_type = HRRR_CONUS
         elif service == "hrrr-alaska-ncep":
-            file_type = NCEP_HRRR_ALASKA
+            file_type = HRRR_ALASKA
         elif service == "wpc-ncep":
             file_type = NCEP_WPC
         elif service == "coamps-tc":
@@ -607,14 +592,14 @@ class MessageHandler:
         if isinstance(output_file_list, list):
             log.info("Generated output files: {:s}".format(", ".join(output_file_list)))
         else:
-            log.info("Generated output file: {:s}".format(output_file_list))
+            log.info(f"Generated output file: {output_file_list:s}")
 
         log.info("Finished interpolating meteorological fields")
 
         return {"output_files": output_file_list, "files_used": files_used_list}
 
     @staticmethod
-    def __process_domain(
+    def __process_domain(  # noqa: PLR0913
         domain_index: int,
         input_data: Input,
         data_type_key: VariableType,
@@ -640,23 +625,20 @@ class MessageHandler:
         log = logging.getLogger(__name__)
 
         log.info(
-            "Processing domain {:d} of {:d}".format(
-                domain_index + 1, input_data.num_domains()
-            )
+            f"Processing domain {domain_index + 1:d} of {input_data.num_domains():d}"
         )
 
         if input_data.domain(domain_index).service() == "nhc":
             log.error("NHC to gridded data not implemented")
-            raise RuntimeError("NHC to gridded data no implemented")
+            msg = "NHC to gridded data no implemented"
+            raise RuntimeError(msg)
 
-        log.debug("Generating source key for domain {:d}".format(domain_index + 1))
+        log.debug(f"Generating source key for domain {domain_index + 1:d}")
         source_key = MessageHandler.__generate_data_source_key(
             input_data.domain(domain_index).service()
         )
 
-        log.debug(
-            "Generating meteorology object for domain {:d}".format(domain_index + 1)
-        )
+        log.debug(f"Generating meteorology object for domain {domain_index + 1:d}")
         meteo_obj = Meteorology(
             grid=input_data.domain(domain_index).grid(),
             source_key=source_key,
@@ -665,10 +647,10 @@ class MessageHandler:
             epsg=input_data.epsg(),
         )
 
-        log.debug("Opening the output file(s) for domain {:d}".format(domain_index + 1))
+        log.debug(f"Opening the output file(s) for domain {domain_index + 1:d}")
         output_file.domain(domain_index).open()
 
-        log.debug("Processing initial data for domain {:d}".format(domain_index + 1))
+        log.debug(f"Processing initial data for domain {domain_index + 1:d}")
         domain_files_used = MessageHandler.__process_initial_domain_data(
             domain_data, domain_index, input_data, output_file, meteo_obj
         )
@@ -715,13 +697,13 @@ class MessageHandler:
             )
             output_file.domain(domain_index).write(dataset, data_type_key, time=t)
 
-        log.debug("Closing the output file(s) for domain {:d}".format(domain_index + 1))
+        log.debug(f"Closing the output file(s) for domain {domain_index + 1:d}")
         output_file.domain(domain_index).close()
 
         files_used_list[input_data.domain(domain_index).name()] = domain_files_used
 
     @staticmethod
-    def __process_next_domain_time_step(
+    def __process_next_domain_time_step(  # noqa: PLR0913
         domain_data: list,
         domain_files_used: list,
         domain_index: int,
@@ -928,14 +910,12 @@ class MessageHandler:
             meteo_object, domain_index, input_data
         )
 
-        domain_files_used = MessageHandler.__append_domain_files(
+        return MessageHandler.__append_domain_files(
             domain_index, index, input_data, domain_data, domain_files_used
         )
 
-        return domain_files_used
-
     @staticmethod
-    def __get_current_domain_file(
+    def __get_current_domain_file(  # noqa: PLR0913
         current_time: datetime,
         domain_data: list,
         domain_index: int,
@@ -987,7 +967,7 @@ class MessageHandler:
         return current_file, s3_grib, s3_obj
 
     @staticmethod
-    def __download_data_on_demand(
+    def __download_data_on_demand(  # noqa: PLR0913
         current_time: datetime,
         file_index: int,
         domain_data: list,
@@ -1119,8 +1099,7 @@ class MessageHandler:
         Returns:
             S3GribIO: The remote s3 grib instance
         """
-        from metbuild.metfiletype import attributes_from_name
-        from metbuild.metfiletype import MetFileFormat
+        from metbuild.metfiletype import MetFileFormat, attributes_from_name
 
         attributes = attributes_from_name(data_type)
         if attributes.file_format() is MetFileFormat.GRIB:
@@ -1129,7 +1108,7 @@ class MessageHandler:
             return None
 
     @staticmethod
-    def __get_2d_forcing_files(
+    def __get_2d_forcing_files(  # noqa: PLR0913
         data_type: str,
         domain: Domain,
         db_files: list,
@@ -1161,10 +1140,9 @@ class MessageHandler:
 
         f = db_files[index]
         if len(f) < 2:
-            log.error("No data found for domain {:d}. Giving up.".format(index))
-            raise RuntimeError(
-                "No data found for domain {:d}. Giving up.".format(index)
-            )
+            log.error(f"No data found for domain {index:d}. Giving up.")
+            msg = f"No data found for domain {index:d}. Giving up."
+            raise RuntimeError(msg)
         for item in f:
             if (
                 domain.service() == "coamps-tc"
@@ -1189,7 +1167,7 @@ class MessageHandler:
                         "is_local": is_local,
                     }
                 )
-            else:
+            else:  # noqa: PLR5501
                 if not do_download:
                     domain_data[index].append(
                         {
@@ -1212,7 +1190,7 @@ class MessageHandler:
                         )
 
     @staticmethod
-    def __download_met_data_from_s3(
+    def __download_met_data_from_s3(  # noqa: PLR0913
         data_type, domain, item, met_field, s3, s3_remote
     ) -> Tuple[str, bool]:
         """
@@ -1243,9 +1221,8 @@ class MessageHandler:
             local_file = os.path.join(tempdir, fname)
             success, fatal = s3_remote.download(item["filepath"], local_file, data_type)
             if not success and fatal:
-                raise RuntimeError(
-                    "Unable to download file {:s}".format(item["filepath"])
-                )
+                msg = "Unable to download file {:s}".format(item["filepath"])
+                raise RuntimeError(msg)
         else:
             local_file = s3.download(
                 item["filepath"], domain.service(), item["forecasttime"]
@@ -1349,8 +1326,9 @@ class MessageHandler:
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
 
         if not nhc_data[index]["best_track"] and not nhc_data[index]["forecast_track"]:
-            log.error("No data found for domain {:d}. Giving up".format(index))
-            raise RuntimeError("No data found for domain {:d}. Giving up".format(index))
+            log.error(f"No data found for domain {index:d}. Giving up")
+            msg = f"No data found for domain {index:d}. Giving up"
+            raise RuntimeError(msg)
         local_file_besttrack = None
         local_file_forecast = None
         if nhc_data[index]["best_track"]:
@@ -1425,7 +1403,7 @@ class MessageHandler:
                     if ongoing_restore_this:
                         glacier_count += 1
                         ongoing_restore = True
-            else:
+            else:  # noqa: PLR5501
                 if "s3://" not in item["filepath"]:
                     ongoing_restore_this = s3.check_archive_initiate_restore(
                         item["filepath"]
@@ -1434,7 +1412,7 @@ class MessageHandler:
                         glacier_count += 1
                         ongoing_restore = True
 
-        log.info("Found {:d} files currently in Glacier storage".format(glacier_count))
+        log.info(f"Found {glacier_count:d} files currently in Glacier storage")
 
         return ongoing_restore
 
@@ -1454,6 +1432,5 @@ class MessageHandler:
                     for ff in f["filepath"]:
                         if exists(ff):
                             os.remove(ff)
-                else:
-                    if exists(f["filepath"]):
-                        os.remove(f["filepath"])
+                elif exists(f["filepath"]):
+                    os.remove(f["filepath"])

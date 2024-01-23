@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 
 def rebuild_gfs(start: datetime, end: datetime) -> int:
-    from metgetlib.ncepgfsdownloader import NcepGfsdownloader
+    from metdownload.ncepgfsdownloader import NcepGfsdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def rebuild_gfs(start: datetime, end: datetime) -> int:
 
 
 def rebuild_nam(start: datetime, end: datetime) -> int:
-    from metgetlib.ncepnamdownloader import NcepNamdownloader
+    from metdownload.ncepnamdownloader import NcepNamdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def rebuild_nam(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hrrr(start: datetime, end: datetime) -> int:
-    from metgetlib.ncephrrrdownloader import NcepHrrrdownloader
+    from metdownload.ncephrrrdownloader import NcepHrrrdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def rebuild_hrrr(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
-    from metgetlib.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
+    from metdownload.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
 
     logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
 
 
 def rebuild_gefs(start: datetime, end: datetime) -> int:
-    from metgetlib.ncepgefsdownloader import NcepGefsdownloader
+    from metdownload.ncepgefsdownloader import NcepGefsdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -81,11 +81,10 @@ def rebuild_gefs(start: datetime, end: datetime) -> int:
 def rebuild_hafs(start: datetime, end: datetime) -> int:
     log = logging.getLogger(__name__)
 
-    n_added_a, n_not_added_a = rebuild_hafs_subtype("a", start, end)
-    n_added_b, n_not_added_b = rebuild_hafs_subtype("b", start, end)
+    n_added_a, _ = rebuild_hafs_subtype("a", start, end)
+    n_added_b, _ = rebuild_hafs_subtype("b", start, end)
 
     n = n_added_a + n_added_b
-    n_not_added_a + n_not_added_b
 
     log.info(f"NCEP-HAFS complete. {n:d} files added ")
 
@@ -118,7 +117,7 @@ def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
     import logging
 
     from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
-    from metgetlib.hafsdownloader import HafsDownloader
+    from metdownload.hafsdownloader import HafsDownloader
 
     log = logging.getLogger(__name__)
 
@@ -143,7 +142,7 @@ def rebuild_coamps(start: datetime, end: datetime) -> int:
     import logging
     import os
 
-    from metgetlib.coampsdownloader import CoampsDownloader
+    from metdownload.coampsdownloader import CoampsDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -153,7 +152,7 @@ def rebuild_coamps(start: datetime, end: datetime) -> int:
 
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
-    n = coamps.download(start, end)
+    n = coamps.download()
     logger.info(f"COAMPS complete. {n:d} files downloaded")
 
     return n
@@ -163,7 +162,7 @@ def rebuild_ctcx(start: datetime, end: datetime) -> int:
     import logging
     import os
 
-    from metgetlib.ctcxdownloader import CtcxDownloader
+    from metdownload.ctcxdownloader import CtcxDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -172,7 +171,7 @@ def rebuild_ctcx(start: datetime, end: datetime) -> int:
         raise ValueError(msg)
 
     ctcx = CtcxDownloader()
-    n = ctcx.download(start, end)
+    n = ctcx.download()
     logger.info(f"CTCX complete. {n:d} files downloaded")
 
     return n
@@ -180,8 +179,13 @@ def rebuild_ctcx(start: datetime, end: datetime) -> int:
 
 def read_nhc_data(filename: str) -> list:
     """
-    Reads the specified ATCF file and puts the data into a dict with the keys specfied for each field
-    :return:
+    Reads the specified ATCF file and puts the data into a dict with the keys specified for each field
+
+    Args:
+        filename (str): The filename to read
+
+    Returns:
+        list: A list of dictionaries containing the data
     """
     from datetime import datetime, timedelta
 
@@ -239,7 +243,7 @@ def read_nhc_data(filename: str) -> list:
 
 def nhc_compute_pressure(self, filepath: str) -> None:
     nhc_data = self.read_nhc_data(filepath)
-    from metgetlib.forecastdata import ForecastData
+    from metdownload.forecastdata import ForecastData
 
     last_vmax = None
     last_pressure = None
@@ -359,7 +363,7 @@ def nhc_download_data(table) -> int:  # noqa: PLR0915
                         advisory = None
                     elif table == NhcFcstTable:
                         storm_id = int(keys[4])
-                        advisory = int(keys[5].split(".")[0])
+                        advisory = "{:03d}".format(int(keys[5].split(".")[0]))
                     else:
                         msg = f"Invalid table type: {table}"
                         raise ValueError(msg)
@@ -374,9 +378,9 @@ def nhc_download_data(table) -> int:  # noqa: PLR0915
                         found = (
                             session.query(NhcBtkTable)
                             .filter(
-                                NhcBtkTable.stormyear == storm_year,
+                                NhcBtkTable.storm_year == storm_year,
                                 NhcBtkTable.basin == basin,
-                                NhcBtkTable.stormid == storm_id,
+                                NhcBtkTable.storm == storm_id,
                                 NhcBtkTable.md5 == md5,
                             )
                             .count()
@@ -385,9 +389,9 @@ def nhc_download_data(table) -> int:  # noqa: PLR0915
                         found = (
                             session.query(NhcFcstTable)
                             .filter(
-                                NhcFcstTable.stormyear == storm_year,
+                                NhcFcstTable.storm_year == storm_year,
                                 NhcFcstTable.basin == basin,
-                                NhcFcstTable.stormid == storm_id,
+                                NhcFcstTable.storm == storm_id,
                                 NhcFcstTable.advisory == advisory,
                                 NhcFcstTable.md5 == md5,
                             )
