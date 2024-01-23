@@ -30,7 +30,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push metget-api Docker image
         uses: docker/build-push-action@v5
@@ -60,7 +60,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push metget-database Docker image
         uses: docker/build-push-action@v5
@@ -90,7 +90,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push metget-download Docker image
         uses: docker/build-push-action@v5
@@ -120,7 +120,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push metget-rebuild Docker image
         uses: docker/build-push-action@v5
@@ -150,7 +150,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push metget-keymanager Docker image
         uses: docker/build-push-action@v5
@@ -180,7 +180,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_LOGIN_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build and push metget-build Docker image
         uses: docker/build-push-action@v5
