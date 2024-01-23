@@ -77,5 +77,5 @@ spec:
             secretKeyRef:
               name: aws-coamps-credentials
               key: password
-      command: [python3, metget_download.py]
+      command: [metget-download]
       args: ["--service", '{{"{{"}}inputs.parameters.service{{"}}"}}']

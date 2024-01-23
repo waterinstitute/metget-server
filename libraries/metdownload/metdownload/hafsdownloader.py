@@ -33,7 +33,7 @@ from typing import Tuple
 from metbuild.metfileattributes import MetFileAttributes
 from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
 
-from metgetlib.noaadownloader import NoaaDownloader
+from metdownload.noaadownloader import NoaaDownloader
 
 
 class HafsDownloader(NoaaDownloader):
@@ -180,7 +180,7 @@ class HafsDownloader(NoaaDownloader):
         return True
 
     def __download_http(self) -> int:
-        from metgetlib.spyder import Spyder
+        from metdownload.spyder import Spyder
 
         num_download = 0
         s = Spyder(self.address())

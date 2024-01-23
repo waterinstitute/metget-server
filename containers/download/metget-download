@@ -41,7 +41,7 @@ def generate_default_date_range():
 def nam_download():
     import logging
 
-    from metgetlib.ncepnamdownloader import NcepNamdownloader
+    from metdownload.ncepnamdownloader import NcepNamdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def nam_download():
 def gfs_download():
     import logging
 
-    from metgetlib.ncepgfsdownloader import NcepGfsdownloader
+    from metdownload.ncepgfsdownloader import NcepGfsdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ def gfs_download():
 def gefs_download():
     import logging
 
-    from metgetlib.ncepgefsdownloader import NcepGefsdownloader
+    from metdownload.ncepgefsdownloader import NcepGefsdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def gefs_download():
 def hwrf_download():
     import logging
 
-    from metgetlib.hwrfdownloader import HwrfDownloader
+    from metdownload.hwrfdownloader import HwrfDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ def hafs_download():
     import logging
 
     from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
-    from metgetlib.hafsdownloader import HafsDownloader
+    from metdownload.hafsdownloader import HafsDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ def hafs_download():
 def nhc_download():
     import logging
 
-    from metgetlib.nhcdownloader import NhcDownloader
+    from metdownload.nhcdownloader import NhcDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ def nhc_download():
 def coamps_download():
     import logging
 
-    from metgetlib.coampsdownloader import CoampsDownloader
+    from metdownload.coampsdownloader import CoampsDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ def coamps_download():
 def ctcx_download():
     import logging
 
-    from metgetlib.ctcxdownloader import CtcxDownloader
+    from metdownload.ctcxdownloader import CtcxDownloader
 
     logger = logging.getLogger(__name__)
 
@@ -180,7 +180,7 @@ def ctcx_download():
 def hrrr_download():
     import logging
 
-    from metgetlib.ncephrrrdownloader import NcepHrrrdownloader
+    from metdownload.ncephrrrdownloader import NcepHrrrdownloader
 
     logger = logging.getLogger(__name__)
 
@@ -196,7 +196,7 @@ def hrrr_download():
 def hrrr_alaska_download():
     import logging
 
-    from metgetlib.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
+    from metdownload.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
 
     logger = logging.getLogger(__name__)
 
@@ -211,7 +211,7 @@ def hrrr_alaska_download():
 def wpc_download():
     import logging
 
-    from metgetlib.wpcdownloader import WpcDownloader
+    from metdownload.wpcdownloader import WpcDownloader
 
     logger = logging.getLogger(__name__)
 

@@ -1,16 +1,18 @@
-apiVersion: v1
-kind: ReplicationController
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   labels:
     component: rabbitmq
   name: {{ .Release.Name }}-rabbitmq-controller
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: taskQueue
   template:
     metadata:
       labels:
         app: taskQueue
-        component: rabbitmq
     spec:
       containers:
       - image: rabbitmq
@@ -20,12 +22,10 @@ spec:
             memory: 1Gi
           limits:
             memory: 2Gi
+            cpu: 100m
         ports:
           - containerPort: 5672
           - containerPort: 15672
-        resources:
-          limits:
-            cpu: 100m
 ---
 apiVersion: v1
 kind: Service
@@ -34,8 +34,10 @@ metadata:
     component: rabbitmq
   name: metget-rabbitmq-service
 spec:
+  type: ClusterIP
   ports:
-    - port: 5672
+    - name: "5672"
+      port: 5672
+      targetPort: 5672
   selector:
     app: taskQueue
-    component: rabbitmq

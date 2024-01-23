@@ -32,22 +32,21 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-from metbuild.tables import RequestTable
-from metbuild.tables import RequestEnum
-from message_handler import MessageHandler
+from metbuild.tables import RequestEnum, RequestTable
+
+from .message_handler import MessageHandler
 
 MAX_REQUEST_TIME = timedelta(hours=48)
 REQUEST_SLEEP_TIME = timedelta(minutes=10)
 
 
-def main():
+def run():
     """
     Main entry point for the script
     """
-    import json
+    import argparse
     import time
     import traceback
-    import argparse
 
     p = argparse.ArgumentParser(description="Process a metget request")
     p.add_argument(
@@ -76,28 +75,12 @@ def main():
     json_data = None
 
     try:
-        if args.request_json:
-            with open(args.request_json, "r") as f:
-                message = f.read()
-            json_data = json.loads(message)
-            if "request_id" not in json_data:
-                json_data["request_id"] = "development"
-            if "api_key" not in json_data:
-                json_data["api_key"] = "none"
-            if "source_ip" not in json_data:
-                json_data["source_ip"] = "none"
-        else:
-            # ...Get the input data from the environment.
-            # This variable is set by the argo template
-            # and comes from rabbitmq
-            if "METGET_REQUEST_JSON" not in os.environ:
-                raise RuntimeError("METGET_REQUEST_JSON not set in environment")
-            message = os.environ["METGET_REQUEST_JSON"]
-            json_data = json.loads(message)
+        json_data = get_request_data(args)
 
         handler = MessageHandler(json_data)
         if handler.input().valid() is False:
-            raise RuntimeError("Input is not valid")
+            msg = "Input is not valid"
+            raise RuntimeError(msg)
         credit_cost = handler.input().credit_usage()
 
         RequestTable.update_request(
@@ -123,11 +106,10 @@ def main():
             status = handler.process_message()
 
             if datetime.now() - start_time > MAX_REQUEST_TIME:
-                raise RuntimeError(
-                    "Job exceeded maximum run time of {:d} hours".format(
-                        int(MAX_REQUEST_TIME.total_seconds() / 3600)
-                    )
+                msg = "Job exceeded maximum run time of {:d} hours".format(
+                    int(MAX_REQUEST_TIME.total_seconds() / 3600)
                 )
+                raise RuntimeError(msg)
 
             if status is False:
                 time.sleep(REQUEST_SLEEP_TIME.total_seconds())
@@ -150,7 +132,7 @@ def main():
             api_key=json_data["api_key"],
             source_ip=json_data["source_ip"],
             input_data=json_data,
-            message="Job encountered an error: {:s}".format(str(e)),
+            message=f"Job encountered an error: {e!s:s}",
             credit=credit_cost,
         )
     except KeyError as e:
@@ -162,7 +144,7 @@ def main():
             api_key=json_data["api_key"],
             source_ip=json_data["source_ip"],
             input_data=json_data,
-            message="Job encountered an error: {:s}".format(str(e)),
+            message=f"Job encountered an error: {e!s:s}",
             credit=credit_cost,
         )
     except Exception as e:
@@ -174,14 +156,42 @@ def main():
             api_key=json_data["api_key"],
             source_ip=json_data["source_ip"],
             input_data=json_data,
-            message="Job encountered an unhandled error: {:s}".format(str(e)),
+            message=f"Job encountered an unhandled error: {e!s:s}",
             credit=credit_cost,
         )
         raise
 
     log.info("Exiting script with status 0")
-    exit(0)
+
+
+def get_request_data(args):
+    import json
+
+    if args.request_json:
+        with open(args.request_json) as f:
+            message = f.read()
+        json_data = json.loads(message)
+        apply_development_data_keys(json_data)
+    else:
+        # ...Get the input data from the environment.
+        # This variable is set by the argo template
+        # and comes from rabbitmq
+        if "METGET_REQUEST_JSON" not in os.environ:
+            msg = "METGET_REQUEST_JSON not set in environment"
+            raise RuntimeError(msg)
+        message = os.environ["METGET_REQUEST_JSON"]
+        json_data = json.loads(message)
+    return json_data
+
+
+def apply_development_data_keys(json_data):
+    if "request_id" not in json_data:
+        json_data["request_id"] = "development"
+    if "api_key" not in json_data:
+        json_data["api_key"] = "none"
+    if "source_ip" not in json_data:
+        json_data["source_ip"] = "none"
 
 
 if __name__ == "__main__":
-    main()
+    run()

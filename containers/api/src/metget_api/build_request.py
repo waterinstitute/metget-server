@@ -209,7 +209,7 @@ class BuildRequest:
 
             lookup = self.__generate_file_list(
                 d.service(),
-                "none",
+                self.__input_obj.data_type(),
                 self.__input_obj.start_date(),
                 self.__input_obj.end_date(),
                 d.tau(),

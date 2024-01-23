@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 
-from metbuild.metfiletype import NCEP_HRRR_ALASKA
+from metbuild.metfiletype import HRRR_ALASKA
 
 from .noaadownloader import NoaaDownloader
 
@@ -37,8 +37,8 @@ class NcepHrrrAlaskadownloader(NoaaDownloader):
         address = None
         NoaaDownloader.__init__(
             self,
-            NCEP_HRRR_ALASKA.table(),
-            NCEP_HRRR_ALASKA.name(),
+            HRRR_ALASKA.table(),
+            HRRR_ALASKA.name(),
             address,
             begin,
             end,
@@ -46,13 +46,13 @@ class NcepHrrrAlaskadownloader(NoaaDownloader):
             do_archive=False,
         )
 
-        for v in NCEP_HRRR_ALASKA.variables():
+        for v in HRRR_ALASKA.variables():
             self.add_download_variable(
-                NCEP_HRRR_ALASKA.variables()[v]["long_name"],
-                NCEP_HRRR_ALASKA.variables()[v]["name"],
+                HRRR_ALASKA.variables()[v]["long_name"],
+                HRRR_ALASKA.variables()[v]["name"],
             )
-        self.set_big_data_bucket(NCEP_HRRR_ALASKA.bucket())
-        self.set_cycles(NCEP_HRRR_ALASKA.cycles())
+        self.set_big_data_bucket(HRRR_ALASKA.bucket())
+        self.set_cycles(HRRR_ALASKA.cycles())
 
     @staticmethod
     def _generate_prefix(date, hour) -> str:
