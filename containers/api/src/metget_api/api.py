@@ -30,8 +30,10 @@
 import logging
 from typing import ClassVar
 
+import sqlalchemy
 from flask import Flask, jsonify, make_response, redirect, request
 from flask_cors import CORS
+from flask_healthz import HealthError, healthz
 from flask_limiter import Limiter, RequestLimit
 from flask_limiter.util import get_remote_address
 from flask_restful import Api, Resource
@@ -230,12 +232,41 @@ class MetGetCredits(Resource):
             return AccessControl.unauthorized_response()
 
 
+def health_ready():
+    """
+    This method is used to check the readiness of the MetGet API
+
+    This function checks:
+        - The database connection
+        - More, to be added later
+    """
+    from metbuild.database import Database
+
+    try:
+        db = Database()
+        session = db.session()
+        session.execute(sqlalchemy.text("SELECT 1"))
+    except Exception as e:
+        application.logger.error("HealthCheck failed at database connection: " + str(e))
+        msg = "Database connection failed: " + str(e)
+        raise HealthError(msg) from e
+
+
 # ...Add the resources to the API
 api.add_resource(MetGetStatus, "/status")
 api.add_resource(MetGetBuild, "/build")
 api.add_resource(MetGetCheckRequest, "/check")
 api.add_resource(MetGetTrack, "/stormtrack")
 api.add_resource(MetGetCredits, "/credits")
+
+# ...Add the health check
+HEALTHZ = {
+    "live": lambda: None,
+    "ready": application.name + ".health_ready",
+}
+application.register_blueprint(healthz, url_prefix="/healthz")
+application.config.update(HEALTHZ=HEALTHZ)
+
 
 if __name__ == "__main__":
     """

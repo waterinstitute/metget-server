@@ -15,5 +15,5 @@ RUN pip install --break-system-packages /tmp/api/. && rm -rf /tmp/metget_api
 ENTRYPOINT ["gunicorn"]
 CMD ["-w","4","metget_api.api:application","--bind","0.0.0.0:8080","--timeout","120"]
 
-# ENTRYPOINT ["python3"]
-# CMD [ "-m", "flask", "--app", "metget_api.api:application", "run" ]
+#ENTRYPOINT ["python3"]
+#CMD [ "-m", "flask", "--app", "metget_api.api:application", "run", "--port", "8080", "--host", "0.0.0.0" ]

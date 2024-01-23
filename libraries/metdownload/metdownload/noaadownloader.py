@@ -69,7 +69,7 @@ class NoaaDownloader:
         Constructor for the NoaaDownloader class. Initializes the class variables
 
             Args:
-                mettype (str): Type of metetrology that is to be downloaded
+                mettype (str): Type of meteorology that is to be downloaded
                 address (str): Server address
                 begin (datetime): start date for downloaded
                 end (datetime): end date for downloading

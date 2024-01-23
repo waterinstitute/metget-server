@@ -27,6 +27,7 @@ dependencies = [
     "flask-limiter",
     "flask-restful",
     "flask-cors",
+    "flask-healthz",
     "pika",
     "python-dateutil"
 ]
