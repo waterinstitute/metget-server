@@ -66,15 +66,13 @@ class NcepGefsdownloader(NoaaDownloader):
 
     # ...In the case of GEFS, we need to reimplement this function because we have to deal with ensemble members
     def _download_aws_big_data(self):
+        import logging
         from datetime import datetime, timedelta
-
-        import boto3
 
         from .metdb import Metdb
 
-        s3 = boto3.resource("s3")
-        client = boto3.client("s3")
-        bucket = s3.Bucket(self.big_data_bucket())
+        log = logging.getLogger(__name__)
+
         begin = datetime(
             self.begin_date().year,
             self.begin_date().month,
@@ -90,25 +88,27 @@ class NcepGefsdownloader(NoaaDownloader):
 
         pairs = []
         for d in date_range:
+            if self.verbose():
+                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)
-                objects = bucket.objects.filter(Prefix=prefix)
                 cycle_date = d + timedelta(hours=h)
-                for obj in objects:
-                    if obj.key[-4:] == ".idx":
+                for this_obj in self.list_objects(prefix):
+                    if this_obj[-4:] == ".idx":
                         continue
 
-                    keys = obj.key.split("/")
+                    keys = this_obj.split("/")
                     member = keys[4][2:5]
                     if member not in self.members():
                         continue
 
-                    forecast_hour = self._filename_to_hour(obj.key)
+                    forecast_hour = self._filename_to_hour(this_obj)
                     forecast_date = cycle_date + timedelta(hours=forecast_hour)
                     pairs.append(
                         {
-                            "grb": obj.key,
-                            "inv": obj.key + ".idx",
+                            "grb": this_obj,
+                            "inv": this_obj + ".idx",
                             "cycledate": cycle_date,
                             "forecastdate": forecast_date,
                             "ensemble_member": member,
@@ -121,7 +121,7 @@ class NcepGefsdownloader(NoaaDownloader):
 
         for p in pairs:
             if self.do_archive():
-                file_path, n, err = self.get_grib(p, client)
+                file_path, n, err = self.get_grib(p)
                 nerror += err
                 if file_path:
                     db.add(p, self.met_type(), file_path)
