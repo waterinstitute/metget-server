@@ -81,8 +81,8 @@ def rebuild_gefs(start: datetime, end: datetime) -> int:
 def rebuild_hafs(start: datetime, end: datetime) -> int:
     log = logging.getLogger(__name__)
 
-    n_added_a, _ = rebuild_hafs_subtype("a", start, end)
-    n_added_b, _ = rebuild_hafs_subtype("b", start, end)
+    n_added_a = rebuild_hafs_subtype("a", start, end)
+    n_added_b = rebuild_hafs_subtype("b", start, end)
 
     n = n_added_a + n_added_b
 
