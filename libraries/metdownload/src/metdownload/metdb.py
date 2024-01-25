@@ -26,7 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
+import logging
 from datetime import datetime
 from typing import Union
 
@@ -67,8 +67,14 @@ class Metdb:
         Args:
             orm_object (object): The object to be added to the list of objects to be committed
         """
+        log = logging.getLogger(__name__)
         self.__session_objects.append(orm_object)
         if len(self.__session_objects) >= self.__max_uncommitted:
+            log.info(
+                "Committing {} objects since threshold was reached".format(
+                    len(self.__session_objects)
+                )
+            )
             self.commit()
 
     def get_nhc_md5(  # noqa: PLR0913
