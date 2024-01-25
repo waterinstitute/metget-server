@@ -28,7 +28,7 @@
 ###################################################################################################
 import logging
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Union
 
 from metbuild.metfileattributes import MetFileAttributes
 from metbuild.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
@@ -84,9 +84,9 @@ class HafsDownloader(NoaaDownloader):
         bucket = s3.Bucket(self.big_data_bucket())
         paginator = client.get_paginator("list_objects_v2")
         begin = datetime(
-            self.begindate().year, self.begindate().month, self.begindate().day
+            self.begin_date().year, self.begin_date().month, self.begin_date().day
         )
-        end = datetime(self.enddate().year, self.enddate().month, self.enddate().day)
+        end = datetime(self.end_date().year, self.end_date().month, self.end_date().day)
         date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
         n = 0
@@ -148,7 +148,7 @@ class HafsDownloader(NoaaDownloader):
                                     ],
                                 }
                                 path_found = self.database().has(
-                                    self.mettype(), metadata
+                                    self.met_type(), metadata
                                 )
 
                                 if not path_found:
@@ -164,7 +164,7 @@ class HafsDownloader(NoaaDownloader):
                                     ]
                                     filepath_str = ",".join(filepath)
                                     self.database().add(
-                                        metadata, self.mettype(), filepath_str
+                                        metadata, self.met_type(), filepath_str
                                     )
                                     n += 1
 
@@ -212,13 +212,13 @@ class HafsDownloader(NoaaDownloader):
             if fpaths:
                 num_download = num_download + n
                 filepath_join = ",".join(fpaths)
-                self.database().add(grib_metadata, self.mettype(), filepath_join)
+                self.database().add(grib_metadata, self.met_type(), filepath_join)
 
         return num_download
 
     def get_grib_files(  # noqa: PLR0915
         self, info: dict, client=None
-    ) -> Tuple[list, int, int]:
+    ) -> Tuple[Union[list, None], int, int]:
         import logging
         import os
         import tempfile
@@ -258,14 +258,14 @@ class HafsDownloader(NoaaDownloader):
                 month = info["cycledate"].strftime("%m")
                 day = info["cycledate"].strftime("%d")
 
-                destination_folder = os.path.join(self.mettype(), year, month, day)
+                destination_folder = os.path.join(self.met_type(), year, month, day)
                 file_location = os.path.join(tempfile.gettempdir(), filename)
                 metadata = {
                     "name": info["name"],
                     "cycledate": info["cycledate"],
                     "forecastdate": info["forecastdate"],
                 }
-                pathfound = self.database().has(self.mettype(), metadata)
+                pathfound = self.database().has(self.met_type(), metadata)
                 if not pathfound:
                     logger.info(
                         "Downloading File: {:s} (F: {:s}, T: {:s})".format(
