@@ -154,48 +154,44 @@ class Triangulation:
             log.info("No interpolation weights found")
             self.__compute_interpolation_weights(x_points, y_points)
 
-        return self.__interpolate_values(
-            z_points,
-            self.__interpolation_indexes,
-            self.__interpolation_weights,
-            self.__triangulation,
-        )
+        return self.__interpolate_values(z_points)
 
-    @staticmethod
-    @njit
-    def __interpolate_values(
-        z_points: np.ndarray,
-        interpolation_indexes: np.ndarray,
-        interpolation_weights: np.ndarray,
-        triangulation: np.ndarray,
-    ) -> np.ndarray:
+    def __interpolate_values(self, z_points: np.ndarray) -> np.ndarray:
         """
         Interpolates the values using the interpolation weights.
 
         Args:
             z_points (np.ndarray): The z-values.
-            interpolation_indexes (np.ndarray): The interpolation indexes.
-            interpolation_weights (np.ndarray): The interpolation weights.
-            triangulation (np.ndarray): The triangulation.
 
         Returns:
             np.ndarray: The interpolated values.
         """
 
-        interpolated_values = np.zeros(interpolation_indexes.shape, dtype=np.float64)
-        for i in range(interpolation_indexes.shape[0]):
-            for j in range(interpolation_indexes.shape[1]):
-                if interpolation_indexes[i, j] >= 0:
-                    interpolated_values[i, j] = (
-                        interpolation_weights[i, j, 0]
-                        * z_points[triangulation[interpolation_indexes[i, j], 0]]
-                        + interpolation_weights[i, j, 1]
-                        * z_points[triangulation[interpolation_indexes[i, j], 1]]
-                        + interpolation_weights[i, j, 2]
-                        * z_points[triangulation[interpolation_indexes[i, j], 2]]
-                    )
-                else:
-                    interpolated_values[i, j] = np.nan
+        interpolated_values = np.full(
+            self.__interpolation_indexes.shape, np.nan, dtype=np.float64
+        )
+
+        interpolated_values[self.__interpolation_mask] = (
+            self.__interpolation_weights[self.__interpolation_mask, 0]
+            * z_points[
+                self.__triangulation[
+                    self.__interpolation_indexes[self.__interpolation_mask], 0
+                ]
+            ]
+            + self.__interpolation_weights[self.__interpolation_mask, 1]
+            * z_points[
+                self.__triangulation[
+                    self.__interpolation_indexes[self.__interpolation_mask], 1
+                ]
+            ]
+            + self.__interpolation_weights[self.__interpolation_mask, 2]
+            * z_points[
+                self.__triangulation[
+                    self.__interpolation_indexes[self.__interpolation_mask], 2
+                ]
+            ]
+        )
+
         return interpolated_values
 
     def __generate_kdtree(self) -> cKDTree:
@@ -329,3 +325,4 @@ class Triangulation:
 
         self.__interpolation_indexes = indexes
         self.__interpolation_weights = weights
+        self.__interpolation_mask = self.__interpolation_indexes >= 0
