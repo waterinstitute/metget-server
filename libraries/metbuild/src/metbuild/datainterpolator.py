@@ -237,8 +237,6 @@ class DataInterpolator:
         Returns:
             xr.Dataset: The interpolated data.
         """
-        from matplotlib.tri import LinearTriInterpolator
-
         from .triangulation import Triangulation
 
         constraints, points = self.__get_dataset_points_and_edges(data_item)
@@ -254,17 +252,15 @@ class DataInterpolator:
                 "longitude": (["longitude"], self.x()),
             }
         )
+
         for var in data_item.dataset():
             if var in ("latitude", "longitude"):
                 continue
 
-            interpolator = LinearTriInterpolator(
-                self.__triangulation.triangulation(),
-                data_item.dataset()[var].to_numpy(),
-            )
-
             ds = xr.DataArray(
-                interpolator(self.x2d(), self.y2d()),
+                self.__triangulation.interpolate(
+                    self.x2d(), self.y2d(), data_item.dataset()[var].to_numpy()
+                ),
                 dims=["latitude", "longitude"],
             )
             ds.attrs = data_item.dataset()[var].attrs

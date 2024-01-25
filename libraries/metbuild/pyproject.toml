@@ -30,7 +30,8 @@ dependencies = [
     "shapely",
     "schema",
     "scipy",
-    "triangle"
+    "triangle",
+    "numba"
 ]
 
 [project.urls]
