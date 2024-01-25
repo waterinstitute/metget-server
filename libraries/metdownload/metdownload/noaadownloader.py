@@ -617,7 +617,7 @@ class NoaaDownloader:
 
         for response in response_iterator:
             if "Contents" in response:
-                yield from response["Contents"]["Key"]
+                yield from response["Contents"]
 
     def _download_aws_big_data(self) -> int:
         """
@@ -650,7 +650,8 @@ class NoaaDownloader:
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)
                 cycle_date = d + timedelta(hours=h)
-                for this_obj in self.list_objects(prefix):
+                for this_obj_s3 in self.list_objects(prefix):
+                    this_obj = this_obj_s3["Key"]
                     if ".idx" in this_obj:
                         continue
                     forecast_hour = self._filename_to_hour(this_obj)

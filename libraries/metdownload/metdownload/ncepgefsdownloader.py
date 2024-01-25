@@ -94,7 +94,8 @@ class NcepGefsdownloader(NoaaDownloader):
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)
                 cycle_date = d + timedelta(hours=h)
-                for this_obj in self.list_objects(prefix):
+                for this_obj_s3 in self.list_objects(prefix):
+                    this_obj = this_obj_s3["Key"]
                     if this_obj[-4:] == ".idx":
                         continue
 
