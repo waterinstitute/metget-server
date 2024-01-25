@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List
 
 from geojson import FeatureCollection
-from sqlalchemy.orm import Session
 
 
 def rebuild_gfs(start: datetime, end: datetime) -> int:
@@ -89,28 +88,6 @@ def rebuild_hafs(start: datetime, end: datetime) -> int:
     log.info(f"NCEP-HAFS complete. {n:d} files added ")
 
     return n
-
-
-def has_hafs_data(  # noqa: PLR0913
-    session: Session,
-    table,
-    storm_name: str,
-    cycle_time: datetime,
-    forecast_time: datetime,
-    tau: int,
-) -> bool:
-    has_hafs = (
-        session.query(table)
-        .filter(
-            table.stormname == storm_name,
-            table.forecastcycle == cycle_time,
-            table.forecasttime == forecast_time,
-            table.tau == tau,
-        )
-        .count()
-    )
-
-    return has_hafs > 0
 
 
 def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:

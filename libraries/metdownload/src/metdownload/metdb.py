@@ -41,13 +41,35 @@ class Metdb:
 
         self.__database = Database()
         self.__session = self.__database.session()
+        self.__session_objects = []
+        self.__max_uncommitted = 100000
 
     def __del__(self):
         """
         Destructor for the metdb class. The destructor will
         close the database connection
         """
+        self.commit()
         del self.__database
+
+    def commit(self):
+        """
+        Commit the database session
+        """
+        self.__session.bulk_save_objects(self.__session_objects)
+        self.__session.commit()
+        self.__session_objects = []
+
+    def __add_delayed_object(self, orm_object) -> None:
+        """
+        Add an object to the list of objects to be committed in bulk later
+
+        Args:
+            orm_object (object): The object to be added to the list of objects to be committed
+        """
+        self.__session_objects.append(orm_object)
+        if len(self.__session_objects) >= self.__max_uncommitted:
+            self.commit()
 
     def get_nhc_md5(  # noqa: PLR0913
         self, mettype: str, year: int, basin: str, storm: str, advisory: int = 0
@@ -525,8 +547,7 @@ class Metdb:
                 url=url,
                 accessed=datetime.now(),
             )
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
 
     def __add_record_gefs_ncep(self, filepath: str, metadata: dict) -> None:
         """
@@ -564,8 +585,7 @@ class Metdb:
                 url=url,
                 accessed=datetime.now(),
             )
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
 
     def __add_record_nhc_btk(self, filepath: str, metadata: dict) -> None:
         """
@@ -606,8 +626,7 @@ class Metdb:
                 geometry_data=geojson,
             )
 
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
 
         else:
             # Update the record
@@ -680,14 +699,14 @@ class Metdb:
                 accessed=datetime.utcnow(),
                 geometry_data=geojson,
             )
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
         else:
             record.advisory_start = start
             record.advisory_end = end
             record.advisory_duration_hr = duration
             record.geometry_data = geojson
             record.md5 = md5
+            self.__session.commit()
 
     def __add_record_hafs(self, datatype: str, filepath: str, metadata: dict) -> None:
         """
@@ -741,8 +760,7 @@ class Metdb:
                 msg = f"Invalid Type: {datatype:s}"
                 raise RuntimeError(msg)
 
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
 
     def __add_record_hwrf(self, filepath: str, metadata: dict) -> None:
         """
@@ -781,8 +799,7 @@ class Metdb:
                 accessed=datetime.now(),
             )
 
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
 
     def __add_record_coamps(self, filepath: str, metadata: dict) -> None:
         """
@@ -818,8 +835,7 @@ class Metdb:
                 tau=tau,
                 accessed=datetime.now(),
             )
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
 
     def __add_record_ctcx(self, filepath: str, metadata: dict) -> None:
         """
@@ -857,8 +873,7 @@ class Metdb:
                 tau=tau,
                 accessed=datetime.now(),
             )
-            self.__session.add(record)
-            self.__session.commit()
+            self.__add_delayed_object(record)
 
     @staticmethod
     def __generate_nhc_vars_from_dict(metadata: dict) -> tuple:
