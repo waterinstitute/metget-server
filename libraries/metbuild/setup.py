@@ -50,5 +50,6 @@ setup(
         "cfgrib",
         "geopandas",
         "shapely",
+        "schema",
     ],
 )
