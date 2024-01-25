@@ -600,7 +600,7 @@ class NoaaDownloader:
         msg = "Override method not implemented"
         raise NotImplementedError(msg)
 
-    def __list_objects(self, prefix: str):
+    def list_objects(self, prefix: str):
         """
         Returns a paginator for the objects in the bucket
 
@@ -650,7 +650,7 @@ class NoaaDownloader:
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)
                 cycle_date = d + timedelta(hours=h)
-                for this_obj in self.__list_objects(prefix):
+                for this_obj in self.list_objects(prefix):
                     if ".idx" in this_obj:
                         continue
                     forecast_hour = self._filename_to_hour(this_obj)
