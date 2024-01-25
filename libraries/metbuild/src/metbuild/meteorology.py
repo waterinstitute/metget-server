@@ -218,6 +218,13 @@ class Meteorology:
                 apply_filter=False,
             )
 
+            # ...Check if the triangulation was not yet computed in interpolation_2
+            # ...If so, copy the triangulation from interpolation_1
+            if self.__interpolation_2.triangulation() is None:
+                self.__interpolation_2.set_triangulation(
+                    self.__interpolation_1.triangulation()
+                )
+
         self.__interpolation_result_2 = self.__interpolation_2.interpolate(
             f_obj=self.__file_2,
             variable_type=self.__data_type_key,
