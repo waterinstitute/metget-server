@@ -76,10 +76,15 @@ class NcepGefsdownloader(NoaaDownloader):
         client = boto3.client("s3")
         bucket = s3.Bucket(self.big_data_bucket())
         begin = datetime(
-            self.begindate().year, self.begindate().month, self.begindate().day, 0, 0, 0
+            self.begin_date().year,
+            self.begin_date().month,
+            self.begin_date().day,
+            0,
+            0,
+            0,
         )
         end = datetime(
-            self.enddate().year, self.enddate().month, self.enddate().day, 0, 0, 0
+            self.end_date().year, self.end_date().month, self.end_date().day, 0, 0, 0
         )
         date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
@@ -116,14 +121,14 @@ class NcepGefsdownloader(NoaaDownloader):
 
         for p in pairs:
             if self.do_archive():
-                file_path, n, err = self.getgrib(p, client)
+                file_path, n, err = self.get_grib(p, client)
                 nerror += err
                 if file_path:
-                    db.add(p, self.mettype(), file_path)
+                    db.add(p, self.met_type(), file_path)
                     num_download += n
             else:
                 filepath = "s3://{:s}/{:s}".format(self.big_data_bucket(), p["grb"])
                 num_download += 1
-                db.add(p, self.mettype(), filepath)
+                db.add(p, self.met_type(), filepath)
 
         return num_download
