@@ -58,6 +58,27 @@ spec:
       - image: {{ .Values.containers.database.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
         name: {{ .Release.Name }}-database
+        resources:
+          requests:
+            memory: 4Gi
+          limits:
+            memory: 5Gi
+        livenessProbe:
+          exec:
+            command: [ "pg_isready" ]
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 3
+          failureThreshold: 5
+          successThreshold: 1
+        readinessProbe:
+          exec:
+            command: [ "pg_isready" ]
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+          periodSeconds: 3
+          failureThreshold: 5
+          successThreshold: 1
         env:
         - name: POSTGRES_PASSWORD
           valueFrom:
