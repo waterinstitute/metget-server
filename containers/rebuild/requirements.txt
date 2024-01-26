@@ -1,9 +1,0 @@
-psycopg2
-requests
-boto3
-bs4
-feedparser
-certifi
-geojson
-netCDF4
-h5py
