@@ -1,7 +1,7 @@
 FROM ubuntu:23.10
 
-RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip \
-    openssl libpq-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip openssl \
+    libgdal-dev libpq-dev libeccodes-dev vim && rm -rf /var/lib/apt/lists/*
 
 COPY libraries/triangle/src /tmp/triangle/.
 RUN pip install --break-system-packages /tmp/triangle/. && rm -rf /tmp/triangle
