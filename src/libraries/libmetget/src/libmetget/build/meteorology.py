@@ -50,39 +50,24 @@ class Meteorology:
             source_key (MeteorologicalSource): The meteorological source
             data_type_key (VariableType): The variable type
             backfill (bool): Whether to backfill missing data
+            domain_level (int): The domain level
             epsg (int): The EPSG code of the output grid
         """
 
         import xarray as xr
 
-        if "grid" in kwargs:
-            self.__grid = kwargs["grid"]
-        else:
-            msg = "Missing required argument: grid"
-            raise ValueError(msg)
-
-        if "source_key" in kwargs:
-            self.__source_key = kwargs["source_key"]
-        else:
-            msg = "Missing required argument: source_key"
-            raise ValueError(msg)
-
-        if "data_type_key" in kwargs:
-            self.__data_type_key = kwargs["data_type_key"]
-        else:
-            msg = "Missing required argument: data_type_key"
-            raise ValueError(msg)
-
-        if "backfill" in kwargs:
-            self.__backfill = kwargs["backfill"]
-        else:
-            msg = "Missing required argument: backfill"
-            raise ValueError(msg)
-
-        if "epsg" in kwargs:
-            self.__epsg = kwargs["epsg"]
-        else:
-            msg = "Missing required argument: epsg"
+        # Check for missing keys
+        required_keys = [
+            "grid",
+            "source_key",
+            "data_type_key",
+            "backfill",
+            "domain_level",
+            "epsg",
+        ]
+        missing_keys = [key for key in required_keys if key not in kwargs]
+        if missing_keys:
+            msg = f"Missing required arguments: {', '.join(missing_keys)}"
             raise ValueError(msg)
 
         # Type checks
@@ -91,6 +76,7 @@ class Meteorology:
             ("source_key", MeteorologicalSource),
             ("data_type_key", VariableType),
             ("backfill", bool),
+            ("domain_level", int),
             ("epsg", int),
         ]
 
@@ -99,10 +85,20 @@ class Meteorology:
                 msg = f"Invalid argument type: {arg}"
                 raise TypeError(msg)
 
+        # Initialize required attributes
+        self.__grid = kwargs["grid"]
+        self.__source_key = kwargs["source_key"]
+        self.__data_type_key = kwargs["data_type_key"]
+        self.__backfill = kwargs["backfill"]
+        self.__domain_level = kwargs["domain_level"]
+        self.__epsg = kwargs["epsg"]
+
         # Initialize other attributes
         self.__file_1: Union[None, FileObj] = None
         self.__file_2: Union[None, FileObj] = None
-        self.__interpolation_1 = DataInterpolator(self.__grid, self.__backfill)
+        self.__interpolation_1 = DataInterpolator(
+            self.__grid, self.__backfill, self.__domain_level
+        )
         self.__interpolation_2 = copy.deepcopy(self.__interpolation_1)
         self.__interpolation_result_1: Union[None, xr.Dataset] = None
         self.__interpolation_result_2: Union[None, xr.Dataset] = None

@@ -59,6 +59,7 @@ class Domain:
         Args:
             name: The name of the domain
             service: The service used to generate the domain
+            domain_level: The domain level
             json: The json object containing the domain information
         """
         from .output.gridfactory import grid_factory

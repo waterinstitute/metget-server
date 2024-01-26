@@ -663,6 +663,7 @@ class MessageHandler:
             source_key=source_key,
             data_type_key=data_type_key,
             backfill=input_data.backfill(),
+            domain_level=input_data.domain(domain_index).domain_level(),
             epsg=input_data.epsg(),
         )
 
