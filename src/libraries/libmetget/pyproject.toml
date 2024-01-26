@@ -1,0 +1,58 @@
+[project]
+name = "libmetget"
+version = "0.0.1"
+description = "Package for MetGet MetBuild library"
+authors = [
+    { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
+]
+license = { text = "MIT" }
+requires-python = ">=3.8"
+keywords = [ "forecast", "meteorology", "stormsurge" ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Hydrology",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    'boto3',
+    'bs4',
+    'certifi',
+    'cfgrib',
+    'feedparser',
+    'geojson',
+    'geopandas',
+    'h5py',
+    'matplotlib',
+    'netCDF4',
+    'numba',
+    'numpy',
+    'psycopg2',
+    'python-dateutil',
+    'requests',
+    'schema',
+    'scipy',
+    'shapely',
+    'sqlalchemy',
+    'triangle',
+    'xarray'
+]
+
+[project.urls]
+"Homepage" = "https://github.com/waterinstitute/metget-server"
+"Bug Reports" = "https://github.com/waterinstitute/metget-server/issues"
+"Source" = "https://github.com/waterinstitute/metget-server"
+
+[build-system]
+requires = [ "setuptools >= 61.0.0", "wheel" ]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = [ "src" ]
+
+[tool.setuptools.dynamic]
+version = { attr = "libmetget.__version__" }

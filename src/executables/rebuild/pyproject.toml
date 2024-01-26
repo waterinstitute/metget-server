@@ -1,0 +1,38 @@
+[project]
+name = "metget_rebuild"
+version = "0.0.1"
+description = "Package for rebuilding metget databases"
+authors = [
+    { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
+]
+license = { text = "MIT" }
+requires-python = ">=3.8"
+keywords = [ "forecast", "meteorology", "stormsurge" ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Hydrology",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "libmetget"
+]
+
+[project.scripts]
+metget-rebuild = "metget_rebuild.rebuild:rebuilder"
+
+[project.urls]
+"Homepage" = "https://github.com/waterinstitute/metget-server"
+"Bug Reports" = "https://github.com/waterinstitute/metget-server/issues"
+"Source" = "https://github.com/waterinstitute/metget-server"
+
+[build-system]
+requires = [ "setuptools >= 61.0.0", "wheel" ]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = [ "src" ]
