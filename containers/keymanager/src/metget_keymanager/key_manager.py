@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ###################################################################################################
 # MIT License
 #
@@ -259,7 +258,7 @@ def list_keys():
     print(table)
 
 
-def main():
+def key_manager():
     """
     Main function
     """
@@ -297,4 +296,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    key_manager()
