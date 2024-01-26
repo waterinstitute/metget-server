@@ -130,7 +130,8 @@ class MessageHandler:
             "output_files": output_info["output_files"],
         }
 
-        output_obj.close()
+        if output_obj is not None:
+            output_obj.close()
 
         # ...Posts the data out to the correct S3 location
         self.__upload_files_to_s3(

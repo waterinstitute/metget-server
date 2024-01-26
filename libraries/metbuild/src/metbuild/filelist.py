@@ -139,6 +139,9 @@ class Filelist:
 
         log = logging.getLogger(__name__)
 
+        if self.__service == "nhc":
+            return
+
         # ...If the parameter is an accumulated parameter, we need tau to be greater than 0
         service_var = Filelist.__get_service_type(self.__service)
 
