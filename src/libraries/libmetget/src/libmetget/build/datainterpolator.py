@@ -51,6 +51,7 @@ class DataInterpolator:
         self,
         grid: OutputGrid,
         backfill_flag: bool,
+        domain_level: int,
         triangulation: Union[Triangulation, None] = None,
     ):
         """
@@ -59,6 +60,7 @@ class DataInterpolator:
         Args:
             grid (OutputGrid): The grid to interpolate to.
             backfill_flag (bool): Whether to backfill missing data.
+            domain_level (int): The domain level of the data.
             triangulation (Triangulation): The triangulation to use for interpolation.
 
         Returns:
@@ -68,6 +70,7 @@ class DataInterpolator:
         self.__x = self.__grid.x_column(convert_360=True)
         self.__y = self.__grid.y_column()
         self.__backfill_flag = backfill_flag
+        self.__domain_level = domain_level
         self.__triangulation = triangulation
 
     def grid(self) -> OutputGrid:
@@ -198,7 +201,7 @@ class DataInterpolator:
         """
         variable_list = variable_type.select()
         for var in variable_list:
-            if self.__backfill_flag:
+            if self.__backfill_flag and self.__domain_level != 0:
                 default_value = var.fill_value()
             else:
                 default_value = var.default_value()

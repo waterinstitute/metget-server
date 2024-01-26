@@ -396,12 +396,12 @@ class Input:
                 log.error("Request dates are not valid")
                 self.__valid = False
 
-            ndomain = len(self.__json["domains"])
-            if ndomain == 0:
+            num_domains = len(self.__json["domains"])
+            if num_domains == 0:
                 msg = "You must specify one or more domains"
                 log.error(msg)
                 raise RuntimeError(msg)
-            for i in range(ndomain):
+            for i in range(num_domains):
                 name = self.__json["domains"][i]["name"]
                 service = self.__json["domains"][i]["service"]
                 d = Domain(

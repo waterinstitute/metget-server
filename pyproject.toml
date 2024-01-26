@@ -1,6 +1,6 @@
 [project]
 name = "metget-server"
-version = "0.0.0"
+version = "0.0.1"
 description = "MetGet-Server Package"
 authors = [
     { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
@@ -28,8 +28,8 @@ classifiers = [
 current_version = "0.0.0"
 version_pattern = 'MAJOR.MINOR.PATCH[PYTAGNUM]'
 commit_message = "bump version {old_version} -> {new_version}"
-commit = false
-tag = false
+commit = true
+tag = true
 push = false
 
 [tool.bumpver.file_patterns]
