@@ -99,7 +99,7 @@ class Triangulation:
         Returns:
             np.array: The triangulation.
         """
-        import triangle as tri
+        from triangle import tri
 
         log = logging.getLogger(__name__)
 
