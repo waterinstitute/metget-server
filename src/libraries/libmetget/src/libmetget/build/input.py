@@ -407,6 +407,7 @@ class Input:
                 d = Domain(
                     name,
                     service,
+                    i,
                     self.__json["domains"][i],
                 )
                 if d.valid():
