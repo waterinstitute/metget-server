@@ -52,7 +52,7 @@ class Domain:
     request
     """
 
-    def __init__(self, name: str, service: str, json: dict):
+    def __init__(self, name: str, service: str, domain_level: int, json: dict):
         """
         Constructor for the Domain class
 
@@ -72,6 +72,7 @@ class Domain:
         self.__advisory = None
         self.__storm_year = None
         self.__tau = None
+        self.__domain_level = domain_level
         if self.__service not in VALID_SERVICES:
             log.warning(
                 f"Domain invalid because {self.__service:s} is not a valid service"
@@ -196,6 +197,15 @@ class Domain:
             True if the domain is valid, False otherwise
         """
         return self.__valid
+
+    def domain_level(self) -> int:
+        """
+        Returns the domain level
+
+        Returns:
+            The domain level
+        """
+        return self.__domain_level
 
     def __get_storm(self) -> None:
         """

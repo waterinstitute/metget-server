@@ -282,7 +282,7 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-        from ..enum import MetDataType
+        from ...sources.metdatatype import MetDataType
 
         keys = variable_type.select()
 

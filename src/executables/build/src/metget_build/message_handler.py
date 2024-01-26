@@ -396,16 +396,29 @@ class MessageHandler:
         d = input_data.domain(index)
         output_format = input_data.format()
         if output_format in ("ascii", "owi-ascii", "adcirc-ascii"):
+            domain_level_string = f"_{d.domain_level():02d}"
             if input_data.data_type() == "wind_pressure":
-                fn1 = input_data.filename() + "_" + f"{index:02d}" + ".pre"
-                fn2 = input_data.filename() + "_" + f"{index:02d}" + ".wnd"
+                fn1 = (
+                    input_data.filename()
+                    + "_"
+                    + f"{index:02d}"
+                    + domain_level_string
+                    + ".pre"
+                )
+                fn2 = (
+                    input_data.filename()
+                    + "_"
+                    + f"{index:02d}"
+                    + domain_level_string
+                    + ".wnd"
+                )
                 fns = [fn1, fn2]
             elif input_data.data_type() == "rain":
-                fns = [input_data.filename() + ".precip"]
+                fns = [input_data.filename() + domain_level_string + ".precip"]
             elif input_data.data_type() == "humidity":
-                fns = [input_data.filename() + ".humid"]
+                fns = [input_data.filename() + domain_level_string + ".humid"]
             elif input_data.data_type() == "ice":
-                fns = [input_data.filename() + ".ice"]
+                fns = [input_data.filename() + domain_level_string + ".ice"]
             else:
                 msg = "Invalid variable requested"
                 raise RuntimeError(msg)
@@ -592,6 +605,10 @@ class MessageHandler:
             output_file_list = output_file_list[0]
 
         if isinstance(output_file_list, list):
+            if isinstance(output_file_list[0], list):
+                output_file_list = [
+                    item for sublist in output_file_list for item in sublist
+                ]
             log.info("Generated output files: {:s}".format(", ".join(output_file_list)))
         else:
             log.info(f"Generated output file: {output_file_list:s}")
