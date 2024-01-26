@@ -13,7 +13,7 @@ RUN pip install --break-system-packages /tmp/triangle/. && rm -rf /tmp/triangle
 COPY libraries/metbuild /tmp/metbuild/.
 RUN pip install --break-system-packages /tmp/metbuild/. && rm -rf /tmp/metbuild
 
-COPY containers/rebuild /tmp/metbuild_run/.
-RUN pip install --break-system-packages /tmp/metbuild_run/. && rm -rf /tmp/metbuild_run
+COPY containers/rebuild /tmp/metbuild_rebuild/.
+RUN pip install --break-system-packages /tmp/metbuild_rebuild/. && rm -rf /tmp/metbuild_rebuild
 
 WORKDIR /app
