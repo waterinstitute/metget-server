@@ -1,19 +1,17 @@
 FROM ubuntu:23.10
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip openssl \
     libgdal-dev libpq-dev libeccodes-dev vim && rm -rf /var/lib/apt/lists/*
 
-COPY libraries/metdownload /tmp/metdownload/.
-RUN pip install --break-system-packages /tmp/metdownload/. && rm -rf /tmp/metdownload
-
-COPY libraries/triangle/src /tmp/triangle/.
+COPY src/libraries/triangle/src /tmp/triangle/.
 RUN pip install --break-system-packages /tmp/triangle/. && rm -rf /tmp/triangle
 
-COPY libraries/metbuild /tmp/metbuild/.
-RUN pip install --break-system-packages /tmp/metbuild/. && rm -rf /tmp/metbuild
-WORKDIR /app
+COPY src/libraries/libmetget/ /tmp/libmetget/.
+RUN pip install --break-system-packages /tmp/libmetget/. && rm -rf /tmp/libmetget
 
-COPY containers/api /tmp/api/.
+COPY src/executables/api /tmp/api/.
 RUN pip install --break-system-packages /tmp/api/. && rm -rf /tmp/metget_api
 
 ENTRYPOINT ["gunicorn"]
