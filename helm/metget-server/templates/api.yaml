@@ -29,19 +29,13 @@ spec:
             path: /healthz/live
             port: 8080
           initialDelaySeconds: 15
-          periodSeconds: 30
+          periodSeconds: 5
         readinessProbe:
           httpGet:
             path: /healthz/ready
             port: 8080
           initialDelaySeconds: 15
-          periodSeconds: 30
-        startupProbe:
-          httpGet:
-            path: /healthz/ready
-            port: 8080
-          initialDelaySeconds: 15
-          periodSeconds: 30
+          periodSeconds: 5
         env:
         - name: METGET_DATABASE_USER
           valueFrom:
