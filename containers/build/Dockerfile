@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip ope
 COPY libraries/metdownload /tmp/metdownload/.
 RUN pip install --break-system-packages /tmp/metdownload/. && rm -rf /tmp/metdownload
 
+COPY libraries/triangle/src /tmp/triangle/.
+RUN pip install --break-system-packages /tmp/triangle/. && rm -rf /tmp/triangle
+
 COPY libraries/metbuild /tmp/metbuild/.
 RUN pip install --break-system-packages /tmp/metbuild/. && rm -rf /tmp/metbuild
 
