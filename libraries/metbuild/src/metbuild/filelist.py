@@ -118,9 +118,6 @@ class Filelist:
         ) and self.__storm is not None:
             msg = "storm must be of type int"
             raise TypeError(msg)
-        if not isinstance(self.__advisory, int) and self.__advisory is not None:
-            msg = "advisory must be of type int"
-            raise TypeError(msg)
         if not isinstance(self.__nowcast, bool):
             msg = "nowcast must be of type bool"
             raise TypeError(msg)
