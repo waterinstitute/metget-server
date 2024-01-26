@@ -1,8 +1,7 @@
 FROM ubuntu:23.10
 
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip openssl libpq-dev
+RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip openssl \
+    libgdal-dev libpq-dev libeccodes-dev vim && rm -rf /var/lib/apt/lists/*
 
 COPY libraries/metdownload /tmp/metdownload/.
 RUN pip install --break-system-packages /tmp/metdownload/. && rm -rf /tmp/metdownload
