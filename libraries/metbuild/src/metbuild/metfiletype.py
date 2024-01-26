@@ -294,8 +294,8 @@ HRRR_CONUS = MetFileAttributes(
             "long_name": "PRATE",
             "var_name": "prate",
             "grib_name": "prate",
-            "scale": 1.0,
-            "is_accumulated": False,
+            "scale": 3600.0,
+            "is_accumulated": True,
         },
         MetDataType.HUMIDITY: {
             "type": MetDataType.HUMIDITY,
