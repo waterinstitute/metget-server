@@ -153,11 +153,16 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
+        if self.fid() is None:
+            return
+
         if isinstance(self.fid(), TextIO):
-            self.fid().close()
+            if self.fid() is not None:
+                self.fid().close()
         elif isinstance(self.fid(), list):
             for fid in self.fid():
-                fid.close()
+                if fid is not None:
+                    fid.close()
         else:
             msg = f"Invalid file id type: {type(self.fid())}"
             raise TypeError(msg)

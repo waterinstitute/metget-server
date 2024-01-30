@@ -27,6 +27,7 @@
 #
 ###################################################################################################
 
+from ..database.tables import TableBase
 from .metdatatype import MetDataType
 from .metfileformat import MetFileFormat
 from .variabletype import VariableType
@@ -57,6 +58,7 @@ class MetFileAttributes:
         required_args = [
             "name",
             "table",
+            "table_obj",
             "file_format",
             "bucket",
             "variables",
@@ -70,6 +72,7 @@ class MetFileAttributes:
 
         self.__name = kwargs.get("name", None)
         self.__table = kwargs.get("table", None)
+        self.__table_obj = kwargs.get("table_obj", None)
         self.__file_format = kwargs.get("file_format", None)
         self.__bucket = kwargs.get("bucket", None)
         self.__variables = kwargs.get("variables", None)
@@ -113,6 +116,15 @@ class MetFileAttributes:
             str: The table name of the meteorological file.
         """
         return self.__table
+
+    def table_obj(self) -> TableBase:
+        """
+        Returns the table object
+
+        Returns:
+            TableBase: The table object
+        """
+        return self.__table_obj
 
     def bucket(self) -> str:
         """
