@@ -27,6 +27,19 @@
 #
 ###################################################################################################
 
+from ..database.tables import (
+    CoampsTable,
+    CtcxTable,
+    GefsTable,
+    GfsTable,
+    HafsATable,
+    HafsBTable,
+    HrrrAlaskaTable,
+    HrrrTable,
+    HwrfTable,
+    NamTable,
+    WpcTable,
+)
 from .metdatatype import MetDataType
 from .metfileattributes import MetFileAttributes
 from .metfileformat import MetFileFormat
@@ -34,6 +47,7 @@ from .metfileformat import MetFileFormat
 NCEP_GFS = MetFileAttributes(
     name="GFS-NCEP",
     table="gfs_ncep",
+    table_obj=GfsTable,
     file_format=MetFileFormat.GRIB,
     bucket="noaa-gfs-bdp-pds",
     variables={
@@ -107,6 +121,7 @@ NCEP_GFS = MetFileAttributes(
 NCEP_NAM = MetFileAttributes(
     name="NAM-NCEP",
     table="nam_ncep",
+    table_obj=NamTable,
     file_format=MetFileFormat.GRIB,
     bucket="noaa-nam-pds",
     variables={
@@ -171,6 +186,7 @@ NCEP_NAM = MetFileAttributes(
 NCEP_GEFS = MetFileAttributes(
     name="GEFS-NCEP",
     table="gefs_ncep",
+    table_obj=GefsTable,
     file_format=MetFileFormat.GRIB,
     bucket="noaa-gefs-pds",
     variables={
@@ -250,6 +266,7 @@ NCEP_GEFS = MetFileAttributes(
 HRRR_CONUS = MetFileAttributes(
     name="HRRR-CONUS",
     table="hrrr_ncep",
+    table_obj=HrrrTable,
     file_format=MetFileFormat.GRIB,
     bucket="noaa-hrrr-bdp-pds",
     variables={
@@ -323,6 +340,7 @@ HRRR_CONUS = MetFileAttributes(
 HRRR_ALASKA = MetFileAttributes(
     name="HRRR-ALASKA",
     table="hrrr_alaska_ncep",
+    table_obj=HrrrAlaskaTable,
     file_format=MetFileFormat.GRIB,
     bucket="noaa-hrrr-bdp-pds",
     variables=HRRR_CONUS.variables(),
@@ -332,6 +350,7 @@ HRRR_ALASKA = MetFileAttributes(
 NCEP_HWRF = MetFileAttributes(
     name="HWRF",
     table="hwrf",
+    table_obj=HwrfTable,
     file_format=MetFileFormat.GRIB,
     bucket=None,
     variables={
@@ -396,6 +415,7 @@ NCEP_HWRF = MetFileAttributes(
 NCEP_WPC = MetFileAttributes(
     name="WPC",
     table="wpc_ncep",
+    table_obj=WpcTable,
     file_format=MetFileFormat.GRIB,
     bucket=None,
     variables={
@@ -415,6 +435,7 @@ NCEP_WPC = MetFileAttributes(
 NCEP_HAFS_A = MetFileAttributes(
     name="NCEP-HAFS-A",
     table="ncep_hafs_a",
+    table_obj=HafsATable,
     file_format=MetFileFormat.GRIB,
     bucket="noaa-nws-hafs-pds",
     variables={
@@ -479,6 +500,7 @@ NCEP_HAFS_A = MetFileAttributes(
 NCEP_HAFS_B = MetFileAttributes(
     name="NCEP-HAFS-B",
     table="ncep_hafs_b",
+    table_obj=HafsBTable,
     file_format=MetFileFormat.GRIB,
     bucket=NCEP_HAFS_A.bucket(),
     variables=NCEP_HAFS_A.variables(),
@@ -488,6 +510,7 @@ NCEP_HAFS_B = MetFileAttributes(
 COAMPS_TC = MetFileAttributes(
     name="COAMPS-TC",
     table="coamps_tc",
+    table_obj=CoampsTable,
     file_format=MetFileFormat.COAMPS_TC,
     bucket=None,
     variables={
@@ -599,6 +622,16 @@ COAMPS_TC = MetFileAttributes(
     cycles=[0, 6, 12, 18],
 )
 
+COAMPS_CTCX = MetFileAttributes(
+    name="COAMPS-CTCX",
+    table="coamps_ctcx",
+    table_obj=CtcxTable,
+    file_format=MetFileFormat.COAMPS_TC,
+    bucket=None,
+    variables=COAMPS_TC.variables(),
+    cycles=COAMPS_TC.cycles(),
+)
+
 MET_FILE_ATTRIBUTES_LIST = [
     NCEP_GFS,
     NCEP_GEFS,
@@ -610,6 +643,7 @@ MET_FILE_ATTRIBUTES_LIST = [
     NCEP_HAFS_A,
     NCEP_HAFS_B,
     COAMPS_TC,
+    COAMPS_CTCX,
 ]
 
 
@@ -628,3 +662,41 @@ def attributes_from_name(name: str) -> MetFileAttributes:
             return met_file_attributes
     msg = f"Unknown met file attributes name: {name}"
     raise ValueError(msg)
+
+
+def attributes_from_service(service: str) -> MetFileAttributes:
+    """
+    This method is used to get the service type
+
+    Args:
+        service (str): The service to get the type for
+
+    Returns:
+        MetFileAttributes: The service type
+    """
+
+    if service == "gfs-ncep":
+        service_metadata = NCEP_GFS
+    elif service == "nam-ncep":
+        service_metadata = NCEP_NAM
+    elif service == "hrrr-conus":
+        service_metadata = HRRR_CONUS
+    elif service == "hrrr-alaska":
+        service_metadata = HRRR_ALASKA
+    elif service == "gefs-ncep":
+        service_metadata = NCEP_GEFS
+    elif service == "wpc-ncep":
+        service_metadata = NCEP_WPC
+    elif service == "ncep-hafs-a":
+        service_metadata = NCEP_HAFS_A
+    elif service == "ncep-hafs-b":
+        service_metadata = NCEP_HAFS_B
+    elif service == "coamps-tc":
+        service_metadata = COAMPS_TC
+    elif service == "coamps-ctcx":
+        service_metadata = COAMPS_CTCX
+    else:
+        msg = f"Invalid service: '{service:s}'"
+        raise ValueError(msg)
+
+    return service_metadata
