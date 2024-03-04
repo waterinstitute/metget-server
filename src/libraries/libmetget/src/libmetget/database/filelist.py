@@ -226,7 +226,7 @@ class Filelist:
 
         if self.__service == "nhc":
             filelist_obj = FilelistNHC(
-                storm=self.__storm,
+                storm=int(self.__storm),
                 storm_year=self.__storm_year,
                 advisory=self.__advisory,
                 basin=self.__basin,
