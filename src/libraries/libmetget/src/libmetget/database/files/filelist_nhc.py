@@ -54,8 +54,8 @@ class FilelistNHC:
         self.__storm_year: Union[None, int] = kwargs.get("storm_year", None)
         self.__advisory: Union[None, str] = kwargs.get("advisory", None)
 
-        if not isinstance(self.__storm, str):
-            msg = "Storm must be a string"
+        if not isinstance(self.__storm, int):
+            msg = "Storm must be a integer"
             raise ValueError(msg)
 
         if not isinstance(self.__basin, str):
