@@ -26,7 +26,6 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
 from datetime import datetime
 from typing import List, TextIO, Union
 
@@ -153,10 +152,12 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
+        import _io
+
         if self.fid() is None:
             return
 
-        if isinstance(self.fid(), TextIO):
+        if isinstance(self.fid(), (TextIO, _io.TextIOWrapper)):
             if self.fid() is not None:
                 self.fid().close()
         elif isinstance(self.fid(), list):
@@ -183,6 +184,8 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
+        import _io
+
         header = (
             "Oceanweather WIN/PRE Format                           "
             " {:04d}{:02d}{:02d}{:02d}     {:04d}{:02d}{:02d}{:02d}\n".format(
@@ -196,7 +199,7 @@ class OwiAsciiDomain(OutputDomain):
                 self.end_date().hour,
             )
         )
-        if isinstance(self.fid(), TextIO):
+        if isinstance(self.fid(), (TextIO, _io.TextIOWrapper)):
             self.fid().write(header)
         elif isinstance(self.fid(), list):
             for fid in self.fid():
@@ -238,8 +241,8 @@ class OwiAsciiDomain(OutputDomain):
             "iLat={:4d}iLong={:4d}DX={:6.4f}DY={:6.4f}SWLat={:8s}SWLon={:8s}DT="
             "{:04d}{:02d}{:02d}{:02d}{:02d}\n"
         ).format(
-            grid.nj(),
             grid.ni(),
+            grid.nj(),
             grid.y_resolution(),
             grid.x_resolution(),
             lat_string,
@@ -264,6 +267,7 @@ class OwiAsciiDomain(OutputDomain):
             None
         """
         counter = 0
+
         for i in range(values.shape[0]):
             for j in range(values.shape[1]):
                 fid.write(f"{values[i, j]:10.4f}")
@@ -287,13 +291,13 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
+        import _io
+
         from ...sources.metdatatype import MetDataType
 
         keys = variable_type.select()
 
-        if isinstance(self.fid(), TextIO) or (
-            isinstance(self.fid(), list) and len(self.fid()) == 1
-        ):
+        if isinstance(self.fid(), (TextIO, _io.TextIOWrapper)):
             if isinstance(self.fid(), list):
                 fid = self.fid()[0]
             else:
