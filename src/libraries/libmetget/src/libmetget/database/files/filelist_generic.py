@@ -62,6 +62,7 @@ class FilelistGeneric(FilelistBase):
                     self.table().forecastcycle,
                     self.table().forecasttime,
                     self.table().filepath,
+                    self.table().tau,
                 )
                 .filter(
                     self.table().tau == self.tau(),
@@ -100,6 +101,7 @@ class FilelistGeneric(FilelistBase):
                     self.table().forecastcycle,
                     self.table().forecasttime,
                     self.table().filepath,
+                    self.table().tau,
                 )
                 .filter(
                     self.table().forecastcycle == first_cycle.forecastcycle,
@@ -151,6 +153,7 @@ class FilelistGeneric(FilelistBase):
                     self.table().forecastcycle,
                     self.table().forecasttime,
                     self.table().filepath,
+                    self.table().tau,
                 )
                 .join(
                     subquery,
