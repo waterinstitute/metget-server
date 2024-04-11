@@ -189,6 +189,7 @@ class BuildRequest:
         """
         This method is used to validate the request
         """
+        from libmetget.database.filelist import FilelistBase
 
         logging.getLogger(__name__)
 
@@ -207,12 +208,19 @@ class BuildRequest:
                 self.__error.append("GEFS-NCEP requires an ensemble member")
                 return False
 
+            if d.service() != "nhc":
+                tau = FilelistBase.check_tau_parameter(
+                    d.tau(), d.service(), self.__input_obj.data_type()
+                )
+            else:
+                tau = d.tau()
+
             lookup = self.__generate_file_list(
                 d.service(),
                 self.__input_obj.data_type(),
                 self.__input_obj.start_date(),
                 self.__input_obj.end_date(),
-                d.tau(),
+                tau,
                 d.storm_year(),
                 d.storm(),
                 d.basin(),
@@ -255,7 +263,7 @@ class BuildRequest:
                         return False
 
                 if not self.__input_obj.multiple_forecasts():
-                    if n_forecasts > 1 and d.tau() == 0:
+                    if n_forecasts > 1 and tau == 0:
                         self.__error.append("Multiple forecasts requested")
                         if self.__input_obj.strict():
                             return False
