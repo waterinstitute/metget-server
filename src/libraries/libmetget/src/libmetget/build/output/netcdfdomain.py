@@ -175,9 +175,14 @@ class NetcdfDomain(OutputDomain):
         self.__dataset.variables["crs"].longitude_of_prime_meridian = 0.0
         self.__dataset.variables["crs"].semi_major_axis = 6378137.0
         self.__dataset.variables["crs"].inverse_flattening = 298.257223563
-        self.__dataset.variables[
-            "crs"
-        ].wkt = 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]'
+        self.__dataset.variables["crs"].wkt = (
+            'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],'
+            'AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],'
+            'UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],'
+            'AUTHORITY["EPSG","4326"]]'
+        )
+        # We write as wkt and crs_wkt because some models require wkt and some require crs_wkt
+        self.__dataset.variables["crs"].crs_wkt = self.__dataset.variables["crs"].wkt
         self.__dataset.variables[
             "crs"
         ].proj4_params = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
