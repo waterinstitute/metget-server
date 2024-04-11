@@ -100,7 +100,9 @@ class FilelistBase:
             raise TypeError(msg)
 
         # ...Check if the tau parameter needs to be updated
-        self.__check_tau_parameter()
+        self.__tau = FilelistBase.check_tau_parameter(
+            self.__tau, self.__service, self.__param
+        )
 
         self.__files = None
 
@@ -136,28 +138,39 @@ class FilelistBase:
             self.__files = self.query_files()
         return self.__files
 
-    def __check_tau_parameter(self):
+    @staticmethod
+    def check_tau_parameter(tau: int, service: str, param: str) -> int:
         """
         This method is used to check if the tau parameter needs to be updated
         because the parameter is an accumulated parameter and tau is 0
+
+        Args:
+            tau (int): The forecast lead time
+            service (str): The service that is being requested
+            param (str): The parameter that is being requested
+
+        Returns:
+            int: The updated forecast skip time
         """
         from ...sources.metfiletype import attributes_from_service
 
         log = logging.getLogger(__name__)
 
-        if self.__service == "nhc":
-            return
+        if service == "nhc":
+            return tau
 
         # ...If the parameter is an accumulated parameter, we need tau to be greater than 0
-        service_var = attributes_from_service(self.__service)
+        service_var = attributes_from_service(service)
 
         # ...Get the variable type
-        variable_type = FilelistBase.__get_variable_type(self.__param)[0]
+        variable_type = FilelistBase.__get_variable_type(param)[0]
 
         accumulated = service_var.variable(variable_type).get("is_accumulated", False)
-        if accumulated and self.__tau == 0:
+        if accumulated and tau == 0:
             log.warning("Accumulated parameter and tau is 0, setting tau to 1")
-            self.__tau = 1
+            tau = 1
+
+        return tau
 
     @staticmethod
     def __get_variable_type(parameter) -> List[MetDataType]:
