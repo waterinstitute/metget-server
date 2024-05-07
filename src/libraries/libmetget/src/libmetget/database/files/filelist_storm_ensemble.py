@@ -95,7 +95,7 @@ class FilelistStormEnsemble(FilelistBase):
                     self.table().tau == self.tau(),
                     self.table().forecasttime.between(self.start(), self.end()),
                     self.table().ensemble_member == self.ensemble_member(),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecasttime)
                 .all()
@@ -120,7 +120,7 @@ class FilelistStormEnsemble(FilelistBase):
                 .filter(
                     self.table().forecastcycle.between(self.start(), self.end()),
                     self.table().ensemble_member == self.ensemble_member(),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecastcycle)
                 .first()
@@ -140,7 +140,7 @@ class FilelistStormEnsemble(FilelistBase):
                     self.table().forecastcycle == first_cycle.forecastcycle,
                     self.table().tau >= self.tau(),
                     self.table().ensemble_member == self.ensemble_member(),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecasttime)
                 .all()
@@ -178,7 +178,7 @@ class FilelistStormEnsemble(FilelistBase):
                     self.table().forecasttime.between(self.start(), self.end()),
                     self.table().tau >= self.tau(),
                     self.table().ensemble_member == self.ensemble_member(),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .group_by(self.table().forecasttime)
                 .order_by(func.min(self.table().tau))
@@ -200,7 +200,7 @@ class FilelistStormEnsemble(FilelistBase):
                 .filter(
                     self.table().forecasttime.between(self.start(), self.end()),
                     self.table().ensemble_member == self.ensemble_member(),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecasttime)
             )
