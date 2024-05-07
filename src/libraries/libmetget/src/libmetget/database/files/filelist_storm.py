@@ -80,7 +80,7 @@ class FileListStorm(FilelistBase):
                 .filter(
                     self.table().tau == self.tau(),
                     self.table().forecasttime.between(self.start(), self.end()),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecasttime)
                 .all()
@@ -104,7 +104,7 @@ class FileListStorm(FilelistBase):
                 session.query(self.table())
                 .filter(
                     self.table().forecastcycle.between(self.start(), self.end()),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecastcycle)
                 .first()
@@ -123,7 +123,7 @@ class FileListStorm(FilelistBase):
                 .filter(
                     self.table().forecastcycle == first_cycle.forecastcycle,
                     self.table().tau >= self.tau(),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecasttime)
                 .all()
@@ -160,7 +160,7 @@ class FileListStorm(FilelistBase):
                 .filter(
                     self.table().forecasttime.between(self.start(), self.end()),
                     self.table().tau >= self.tau(),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .group_by(self.table().forecasttime)
                 .order_by(func.min(self.table().tau))
@@ -181,7 +181,7 @@ class FileListStorm(FilelistBase):
                 )
                 .filter(
                     self.table().forecasttime.between(self.start(), self.end()),
-                    self.table().storm == self.storm(),
+                    self.table().stormname == self.storm(),
                 )
                 .order_by(self.table().forecasttime)
             )
