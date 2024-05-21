@@ -626,6 +626,8 @@ class NoaaDownloader:
         Returns:
             int: number of files downloaded
         """
+        import boto3
+        from botocore.errorfactory import ClientError
 
         log = logging.getLogger(__name__)
 
@@ -642,6 +644,8 @@ class NoaaDownloader:
         )
         date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
+        client = boto3.client("s3")
+
         pairs = []
         for d in date_range:
             if self.verbose():
@@ -656,14 +660,25 @@ class NoaaDownloader:
                         continue
                     forecast_hour = self._filename_to_hour(this_obj)
                     forecast_date = cycle_date + timedelta(hours=forecast_hour)
-                    pairs.append(
-                        {
-                            "grb": this_obj,
-                            "inv": this_obj + ".idx",
-                            "cycledate": cycle_date,
-                            "forecastdate": forecast_date,
-                        }
-                    )
+
+                    try:
+                        # Check if the corresponding *.idx file exists on s3
+                        # If we add this file to the pairs list without an index
+                        # file, calls to the build request will fail if NOAA hasn't
+                        # uploaded it yet. Generally, this doesn't happen except for
+                        # HRRR for some reason
+                        idx_obj = this_obj + ".idx"
+                        client.head_object(Bucket=self.big_data_bucket(), Key=idx_obj)
+                        pairs.append(
+                            {
+                                "grb": this_obj,
+                                "inv": this_obj + ".idx",
+                                "cycledate": cycle_date,
+                                "forecastdate": forecast_date,
+                            }
+                        )
+                    except ClientError:
+                        pass
 
         nerror = 0
         num_download = 0

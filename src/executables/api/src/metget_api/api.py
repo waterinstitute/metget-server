@@ -89,7 +89,7 @@ class MetGetStatus(Resource):
     """
 
     decorators: ClassVar = [
-        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+        limiter.limit("30/second", on_breach=ratelimit_error_responder)
     ]
 
     @staticmethod
@@ -117,7 +117,7 @@ class MetGetBuild(Resource):
     """
 
     decorators: ClassVar = [
-        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+        limiter.limit("30/second", on_breach=ratelimit_error_responder)
     ]
 
     @staticmethod
@@ -163,7 +163,7 @@ class MetGetCheckRequest(Resource):
     """
 
     decorators: ClassVar = [
-        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+        limiter.limit("30/second", on_breach=ratelimit_error_responder)
     ]
 
     @staticmethod
@@ -193,7 +193,7 @@ class MetGetTrack(Resource):
     """
 
     decorators: ClassVar = [
-        limiter.limit("10/second", on_breach=ratelimit_error_responder)
+        limiter.limit("30/second", on_breach=ratelimit_error_responder)
     ]
 
     @staticmethod
