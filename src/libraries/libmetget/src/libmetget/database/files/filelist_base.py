@@ -29,7 +29,7 @@
 
 import logging
 from datetime import datetime
-from typing import List, Union
+from typing import List, NoReturn, Union
 
 from ...sources.metdatatype import MetDataType
 from ...sources.variabletype import VariableType
@@ -236,7 +236,7 @@ class FilelistBase:
 
         return sorted(data_single, key=lambda k: k["forecasttime"])
 
-    def _query_nowcast(self) -> Union[list, dict, None]:
+    def _query_nowcast(self) -> NoReturn:
         """
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for nowcasts.
@@ -247,7 +247,7 @@ class FilelistBase:
         msg = "Subclasses must implement _query_nowcast"
         raise NotImplementedError(msg)
 
-    def _query_multiple_forecasts(self) -> Union[list, dict, None]:
+    def _query_multiple_forecasts(self) -> NoReturn:
         """
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for multiple forecasts.
@@ -258,7 +258,7 @@ class FilelistBase:
         msg = "Subclasses must implement _query_multiple_forecasts"
         raise NotImplementedError(msg)
 
-    def _query_single_forecast(self) -> Union[list, dict, None]:
+    def _query_single_forecast(self) -> NoReturn:
         """
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for single forecasts.

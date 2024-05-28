@@ -28,12 +28,15 @@
 ###################################################################################################
 import logging
 from datetime import datetime
+from typing import List
 
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
 from .domain import VALID_SERVICES, Domain
 
 VALID_DATA_TYPES = ["wind_pressure", "rain", "ice", "humidity", "temperature"]
+
+log = logging.getLogger(__name__)
 
 
 class Input:
@@ -101,8 +104,6 @@ class Input:
             json_data: A dictionary containing the json data for the input
 
         """
-
-        log = logging.getLogger(__name__)
 
         # ....Validate the input json data
         log.info("Begin validating input JSON data with the schema")
@@ -302,6 +303,15 @@ class Input:
         """
         return self.__domains[index]
 
+    def domains(self) -> List[Domain]:
+        """
+        Returns the list of domains
+
+        Returns:
+            The list of domains
+        """
+        return self.__domains
+
     def nowcast(self) -> bool:
         """
         Returns whether the data should only contain nowcast data
@@ -348,8 +358,6 @@ class Input:
         import dateutil.parser
 
         from .domain import Domain
-
-        log = logging.getLogger(__name__)
 
         log.info("Begin parsing input JSON data")
 
@@ -435,7 +443,6 @@ class Input:
             The credit usage of the request
         """
 
-        log = logging.getLogger(__name__)
         log.info("Calculating credit usage")
 
         credit_usage = 0

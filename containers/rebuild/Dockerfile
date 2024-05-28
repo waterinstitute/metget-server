@@ -5,6 +5,11 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip openssl \
     libgdal-dev libpq-dev libeccodes-dev vim && rm -rf /var/lib/apt/lists/*
 
+RUN pip install --break-system-packages boto3 bs4 certifi cfgrib feedparser geojson \
+                                        geopandas h5py netCDF4 numba numpy psycopg2 \
+                                        python-dateutil requests schema scipy shapely sqlalchemy \
+                                        xarray
+
 COPY src/libraries/triangle/src /tmp/triangle/.
 RUN pip install --break-system-packages /tmp/triangle/. && rm -rf /tmp/triangle
 
