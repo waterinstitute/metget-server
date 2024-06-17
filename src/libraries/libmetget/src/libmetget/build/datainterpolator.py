@@ -201,15 +201,12 @@ class DataInterpolator:
         """
         variable_list = variable_type.select()
         for var in variable_list:
-            if str(var) not in data:
-                continue
-
             if self.__backfill_flag and self.__domain_level != 0:
                 default_value = var.fill_value()
             else:
                 default_value = var.default_value()
 
-            if default_value is not None:
+            if str(var) in data and default_value is not None:
                 data[str(var)] = data[str(var)].where(
                     ~np.isnan(data[str(var)]),
                     default_value,
