@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-database-pv-claim
+  name: database-pv-claim
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: ebs-sc
+  storageClassName: gp3
   resources:
     requests:
       storage: 20Gi
@@ -14,7 +14,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: {{ .Release.Name }}-database-pv-volume
+  name: database-pv-volume
   labels:
     type: local
 spec:
@@ -29,7 +29,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-database-pv-claim
+  name: database-pv-claim
 spec:
   storageClassName: manual
   accessModes:
@@ -42,22 +42,22 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-database
+  name: database
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-database
+      app: database
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-database
+        app: database
     spec:
       terminationGracePeriodSeconds: 5
       containers:
       - image: {{ .Values.containers.database.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
-        name: {{ .Release.Name }}-database
+        name: database
         resources:
           requests:
             memory: 4Gi
@@ -83,12 +83,12 @@ spec:
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: password
         - name: POSTGRES_DB
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.name
         - name: PGDATA
           value: /var/lib/postgresql/data/database-data
@@ -96,30 +96,30 @@ spec:
         - containerPort: 5432
           name: db-port
         volumeMounts:
-        - name: {{ .Release.Name }}-database-persistent-storage
+        - name: database-persistent-storage
           mountPath: /var/lib/postgresql/data
       volumes:
-      - name: {{ .Release.Name }}-database-persistent-storage
+      - name: database-persistent-storage
         persistentVolumeClaim:
-          claimName: {{ .Release.Name }}-database-pv-claim
+          claimName: database-pv-claim
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: metget-database
+  name: database
   labels:
-    app: {{ .Release.Name }}-database
+    app: database
 spec:
   type: ClusterIP
   ports:
   - port: 5432
   selector:
-    app: {{ .Release.Name }}-database
+    app: database
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ .Release.Name }}-database-secret
+  name: database-secret
 type: kubernetes.io/basic-auth
 stringData:
   username: postgres

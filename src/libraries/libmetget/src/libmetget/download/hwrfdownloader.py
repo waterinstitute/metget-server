@@ -65,7 +65,7 @@ class HwrfDownloader(NoaaDownloader):
                             files.append(lll)
         pairs = self.generateGrbInvPairs(files)
         for p in pairs:
-            fpath, n, _ = self.get_grib(p, p["cycledate"])
+            fpath, n, _ = self.get_grib(p)
             if fpath:
                 db.add(p, self.met_type(), fpath)
                 num_download = num_download + n

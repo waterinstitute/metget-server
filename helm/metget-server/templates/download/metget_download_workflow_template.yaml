@@ -1,11 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: {{ .Release.Name }}-download-template
+  name: download-template
 spec:
-  entrypoint: {{ .Release.Name }}-download-runner
+  entrypoint: download-runner
   templates:
-  - name: {{ .Release.Name }}-download-runner
+  - name: download-runner
     inputs:
       parameters:
         - name: service
@@ -23,27 +23,27 @@ spec:
         - name: METGET_DATABASE_USER
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: username
         - name: METGET_DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: password
         - name: METGET_DATABASE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.name
         - name: METGET_REQUEST_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.request_table
         - name: METGET_API_KEY_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.apikey_table
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
@@ -63,7 +63,7 @@ spec:
         - name: METGET_S3_BUCKET
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: s3.storage_bucket
         - name: COAMPS_S3_BUCKET
           value: {{ .Values.s3.coamps_storage_bucket }}

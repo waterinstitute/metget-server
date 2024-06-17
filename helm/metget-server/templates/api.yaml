@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-api
+  name: api
   labels:
-    app.kubernetes.io/name: {{ .Release.Name }}-api
+    app.kubernetes.io/name: api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Release.Name }}-api
+      app.kubernetes.io/name: api
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ .Release.Name }}-api
+        app.kubernetes.io/name: api
     spec:
       terminationGracePeriodSeconds: 5
       containers:
       - image: {{ .Values.containers.api.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
-        name: {{ .Release.Name }}-api
+        name: api
         resources:
           requests:
             memory: 1Gi
@@ -40,42 +40,42 @@ spec:
         - name: METGET_DATABASE_USER
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: username
         - name: METGET_DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: password
         - name: METGET_DATABASE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.name
         - name: METGET_REQUEST_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.request_table
         - name: METGET_API_KEY_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.apikey_table
         - name: METGET_S3_BUCKET
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: s3.storage_bucket
         - name: METGET_S3_BUCKET_UPLOAD
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: s3.upload_bucket
         - name: METGET_RABBITMQ_QUEUE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: rabbit.queue
         - name: METGET_ENFORCE_CREDIT_LIMITS
           {{ if .Values.config.credits.enforce_credit_limits }}
@@ -91,9 +91,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-api
+  name: api
   labels:
-    app.kubernetes.io/name: {{ .Release.Name }}-api
+    app.kubernetes.io/name: api
 spec:
   type: NodePort
   ports:
@@ -101,4 +101,4 @@ spec:
       targetPort: api-port
       protocol: TCP
   selector:
-    app.kubernetes.io/name: {{ .Release.Name }}-api
+    app.kubernetes.io/name: api

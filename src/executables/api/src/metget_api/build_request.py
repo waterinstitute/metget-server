@@ -114,7 +114,11 @@ class BuildRequest:
         import pika
 
         if transmit:
-            host = os.environ["METGET_RABBITMQ_SERVICE_SERVICE_HOST"]
+            # Eventually we can remove this logic completely as we transition
+            # away from environment variables and use the dns instead, which
+            # is more resilient
+            host = os.environ.get("METGET_RABBITMQ_SERVICE_SERVICE_HOST", "rabbitmq")
+
             queue = os.environ["METGET_RABBITMQ_QUEUE"]
             params = pika.ConnectionParameters(host, 5672)
             connection = pika.BlockingConnection(params)

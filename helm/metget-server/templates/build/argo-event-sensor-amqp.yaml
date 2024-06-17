@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Sensor
 metadata:
-  name: {{ .Release.Name }}-build-sensor
+  name: build-sensor
 spec:
+  dependencies:
+    - name: build-dependency
+      eventSourceName: build-source
+      eventName: queue-source
   template:
     serviceAccountName: operate-workflow-sa
-  dependencies:
-    - name: {{ .Release.Name }}-build-dependency
-      eventSourceName: {{ .Release.Name }}-build-source
-      eventName: {{ .Release.Name }}-queue-source
   triggers:
     - template:
-        name: {{ .Release.Name }}-build-workflow
+        name: build-workflow
         k8s:
           operation: create
           source:
@@ -19,16 +19,21 @@ spec:
               apiVersion: argoproj.io/v1alpha1
               kind: Workflow
               metadata:
-                generateName: {{ .Release.Name }}-build-
+                generateName: build-
               spec:
-                entrypoint: {{ .Release.Name }}-build
+                entrypoint: build
+                serviceAccountName: operate-workflow-sa
+                ttlStrategy:
+                  secondsAfterCompletion: 120    # Time to live after workflow is completed, replaces ttlSecondsAfterFinished
+                  secondsAfterSuccess: 120       # Time to live after workflow is successful
+                  secondsAfterFailure: 86400     # Time to live after workflow fails
                 arguments:
                   parameters:
                     - name: message
                       # value will get overridden by the event payload
                       value: hello world
                 templates:
-                  - name: {{ .Release.Name }}-build
+                  - name: build
                     inputs:
                       parameters:
                         - name: message
@@ -39,12 +44,12 @@ spec:
                         - name: METGET_DATABASE_USER
                           valueFrom:
                             secretKeyRef:
-                              name: {{ .Release.Name }}-database-secret
+                              name: database-secret
                               key: username
                         - name: METGET_DATABASE_PASSWORD
                           valueFrom:
                             secretKeyRef:
-                              name: {{ .Release.Name }}-database-secret
+                              name: database-secret
                               key: password
                         - name: AWS_ACCESS_KEY_ID
                           valueFrom:
@@ -64,32 +69,32 @@ spec:
                         - name: METGET_DATABASE
                           valueFrom:
                             configMapKeyRef:
-                              name: {{ .Release.Name }}-configmap
+                              name: configmap
                               key: database.name
                         - name: METGET_REQUEST_TABLE
                           valueFrom:
                             configMapKeyRef:
-                              name: {{ .Release.Name }}-configmap
+                              name: configmap
                               key: database.request_table
                         - name: METGET_API_KEY_TABLE
                           valueFrom:
                             configMapKeyRef:
-                              name: {{ .Release.Name }}-configmap
+                              name: configmap
                               key: database.apikey_table
                         - name: METGET_S3_BUCKET
                           valueFrom:
                             configMapKeyRef:
-                              name: {{ .Release.Name }}-configmap
+                              name: configmap
                               key: s3.storage_bucket
                         - name: METGET_S3_BUCKET_UPLOAD
                           valueFrom:
                             configMapKeyRef:
-                              name: {{ .Release.Name }}-configmap
+                              name: configmap
                               key: s3.upload_bucket
                         - name: METGET_RABBITMQ_QUEUE
                           valueFrom:
                             configMapKeyRef:
-                              name: {{ .Release.Name }}-configmap
+                              name: configmap
                               key: rabbit.queue
                         - name: METGET_REQUEST_JSON
                           value: '{{ "{{" }}inputs.parameters.message{{ "}}" }}'
@@ -103,6 +108,6 @@ spec:
                           ephemeral-storage: 8Gi
           parameters:
             - src:
-                dependencyName: {{ .Release.Name }}-build-dependency
+                dependencyName: build-dependency
                 dataKey: body
               dest: spec.arguments.parameters.0.value

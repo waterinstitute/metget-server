@@ -97,16 +97,13 @@ class Database:
         log = logging.getLogger(__name__)
 
         if (
-            "METGET_DATABASE_SERVICE_HOST" not in os.environ
-            or "METGET_DATABASE_PASSWORD" not in os.environ
+            "METGET_DATABASE_PASSWORD" not in os.environ
             or "METGET_DATABASE_USER" not in os.environ
             or "METGET_DATABASE" not in os.environ
         ):
             # List the environment variables that are required for the database
             # connection
             log.error("Database environment variables not set")
-            if "METGET_DATABASE_SERVICE_HOST" not in os.environ:
-                log.error("METGET_DATABASE_SERVICE_HOST not set")
             if "METGET_DATABASE_PASSWORD" not in os.environ:
                 log.error("METGET_DATABASE_PASSWORD not set")
             if "METGET_DATABASE_USER" not in os.environ:
@@ -117,7 +114,10 @@ class Database:
             msg = "Database environment variables not set"
             raise RuntimeError(msg)
 
-        db_host = os.environ["METGET_DATABASE_SERVICE_HOST"]
+        # We can remove this altogether later as we will transition
+        # to using the dns names fully
+        db_host = os.environ.get("METGET_DATABASE_SERVICE_HOST", "database")
+
         db_password = os.environ["METGET_DATABASE_PASSWORD"]
         db_username = os.environ["METGET_DATABASE_USER"]
         db_name = os.environ["METGET_DATABASE"]
