@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-rebuild
+  name: rebuild
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-rebuild
+      app: rebuild
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-rebuild
+        app: rebuild
     spec:
       terminationGracePeriodSeconds: 5
       containers:
       - image: {{ .Values.containers.rebuild.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
-        name: {{ .Release.Name }}-rebuild
+        name: rebuild
         resources:
           requests:
             memory: 1Gi
@@ -29,27 +29,27 @@ spec:
         - name: METGET_DATABASE_USER
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: username
         - name: METGET_DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: password
         - name: METGET_DATABASE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.name
         - name: METGET_REQUEST_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.request_table
         - name: METGET_API_KEY_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.apikey_table
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
@@ -69,7 +69,7 @@ spec:
         - name: METGET_S3_BUCKET
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: s3.storage_bucket
         - name: COAMPS_S3_BUCKET
           value: {{ .Values.s3.coamps_storage_bucket }}

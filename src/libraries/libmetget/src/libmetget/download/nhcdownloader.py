@@ -716,9 +716,12 @@ class NhcDownloader:
                         )
 
                         if self.__use_aws:
-                            remote_path = self.mettype() + "/forecast/" + fn
+                            remote_path = os.path.join(
+                                self.mettype(), "forecast", year, fn
+                            )
                             filepath = fn
                         else:
+                            remote_path = None
                             filepath = self.__downloadlocation + "_fcst/" + fn
 
                         metadata = {
@@ -875,7 +878,7 @@ class NhcDownloader:
 
                     if self.__use_aws:
                         file_path = tempfile.gettempdir() + "/" + fn
-                        remote_path = "nhc/besttrack/" + fn
+                        remote_path = os.path.join("nhc", "besttrack", year, fn)
                     else:
                         file_path = self.mettype() + "_btk/" + fn
                         remote_path = None

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     component: rabbitmq
-  name: {{ .Release.Name }}-rabbitmq-controller
+  name: rabbitmq-controller
 spec:
   replicas: 1
   selector:
@@ -32,7 +32,7 @@ kind: Service
 metadata:
   labels:
     component: rabbitmq
-  name: metget-rabbitmq-service
+  name: rabbitmq
 spec:
   type: ClusterIP
   ports:

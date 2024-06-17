@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-ingress
+  name: ingress
   annotations:
     alb.ingress.kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/load-balancer-name: {{ .Release.Name }}-ingress
@@ -28,11 +28,11 @@ spec:
           pathType: ImplementationSpecific
           backend:
             service:
-              name: {{ .Release.Name }}-api
+              name: api
               port:
                 number: 80
 
   tls:
     - hosts:
        - {{ .Values.http.host }}
-  {{ end }}
+{{ end }}

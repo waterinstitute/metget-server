@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-keymanager
+  name: keymanager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-keymanager
+      app: keymanager
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-keymanager
+        app: keymanager
     spec:
       terminationGracePeriodSeconds: 5
       containers:
       - image: {{ .Values.containers.key_manager.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
-        name: {{ .Release.Name }}-keymanager
+        name: keymanager
         resources:
           requests:
             memory: 1Gi
@@ -29,25 +29,25 @@ spec:
         - name: METGET_DATABASE_USER
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: username
         - name: METGET_DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-database-secret
+              name: database-secret
               key: password
         - name: METGET_DATABASE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.name
         - name: METGET_REQUEST_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.request_table
         - name: METGET_API_KEY_TABLE
           valueFrom:
             configMapKeyRef:
-              name: {{ .Release.Name }}-configmap
+              name: configmap
               key: database.apikey_table
