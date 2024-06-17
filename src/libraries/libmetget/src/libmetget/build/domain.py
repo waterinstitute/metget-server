@@ -31,6 +31,8 @@ import logging
 
 from .output.outputgrid import OutputGrid
 
+log = logging.getLogger(__name__)
+
 VALID_SERVICES = [
     "gfs-ncep",
     "gefs-ncep",
@@ -64,8 +66,6 @@ class Domain:
         """
         from .output.gridfactory import grid_factory
 
-        log = logging.getLogger(__name__)
-
         self.__valid = True
         self.__name = name
         self.__service = service
@@ -74,18 +74,25 @@ class Domain:
         self.__storm_year = None
         self.__tau = None
         self.__domain_level = domain_level
+
         if self.__service not in VALID_SERVICES:
-            log.warning(
-                f"Domain invalid because {self.__service:s} is not a valid service"
+            log.error(
+                f"Domain {domain_level} invalid because {self.__service:s} is not a valid service"
             )
             self.__valid = False
+            return
+
         self.__json = json
+
         try:
             self.__grid = grid_factory(self.__json)
         except Exception as e:
-            log.warning(f"Domain invalid because exception was thrown: {e!s:s}")
+            log.error(
+                f"Domain {domain_level} invalid because exception was thrown: {e!s:s}"
+            )
             self.__valid = False
-            raise
+            return
+
         self.__storm = None
         self.__get_storm()
         self.__get_basin()
