@@ -149,7 +149,7 @@ def rebuild_coamps(start: datetime, end: datetime) -> int:
 
     logger = logging.getLogger(__name__)
 
-    if "COAMPS_S3_BUCKET" in os.environ:
+    if "COAMPS_S3_BUCKET" not in os.environ:
         msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
         raise ValueError(msg)
 
@@ -169,7 +169,7 @@ def rebuild_ctcx(start: datetime, end: datetime) -> int:
 
     logger = logging.getLogger(__name__)
 
-    if "COAMPS_S3_BUCKET" in os.environ:
+    if "COAMPS_S3_BUCKET" not in os.environ:
         msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
         raise ValueError(msg)
 
@@ -357,10 +357,10 @@ def nhc_download_data(table) -> int:  # noqa: PLR0915
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
             if "Contents" in page:
                 for obj in page["Contents"]:
-                    keys = obj["Key"].split("/")[2].split("_")
-
-                    storm_year = keys[2]
+                    storm_year = obj["Key"].split("/")[2]
+                    keys = obj["Key"].split("/")[3].split("_")
                     basin = keys[3]
+
                     if table == NhcBtkTable:
                         storm_id = int(keys[4].split(".")[0])
                         advisory = None
@@ -467,7 +467,6 @@ def check_for_environment_variables():
     import os
 
     required_env_vars = [
-        "METGET_DATABASE_SERVICE_HOST",
         "METGET_DATABASE_USER",
         "METGET_DATABASE_PASSWORD",
         "METGET_DATABASE",

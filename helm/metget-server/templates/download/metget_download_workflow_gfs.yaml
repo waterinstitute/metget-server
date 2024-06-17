@@ -9,6 +9,11 @@ spec:
   startingDeadlineSeconds: 0
   workflowSpec:
     entrypoint: runner
+    serviceAccountName: operate-workflow-sa
+    ttlStrategy:
+      secondsAfterCompletion: 120    # Time to live after workflow is completed, replaces ttlSecondsAfterFinished
+      secondsAfterSuccess: 120       # Time to live after workflow is successful
+      secondsAfterFailure: 86400     # Time to live after workflow fails
     arguments:
       parameters:
         - name: input-service
@@ -18,8 +23,8 @@ spec:
         steps:
         - - name: download
             templateRef:
-              name: {{ .Release.Name }}-download-template
-              template: {{ .Release.Name }}-download-runner
+              name: download-template
+              template: download-runner
             arguments:
               parameters:
                 - name: service

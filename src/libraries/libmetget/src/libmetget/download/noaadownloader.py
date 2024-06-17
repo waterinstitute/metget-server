@@ -37,6 +37,8 @@ from requests.adapters import Retry
 from .metdb import Metdb
 from .s3file import S3file
 
+logger = logging.getLogger(__name__)
+
 
 class RetryLogger(Retry):
     """
@@ -44,8 +46,7 @@ class RetryLogger(Retry):
     """
 
     def __init__(self, *args, **kwargs):
-        logger = logging.getLogger(__name__)
-        logger.warning("Request failed. Retrying...")
+        # logger.warning(f"Request failed. Retrying...")
         super().__init__(*args, **kwargs)
 
 
@@ -388,11 +389,8 @@ class NoaaDownloader:
         Returns:
             str: The path to the grib file
         """
-        import logging
         import os
         import tempfile
-
-        logger = logging.getLogger(__name__)
 
         time = info["cycledate"]
         fn = info["grb"].rsplit("/")[-1]
@@ -463,14 +461,11 @@ class NoaaDownloader:
         Pain and suffering this way lies, use the AWS big data option whenever
         available
         """
-        import logging
         import os.path
         import tempfile
 
         import requests
         from requests.adapters import HTTPAdapter
-
-        logger = logging.getLogger(__name__)
 
         adaptor = HTTPAdapter(max_retries=NoaaDownloader.http_retry_strategy())
 
@@ -481,8 +476,10 @@ class NoaaDownloader:
 
                 inv = http.get(info["inv"], timeout=30)
                 inv.raise_for_status()
-                if inv.status_code == 302:
+                if inv.status_code in (302, 403):
                     logger.error("RESP: ".format())
+                    return None, 0, 0
+
                 inv_lines = str(inv.text).split("\n")
                 retlist = []
                 for v in self.variables():
@@ -516,6 +513,9 @@ class NoaaDownloader:
                     got_size = 0
 
                     for r in retlist:
+                        if r is None:
+                            continue
+
                         headers = {
                             "Range": "bytes=" + str(r["start"]) + "-" + str(r["end"])
                         }
