@@ -70,6 +70,8 @@ class VariableType(Enum):
             ret_value = VariableType.HUMIDITY
         elif data_type == "ice":
             ret_value = VariableType.ICE
+        elif data_type == "all_variables":
+            ret_value = VariableType.ALL_VARIABLES
         else:
             msg = f"Invalid data type: {data_type:s}"
             raise ValueError(msg)

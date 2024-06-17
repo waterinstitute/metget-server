@@ -34,7 +34,14 @@ from schema import And, Optional, Or, Schema, SchemaError, Use
 
 from .domain import VALID_SERVICES, Domain
 
-VALID_DATA_TYPES = ["wind_pressure", "rain", "ice", "humidity", "temperature"]
+VALID_DATA_TYPES = [
+    "wind_pressure",
+    "rain",
+    "ice",
+    "humidity",
+    "temperature",
+    "all_variables",
+]
 
 log = logging.getLogger(__name__)
 
@@ -137,7 +144,13 @@ class Input:
         self.__request_id = None
         self.__error = []
         self.__domains = []
-        self.__parse()
+
+        try:
+            self.__parse()
+        except RuntimeError as e:
+            self.__valid = False
+            self.__error.append(str(e))
+
         self.__credit_usage = self.__calculate_credit_usage()
 
     def request_id(self) -> str:
@@ -374,13 +387,30 @@ class Input:
             self.__format = self.__json["format"]
 
             extension = os.path.splitext(self.__filename)[1]
-            if self.__format in ("owi-netcdf", "hec-netcdf") and extension != ".nc":
+            if (
+                self.__format in ("netcdf", "owi-netcdf", "hec-netcdf")
+                and extension != ".nc"
+            ):
                 self.__filename += ".nc"
 
             self.__data_type = self.__json.get("data_type", self.__data_type)
             if self.__data_type and self.__data_type not in VALID_DATA_TYPES:
                 log.error("Invalid data type: " + self.__data_type)
                 msg = f"Invalid data type: {self.__data_type}"
+                raise RuntimeError(msg)
+
+            if self.__data_type == "all_variables" and self.__format not in (
+                "netcdf",
+                "hec-netcdf",
+            ):
+                log.error(
+                    f"Invalid output format {self.__format} for data "
+                    f"type {self.__data_type}. All variables can only be supplied with netcdf-style output."
+                )
+                msg = (
+                    f"Invalid output format {self.__format} for data type {self.__data_type}. "
+                    f"All variables can only be supplied with netcdf-style output."
+                )
                 raise RuntimeError(msg)
 
             self.__dry_run = self.__json.get("dry_run", self.__dry_run)
@@ -412,6 +442,17 @@ class Input:
             for i in range(num_domains):
                 name = self.__json["domains"][i]["name"]
                 service = self.__json["domains"][i]["service"]
+
+                if self.__data_type == "all_variables" and service != "coamps-tc":
+                    log.error(
+                        "The data type 'all_variables' is only supported for the 'coamps-tc' service"
+                    )
+                    self.__error.append(
+                        "The data type 'all_variables' is only supported for the 'coamps-tc' service"
+                    )
+                    self.__valid = False
+                    return
+
                 d = Domain(
                     name,
                     service,
