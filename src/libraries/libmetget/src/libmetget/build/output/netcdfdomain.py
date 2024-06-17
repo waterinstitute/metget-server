@@ -248,6 +248,7 @@ class NetcdfDomain(OutputDomain):
         )
 
         for v in variables:
-            self.__dataset.variables[v.netcdf_var_name()][index, :, :] = dataset[
-                str(v)
-            ].to_numpy()
+            if str(v) in dataset:
+                self.__dataset.variables[v.netcdf_var_name()][index, :, :] = dataset[
+                    str(v)
+                ].to_numpy()

@@ -201,6 +201,9 @@ class DataInterpolator:
         """
         variable_list = variable_type.select()
         for var in variable_list:
+            if str(var) not in data:
+                continue
+
             if self.__backfill_flag and self.__domain_level != 0:
                 default_value = var.fill_value()
             else:
