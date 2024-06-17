@@ -252,3 +252,7 @@ class NetcdfDomain(OutputDomain):
                 self.__dataset.variables[v.netcdf_var_name()][index, :, :] = dataset[
                     str(v)
                 ].to_numpy()
+            else:
+                self.__dataset.variables[v.netcdf_var_name()][
+                    index, :, :
+                ] = v.fill_value()
