@@ -28,6 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime, timedelta
+from ftplib import FTP
 
 
 class WpcDownloader:
@@ -39,7 +40,6 @@ class WpcDownloader:
         import logging
         import os
         import tempfile
-        from ftplib import FTP
 
         from .metdb import Metdb
         from .s3file import S3file
@@ -50,10 +50,18 @@ class WpcDownloader:
         ftp_folder = "2p5km_qpf"
 
         log.info(f"Connecting to {ftp_address:s}")
-        ftp = FTP(ftp_address)
-        ftp.login()
-        ftp.cwd(ftp_folder)
-        filelist = ftp.nlst("p06m*.grb")
+        ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
+
+        max_retries = 10
+        filelist = []
+        for i in range(max_retries):
+            try:
+                filelist = ftp.nlst("p06m*.grb")
+            except ConnectionResetError as e:
+                log.error(f"Connection reset error: {e}")
+                log.error(f"Retrying {i+1} of {max_retries}")
+                ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
+
         log.info("Got filelist from FTP")
 
         num_downloads = 0
@@ -97,15 +105,15 @@ class WpcDownloader:
 
                 # ...The WPC FTP server likes to kick people off. That's annoying,
                 #   but we are annoying-er
-                try:
-                    with open(temp_file_path, "wb") as out_file:
-                        ftp.retrbinary(f"RETR {f:s}", out_file.write)
-                except ConnectionResetError:
-                    ftp = FTP(ftp_address)
-                    ftp.login()
-                    ftp.cwd(ftp_folder)
-                    with open(temp_file_path, "wb") as out_file:
-                        ftp.retrbinary(f"RETR {f:s}", out_file.write)
+                for i in range(max_retries):
+                    try:
+                        with open(temp_file_path, "wb") as out_file:
+                            ftp.retrbinary(f"RETR {f:s}", out_file.write)
+                    except ConnectionResetError:
+                        log.error(
+                            f"Connection reset error, retrying... (retry {i+1} of {max_retries})"
+                        )
+                        ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
 
                 s3.upload_file(temp_file_path, remote_path)
                 db.add(data_pair, "wpc_ncep", remote_path)
@@ -113,3 +121,20 @@ class WpcDownloader:
                 num_downloads += 1
 
         return num_downloads
+
+    @staticmethod
+    def __initialize_ftp(ftp_address: str, ftp_folder: str) -> FTP:
+        """
+        Initialize an FTP connection to the WPC FTP server
+
+        Args:
+            ftp_address (str): The address of the FTP server
+            ftp_folder (str): The folder to change to after login
+
+        Returns:
+            FTP: An FTP object connected to the server
+        """
+        ftp = FTP(ftp_address)
+        ftp.login()
+        ftp.cwd(ftp_folder)
+        return ftp
