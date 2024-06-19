@@ -154,7 +154,7 @@ class CoampsDownloader:
 
             for forecast in forecast_list:
                 filename = forecast.key.split("/")[-1]
-                if "merged" in filename and "tar" not in filename:
+                if "merged" in filename or ".tar" not in filename:
                     continue
 
                 date_str = filename.split("_")[1]
