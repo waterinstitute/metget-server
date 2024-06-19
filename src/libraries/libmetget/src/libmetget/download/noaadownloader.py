@@ -105,7 +105,7 @@ class NoaaDownloader:
         return RetryLogger(
             total=10,
             redirect=6,
-            backoff_factor=1,
+            backoff_factor=2,
             status_forcelist=[302, 429, 500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "OPTIONS"],
         )
