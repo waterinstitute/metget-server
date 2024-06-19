@@ -155,7 +155,7 @@ def rebuild_coamps(start: datetime, end: datetime) -> int:
 
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
-    n = coamps.download()
+    n = coamps.download(start.year)
     logger.info(f"COAMPS complete. {n:d} files downloaded")
 
     return n
