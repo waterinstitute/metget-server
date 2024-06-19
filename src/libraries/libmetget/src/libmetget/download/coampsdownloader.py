@@ -28,7 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime, timedelta
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 class CoampsDownloader:
@@ -53,9 +53,7 @@ class CoampsDownloader:
 
         self.__s3_download_bucket = os.environ["COAMPS_S3_BUCKET"]
         self.__s3_download_prefix = "deterministic/realtime"
-
         self.__aws_key_id = os.environ.get("COAMPS_AWS_KEY", None)
-
         self.__aws_access_key = os.environ.get("COAMPS_AWS_SECRET", None)
 
         if self.__aws_key_id is None or self.__aws_access_key is None:
@@ -121,9 +119,12 @@ class CoampsDownloader:
         forecast_hour = cycle_hour + timedelta(hours=forecast_nhour)
         return cycle_hour, forecast_hour
 
-    def download(self) -> int:
+    def download(self, year: Optional[int] = None) -> int:
         """
         Download the latest COAMPS files from the S3 bucket
+
+        Args:
+            year: Year to download files for. Default is the current year
 
         Returns:
             Number of files downloaded
@@ -133,7 +134,10 @@ class CoampsDownloader:
 
         log = logging.getLogger(__name__)
 
-        current_year = datetime.utcnow().year
+        if year is not None:
+            current_year = year
+        else:
+            current_year = datetime.utcnow().year
 
         file_count = 0
 
@@ -150,9 +154,7 @@ class CoampsDownloader:
 
             for forecast in forecast_list:
                 filename = forecast.key.split("/")[-1]
-                if "merged" in filename:
-                    continue
-                if "tar" not in filename:
+                if "merged" in filename and "tar" not in filename:
                     continue
 
                 date_str = filename.split("_")[1]

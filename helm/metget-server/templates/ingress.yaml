@@ -14,7 +14,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: {{ .Values.http.host }}
+    - host: {{ .Values.http.host | quote }}
       http:
         paths:
         - path: /*
@@ -34,5 +34,5 @@ spec:
 
   tls:
     - hosts:
-       - {{ .Values.http.host }}
+       - {{ .Values.http.host | quote }}
 {{ end }}
