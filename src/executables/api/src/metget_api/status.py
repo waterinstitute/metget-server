@@ -438,27 +438,24 @@ class Status:
         Returns:
             Tuple containing the time limits
         """
+        from datetime import timezone
+
         if limit is not None:
-            limit_time = datetime.utcnow() - limit
-            limit_days = limit.days
+            limit_time = datetime.now(tz=timezone.utc) - limit
             start = limit_time
-            end = datetime.utcnow()
-            limit_start_str = Status.d2s(limit_time)
-            limit_end_str = Status.d2s(datetime.utcnow())
+            end = datetime.now(tz=timezone.utc)
             method = "limit"
-        elif start is not None and end is not None:
-            limit_days = (end - start).total_seconds() / 86400.0
-            limit_start_str = Status.d2s(start)
-            limit_end_str = Status.d2s(end)
-            method = "startend"
         elif start is not None:
-            limit_days = (datetime.utcnow() - start).total_seconds() / 86400.0
-            limit_start_str = Status.d2s(start)
-            limit_end_str = Status.d2s(datetime.utcnow())
+            if end is None:
+                end = datetime.now(tz=timezone.utc)
             method = "startend"
         else:
             msg = "ERROR: Invalid limit provided"
             raise ValueError(msg)
+
+        limit_days = (end - start).total_seconds() / 86400.0
+        limit_start_str = Status.d2s(start)
+        limit_end_str = Status.d2s(end)
 
         return {
             "days": limit_days,
