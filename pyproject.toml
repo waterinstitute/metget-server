@@ -58,6 +58,11 @@ push = false
 "src/libraries/libmetget/src/libmetget/version.py" = [
     'return "{version}"',
 ]
+"helm/metget-server/Chart.yaml" = [
+    'version: {version}',
+    'appVersion: "{version}"'
+]
+
 
 [tool.ruff]
 select = [
