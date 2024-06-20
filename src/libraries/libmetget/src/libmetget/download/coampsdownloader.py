@@ -220,6 +220,7 @@ class CoampsDownloader:
                     self.__database.add(metadata, "coamps", files)
                     file_count += 1
 
+                self.__database.commit()
                 self.__reset_temp_directory(True)
 
         return file_count
