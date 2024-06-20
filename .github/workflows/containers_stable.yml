@@ -1,13 +1,14 @@
 #...Github Actions workflow to run a nightly build of the containers
 #...and push them to Docker Hub
-name: Nightly Containers Build
+name: Stable Containers Build
 on:
-  schedule:
-    - cron: '0 5 * * *'
+  push:
+    branches:
+      - main
 
 jobs:
-  nightly-build-and-deploy:
+  development-build-and-deploy:
     uses: ./.github/workflows/build_containers.yml
     with:
-      tag: nightly
+      tag: stable
     secrets: inherit
