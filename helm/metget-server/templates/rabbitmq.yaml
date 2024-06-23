@@ -19,10 +19,13 @@ spec:
         name: rabbitmq
         resources:
           requests:
-            memory: 1Gi
-          limits:
-            memory: 2Gi
             cpu: 100m
+            memory: 1Gi
+            ephemeral-storage: 1Gi
+          limits:
+            cpu: 200m
+            memory: 2Gi
+            ephemeral-storage: 2Gi
         ports:
           - containerPort: 5672
           - containerPort: 15672

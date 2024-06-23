@@ -19,9 +19,13 @@ spec:
         name: rebuild
         resources:
           requests:
+            cpu: 500m
             memory: 1Gi
+            ephemeral-storage: 2Gi
           limits:
+            cpu: 2000m
             memory: 2Gi
+            ephemeral-storage: 4Gi
         stdin: true
         stdinOnce: true
         tty: true

@@ -14,9 +14,11 @@ spec:
       imagePullPolicy: Always
       resources:
         requests:
+          cpu: 500m
           memory: 2Gi
           ephemeral-storage: 4Gi
         limits:
+          cpu: 1000m
           memory: 3Gi
           ephemeral-storage: 8Gi
       env:

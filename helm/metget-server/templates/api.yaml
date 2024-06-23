@@ -21,9 +21,13 @@ spec:
         name: api
         resources:
           requests:
+            cpu: 1000m
             memory: 1Gi
+            ephemeral-storage: 2Gi
           limits:
+            cpu: 2000m
             memory: 2Gi
+            ephemeral-storage: 4Gi
         livenessProbe:
           httpGet:
             path: /healthz/live
