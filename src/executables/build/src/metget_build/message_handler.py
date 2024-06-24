@@ -127,6 +127,7 @@ class MessageHandler:
 
         output_file_dict = {
             "input": self.input().json(),
+            "version": self.__get_version_info(),
             "input_files": output_info["files_used"],
             "output_files": output_info["output_files"],
         }
@@ -143,6 +144,20 @@ class MessageHandler:
         MessageHandler.__cleanup_temp_files(domain_data)
 
         return True
+
+    @staticmethod
+    def __get_version_info() -> dict:
+        """
+        Gets the version information
+
+        Returns:
+            dict: The version information
+        """
+        from libmetget.version import get_metget_version
+
+        return {
+            "metget-server": get_metget_version(),
+        }
 
     def __upload_files_to_s3(
         self,
