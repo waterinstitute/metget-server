@@ -26,6 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import io
 from datetime import datetime
 from typing import List, TextIO, Union
 
@@ -152,12 +153,10 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-        import _io
-
         if self.fid() is None:
             return
 
-        if isinstance(self.fid(), (TextIO, _io.TextIOWrapper)):
+        if isinstance(self.fid(), (TextIO, io.TextIOWrapper)):
             if self.fid() is not None:
                 self.fid().close()
         elif isinstance(self.fid(), list):
@@ -184,7 +183,6 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-        import _io
 
         header = (
             "Oceanweather WIN/PRE Format                           "
@@ -199,7 +197,7 @@ class OwiAsciiDomain(OutputDomain):
                 self.end_date().hour,
             )
         )
-        if isinstance(self.fid(), (TextIO, _io.TextIOWrapper)):
+        if isinstance(self.fid(), (TextIO, io.TextIOWrapper)):
             self.fid().write(header)
         elif isinstance(self.fid(), list):
             for fid in self.fid():
@@ -291,13 +289,12 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-        import _io
 
         from ...sources.metdatatype import MetDataType
 
         keys = variable_type.select()
 
-        if isinstance(self.fid(), (TextIO, _io.TextIOWrapper)):
+        if isinstance(self.fid(), (TextIO, io.TextIOWrapper)):
             if isinstance(self.fid(), list):
                 fid = self.fid()[0]
             else:
