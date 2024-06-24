@@ -209,12 +209,14 @@ class OutputGrid:
             self.__x_lower_left,
             self.__x_upper_right + self.__x_resolution,
             self.__x_resolution,
-        )
+            dtype=np.float64,
+        ).round(11)
         y = np.arange(
             self.__y_lower_left,
             self.__y_upper_right + self.__y_resolution,
             self.__y_resolution,
-        )
+            dtype=np.float64,
+        ).round(11)
         self.__x_points = x
         self.__y_points = y
         self.__grid_points = np.array(np.meshgrid(x, y))
