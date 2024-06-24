@@ -1,6 +1,6 @@
 [project]
 name = "metget_keymanager"
-version = "0.1.2"
+version = "0.1.3"
 description = "Package for management of metget keys"
 authors = [
     { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
