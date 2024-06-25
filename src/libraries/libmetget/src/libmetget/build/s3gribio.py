@@ -241,7 +241,7 @@ class S3GribIO:
 
         out_byte_range = []
         for b in byte_range:
-            if b["name"] in candidate_variables["variables"]:
+            if b is not None and b["name"] in candidate_variables["variables"]:
                 out_byte_range.append(b)
         return out_byte_range
 
