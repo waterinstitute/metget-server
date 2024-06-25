@@ -256,7 +256,7 @@ class Filelist:
                     multiple_forecasts=self.__multiple_forecasts,
                     storm=self.__storm,
                 )
-            elif service_type in Filelist.STORM_TYPES:
+            elif service_type in Filelist.ENSEMBLE_TYPES:
                 filelist_obj = FilelistGenericEnsemble(
                     table=service_type.table_obj(),
                     service=self.__service,
