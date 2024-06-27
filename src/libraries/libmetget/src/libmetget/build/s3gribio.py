@@ -293,21 +293,28 @@ class S3GribIO:
             )
 
             if len(inventory_subset) == 0:
-                log.error(f"No inventory found for file {path}")
-                return False, False
+                log.warning(f"No inventory found for file {path}")
+                download_subset = False
             elif (
                 len(inventory_subset)
                 < S3GribIO.__get_variable_candidates(variable_type)["length"]
             ):
-                log.error("Inventory length does not match variable list length")
-                return False, False
+                log.warning("Inventory length does not match variable list length")
+                download_subset = False
+            else:
+                download_subset = True
 
-            log.info(f"Downloading subset for {s3_file} to {local_file}")
-
-            for var in inventory_subset:
-                byte_range = "bytes={}-{}".format(var["start"], var["end"])
-                obj = self.__try_get_object(path, byte_range)
-                with open(local_file, "ab") as f:
+            if download_subset:
+                log.info(f"Downloading subset for {s3_file} to {local_file}")
+                for var in inventory_subset:
+                    byte_range = "bytes={}-{}".format(var["start"], var["end"])
+                    obj = self.__try_get_object(path, byte_range)
+                    with open(local_file, "ab") as f:
+                        f.write(obj["Body"].read())
+            else:
+                log.warning(f"Downloading full file for {s3_file} to {local_file}")
+                obj = self.__try_get_object(path)
+                with open(local_file, "wb") as f:
                     f.write(obj["Body"].read())
 
             return True, False
