@@ -294,17 +294,21 @@ class OwiAsciiDomain(OutputDomain):
 
         keys = variable_type.select()
 
+        time = kwargs.get("time")
+        if time is None:
+            msg = "Time must be provided"
+            raise ValueError(msg)
+        elif not isinstance(time, datetime):
+            msg = "Time must be of type datetime"
+            raise TypeError(msg)
+
         if isinstance(self.fid(), (TextIO, io.TextIOWrapper)):
             if isinstance(self.fid(), list):
                 fid = self.fid()[0]
             else:
                 fid = self.fid()
 
-            fid.write(
-                OwiAsciiDomain.__generate_record_header(
-                    self.start_date(), self.grid_obj()
-                )
-            )
+            fid.write(OwiAsciiDomain.__generate_record_header(time, self.grid_obj()))
             OwiAsciiDomain.__write_record(fid, data[str(keys[0])].to_numpy())
         elif isinstance(self.fid(), list):
             # ...Handle the special case for a pack of 2 files (pressure and wind-u/v)
@@ -316,9 +320,7 @@ class OwiAsciiDomain(OutputDomain):
                 msg = "Only 2 files are supported for wind pressure"
                 raise ValueError(msg)
 
-            header = OwiAsciiDomain.__generate_record_header(
-                self.start_date(), self.grid_obj()
-            )
+            header = OwiAsciiDomain.__generate_record_header(time, self.grid_obj())
             self.fid()[0].write(header)
             OwiAsciiDomain.__write_record(
                 self.fid()[0], data[str(MetDataType.PRESSURE)].to_numpy()
