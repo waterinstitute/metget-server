@@ -29,7 +29,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple, Union
+from typing import List, NoReturn, Optional, Tuple
 
 import boto3
 from requests.adapters import Retry
@@ -295,9 +295,7 @@ class NoaaDownloader:
             return self.__get_grib_noaa_servers(info)
 
     @staticmethod
-    def get_inventory_byte_list(
-        inventory_data: list, variable: dict
-    ) -> Union[dict, None]:
+    def get_inventory_byte_list(inventory_data: list, variable: dict) -> Optional[dict]:
         """
         Gets the byte list for the variable from the inventory data
 
@@ -379,7 +377,7 @@ class NoaaDownloader:
             byte_list.append(NoaaDownloader.get_inventory_byte_list(inv_data, v))
         return byte_list
 
-    def __get_grib_big_data(self, info: dict) -> Tuple[Union[str, None], int, int]:
+    def __get_grib_big_data(self, info: dict) -> Tuple[Optional[str], int, int]:
         """
         Gets the grib file from the AWS big data service
 
@@ -448,7 +446,7 @@ class NoaaDownloader:
 
     def __get_grib_noaa_servers(  # noqa: PLR0915
         self, info: dict
-    ) -> Tuple[Union[str, None], int, int]:
+    ) -> Tuple[Optional[str], int, int]:
         """
         Gets the grib based upon the input data
 
@@ -567,7 +565,7 @@ class NoaaDownloader:
             raise
 
     @staticmethod
-    def _generate_prefix(date: datetime, hour: int) -> str:
+    def _generate_prefix(date: datetime, hour: int) -> NoReturn:
         """
         Generates the prefix for the AWS big data files
 
@@ -585,7 +583,7 @@ class NoaaDownloader:
         raise NotImplementedError(msg)
 
     @staticmethod
-    def _filename_to_hour(filename: str) -> int:
+    def _filename_to_hour(filename: str) -> NoReturn:
         """
         Converts the filename to the hour of the file
 
@@ -626,11 +624,6 @@ class NoaaDownloader:
         Returns:
             int: number of files downloaded
         """
-        import boto3
-        from botocore.errorfactory import ClientError
-
-        log = logging.getLogger(__name__)
-
         begin = datetime(
             self.begin_date().year,
             self.begin_date().month,
@@ -644,41 +637,7 @@ class NoaaDownloader:
         )
         date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
-        client = boto3.client("s3")
-
-        pairs = []
-        for d in date_range:
-            if self.verbose():
-                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
-
-            for h in self.cycles():
-                prefix = self._generate_prefix(d, h)
-                cycle_date = d + timedelta(hours=h)
-                for this_obj_s3 in self.list_objects(prefix):
-                    this_obj = this_obj_s3["Key"]
-                    if ".idx" in this_obj:
-                        continue
-                    forecast_hour = self._filename_to_hour(this_obj)
-                    forecast_date = cycle_date + timedelta(hours=forecast_hour)
-
-                    try:
-                        # Check if the corresponding *.idx file exists on s3
-                        # If we add this file to the pairs list without an index
-                        # file, calls to the build request will fail if NOAA hasn't
-                        # uploaded it yet. Generally, this doesn't happen except for
-                        # HRRR for some reason
-                        idx_obj = this_obj + ".idx"
-                        client.head_object(Bucket=self.big_data_bucket(), Key=idx_obj)
-                        pairs.append(
-                            {
-                                "grb": this_obj,
-                                "inv": this_obj + ".idx",
-                                "cycledate": cycle_date,
-                                "forecastdate": forecast_date,
-                            }
-                        )
-                    except ClientError:
-                        pass
+        pairs = self.__generate_files_for_download(date_range)
 
         nerror = 0
         num_download = 0
@@ -693,11 +652,106 @@ class NoaaDownloader:
             else:
                 filepath = "s3://{:s}/{:s}".format(self.big_data_bucket(), p["grb"])
 
-                if not self.__database.has(self.met_type(), p):
+                if not self.__database.has(
+                    self.met_type(), p
+                ) and self.__check_grib_index_file_data(p["grb"]):
                     num_download += 1
                     self.__database.add(p, self.met_type(), filepath)
 
         return num_download
+
+    def __generate_files_for_download(self, date_range: list) -> list:
+        """
+        Generate the list of files that will be downloaded and associated metadata
+
+        Args:
+            date_range: list of dates to iterate over
+
+        Returns:
+            List of files that are available
+        """
+        pairs = []
+        for d in date_range:
+            if self.verbose():
+                logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+
+            for h in self.cycles():
+                prefix = self._generate_prefix(d, h)
+                cycle_date = d + timedelta(hours=h)
+                for this_obj_s3 in self.list_objects(prefix):
+                    this_obj = this_obj_s3["Key"]
+                    if ".idx" in this_obj:
+                        continue
+                    forecast_hour = self._filename_to_hour(this_obj)
+                    forecast_date = cycle_date + timedelta(hours=forecast_hour)
+                    pairs.append(
+                        {
+                            "grb": this_obj,
+                            "inv": this_obj + ".idx",
+                            "cycledate": cycle_date,
+                            "forecastdate": forecast_date,
+                        }
+                    )
+        return pairs
+
+    def __check_grib_index_file_data(self, this_obj: str) -> bool:
+        """
+        Check if the grib index file data is available
+
+        Args:
+            this_obj: The object to check for its associated index file
+
+        Returns:
+            True if the index file data is available with data, False otherwise
+        """
+        from botocore.errorfactory import ClientError
+
+        try:
+            # Check if the corresponding *.idx file exists on s3
+            # If we add this file to the pairs list without an index
+            # file, calls to the build request will fail if NOAA hasn't
+            # uploaded it yet. Generally, this doesn't happen except for
+            # HRRR for some reason
+            idx_obj = this_obj + ".idx"
+
+            # Download the index file
+            idx_data = (
+                self.__client.get_object(Bucket=self.big_data_bucket(), Key=idx_obj)[
+                    "Body"
+                ]
+                .read()
+                .decode("utf-8")
+                .split("\n")
+            )
+            return self.__check_for_idx_variables(idx_data)
+        except ClientError:
+            return False
+
+    def __check_for_idx_variables(self, idx_data: List[str]) -> bool:
+        """
+        Check if all the expected variables exist in the grib index and
+        return that status
+
+        Args:
+            idx_data: List of lines in the NOAA grib index file
+
+        Returns:
+            True if all expected variables exist, false otherwise
+        """
+        n_found = 0
+        n_expected_vars = len(self.variables())
+        for v in self.variables():
+            long_name = v["long_name"]
+            for idx_line in idx_data:
+                if long_name in idx_line:
+                    n_found += 1
+
+        if n_found != n_expected_vars:
+            logger.info(
+                f"Found {n_found} variables in index, expected {n_expected_vars}"
+            )
+
+        return n_found == n_expected_vars
 
     def download(self) -> int:
         """
