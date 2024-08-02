@@ -395,7 +395,7 @@ NCEP_HWRF = MetFileAttributes(
 )
 
 NCEP_WPC = MetFileAttributes(
-    name="WPC",
+    name="wpc-ncep",
     table="wpc_ncep",
     table_obj=WpcTable,
     file_format=MetFileFormat.GRIB,
@@ -405,8 +405,8 @@ NCEP_WPC = MetFileAttributes(
             "type": MetDataType.PRECIPITATION,
             "name": "accumulated_precip",
             "long_name": "APCP",
-            "var_name": "apcp",
-            "grib_name": "apcp",
+            "var_name": "tp",
+            "grib_name": "tp",
             "scale": 1.0,
             "is_accumulated": True,
         },
