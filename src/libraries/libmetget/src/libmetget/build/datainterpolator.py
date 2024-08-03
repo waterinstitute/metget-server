@@ -664,16 +664,6 @@ class DataInterpolator:
             )
 
             ds = ds * file_type.variable(var)["scale"]
-
-            if (
-                file_type.variables()[var]["is_accumulated"]
-                and "GRIB_stepUnits" in ds.variables[grib_var_name].attrs
-            ):
-                step_scaling = 1.0 / ds.variables[grib_var_name].attrs.get(
-                    "GRIB_stepUnits"
-                )
-                ds = ds * step_scaling
-
             if dataset is None:
                 dataset = ds
             else:

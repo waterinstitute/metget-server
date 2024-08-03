@@ -690,15 +690,15 @@ class MessageHandler:
             domain_data, domain_index, input_data, output_file, meteo_obj
         )
 
-        for t in MessageHandler.__date_span(
+        for time_now in MessageHandler.__date_span(
             input_data.start_date(),
             input_data.end_date(),
             timedelta(seconds=input_data.time_step()),
         ):
-            if t > meteo_obj.f2().time():
+            if time_now > meteo_obj.f2().time():
                 log.debug(
                     "Processing next domain time step: {:s} > {:s}".format(
-                        t, meteo_obj.f2().time()
+                        time_now, meteo_obj.f2().time()
                     )
                 )
                 domain_files_used = MessageHandler.__process_next_domain_time_step(
@@ -707,30 +707,32 @@ class MessageHandler:
                     domain_index,
                     input_data,
                     meteo_obj,
-                    t,
+                    time_now,
                     output_file,
                 )
 
-            weight = meteo_obj.time_weight(t)
+            weight = meteo_obj.time_weight(time_now)
             log.info(
                 "Processing time {:s}, weight = {:f}".format(
-                    t.strftime("%Y-%m-%d %H:%M"), weight
+                    time_now.strftime("%Y-%m-%d %H:%M"), weight
                 )
             )
 
             log.info(
                 "Interpolating domain {:d}, snap {:s} to grid".format(
-                    domain_index + 1, t.strftime("%Y-%m-%d %H:%M")
+                    domain_index + 1, time_now.strftime("%Y-%m-%d %H:%M")
                 )
             )
-            dataset = meteo_obj.get(t)
+            dataset = meteo_obj.get(time_now)
 
             log.info(
                 "Writing domain {:d}, snap {:s} to disk".format(
-                    domain_index + 1, t.strftime("%Y-%m-%d %H:%M")
+                    domain_index + 1, time_now.strftime("%Y-%m-%d %H:%M")
                 )
             )
-            output_file.domain(domain_index).write(dataset, data_type_key, time=t)
+            output_file.domain(domain_index).write(
+                dataset, data_type_key, time=time_now
+            )
 
         log.debug(f"Closing the output file(s) for domain {domain_index + 1:d}")
         output_file.domain(domain_index).close()
