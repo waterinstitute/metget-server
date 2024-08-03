@@ -27,8 +27,9 @@
 #
 ###################################################################################################
 import copy
+import logging
 from datetime import datetime
-from typing import Union
+from typing import Optional
 
 import numpy as np
 
@@ -38,6 +39,8 @@ from .datainterpolator import DataInterpolator
 from .fileobj import FileObj
 from .output.outputgrid import OutputGrid
 from .triangulation import Triangulation
+
+log = logging.getLogger(__name__)
 
 
 class Meteorology:
@@ -86,22 +89,42 @@ class Meteorology:
                 raise TypeError(msg)
 
         # Initialize required attributes
-        self.__grid = kwargs["grid"]
-        self.__source_key = kwargs["source_key"]
-        self.__data_type_key = kwargs["data_type_key"]
-        self.__backfill = kwargs["backfill"]
-        self.__domain_level = kwargs["domain_level"]
-        self.__epsg = kwargs["epsg"]
+        self.__grid: OutputGrid = kwargs["grid"]
+        self.__source_key: MeteorologicalSource = kwargs["source_key"]
+        self.__data_type_key: VariableType = kwargs["data_type_key"]
+        self.__backfill: bool = kwargs["backfill"]
+        self.__domain_level: int = kwargs["domain_level"]
+        self.__epsg: int = kwargs["epsg"]
 
         # Initialize other attributes
-        self.__file_1: Union[None, FileObj] = None
-        self.__file_2: Union[None, FileObj] = None
+        self.__file_1: Optional[FileObj] = None
+        self.__file_2: Optional[FileObj] = None
         self.__interpolation_1 = DataInterpolator(
             self.__grid, self.__backfill, self.__domain_level
         )
         self.__interpolation_2 = copy.deepcopy(self.__interpolation_1)
-        self.__interpolation_result_1: Union[None, xr.Dataset] = None
-        self.__interpolation_result_2: Union[None, xr.Dataset] = None
+        self.__interpolation_result_1: Optional[xr.Dataset] = None
+        self.__interpolation_result_2: Optional[xr.Dataset] = None
+
+        # Check if the variable type is an accumulated variable
+        self.__is_accumulated = self.__check_if_accumulated()
+
+    def __check_if_accumulated(self) -> bool:
+        """
+        Checks if the variable type is an accumulated variable
+
+        Returns:
+            bool: Whether the variable type is an accumulated variable
+        """
+        from ..sources.metfiletype import attributes_from_service
+
+        service_att = attributes_from_service(str(self.__source_key))
+        var = self.__data_type_key.select()[0]
+        is_accumulated = service_att.variable(var).get("is_accumulated", False)
+
+        log.info(f"Variable {var} is accumulated: {is_accumulated}")
+
+        return is_accumulated
 
     def grid(self) -> OutputGrid:
         """
@@ -148,7 +171,7 @@ class Meteorology:
         """
         return self.__epsg
 
-    def f1(self) -> Union[None, FileObj]:
+    def f1(self) -> Optional[FileObj]:
         """
         Get the first file
 
@@ -157,7 +180,7 @@ class Meteorology:
         """
         return self.__file_1
 
-    def f2(self) -> Union[None, FileObj]:
+    def f2(self) -> Optional[FileObj]:
         """
         Get the second file
 
@@ -257,7 +280,20 @@ class Meteorology:
         Returns:
             np.array: The meteorological field
         """
-        if time >= self.__file_2.time():
+        if self.__is_accumulated:
+            if (time > self.__file_2.time() or time < self.__file_1.time()) or (
+                not self.__interpolation_result_2 or not self.__interpolation_result_1
+            ):
+                return np.zeros_like(self.__interpolation_result_1)
+            else:
+                dv = self.__interpolation_result_2 - self.__interpolation_result_1
+                dt = (self.__file_2.time() - self.__file_1.time()).total_seconds()
+
+                # The accumulated value can never be less than zero since it is a rate
+                dv = dv.where(dv > 0, 0)
+
+                return dv / dt
+        elif time >= self.__file_2.time():
             return self.__interpolation_result_2
         elif time <= self.__file_1.time():
             return self.__interpolation_result_1

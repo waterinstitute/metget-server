@@ -75,3 +75,33 @@ class MeteorologicalSource(Enum):
             msg = f"Invalid meteorological source: {data_type:s}"
             raise ValueError(msg)
         return result
+
+    def __str__(self):
+        """
+        Returns the string representation of the MeteorologicalSource
+
+        Returns:
+            The string representation of the MeteorologicalSource
+        """
+        if self == MeteorologicalSource.GFS:
+            result = "gfs-ncep"
+        elif self == MeteorologicalSource.GEFS:
+            result = "gefs-ncep"
+        elif self == MeteorologicalSource.NAM:
+            result = "nam-ncep"
+        elif self == MeteorologicalSource.HWRF:
+            result = "hwrf"
+        elif self == MeteorologicalSource.HRRR_CONUS:
+            result = "hrrr-conus"
+        elif self == MeteorologicalSource.HRRR_ALASKA:
+            result = "hrrr-alaska"
+        elif self == MeteorologicalSource.WPC:
+            result = "wpc-ncep"
+        elif self == MeteorologicalSource.COAMPS:
+            result = "coamps-tc"
+        elif self == MeteorologicalSource.HAFS:
+            result = "ncep-hafs-a"
+        else:
+            msg = f"Invalid meteorological source: {self:s}"
+            raise ValueError(msg)
+        return result
