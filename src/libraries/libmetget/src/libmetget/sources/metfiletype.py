@@ -408,7 +408,7 @@ NCEP_WPC = MetFileAttributes(
             "long_name": "APCP",
             "var_name": "tp",
             "grib_name": "tp",
-            "scale": 1.0,
+            "scale": 3600.0,
             "is_accumulated": True,
         },
     },
@@ -526,7 +526,7 @@ COAMPS_TC = MetFileAttributes(
             "name": "hourly_precip",
             "long_name": "Hourly precipitation",
             "var_name": "precip",
-            "scale": 1.0,
+            "scale": 3600.0,
             "is_accumulated": True,
         },
         MetDataType.HUMIDITY: {
