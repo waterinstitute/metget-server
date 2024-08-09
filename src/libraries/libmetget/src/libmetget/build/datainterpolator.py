@@ -590,6 +590,7 @@ class DataInterpolator:
             standard_name = str(file_type.variable(var)["type"])
 
             var_data = nc.variables[variable_name][:]
+            var_data = var_data * file_type.variable(var)["scale"]
 
             if dataset is None:
                 dataset = xr.Dataset(
