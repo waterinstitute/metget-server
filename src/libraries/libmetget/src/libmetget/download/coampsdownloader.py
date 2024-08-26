@@ -26,7 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
+import copy
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
@@ -173,57 +173,177 @@ class CoampsDownloader:
                     )
                     continue
 
-                # ...Download the file
-                files = self.__download_and_unpack_forecast(filename, forecast)
-                file_list = self.__generate_forecast_snap_list(files)
-
-                for key in file_list:
-                    dd = file_list[key]
-                    files = ""
-                    metadata = {
-                        "cycledate": file_list[key][0]["cycle"],
-                        "forecastdate": key,
-                        "name": storm_name,
-                    }
-                    if self.__database.has("coamps", metadata):
-                        continue
-
-                    log.info(
-                        "Adding Storm: {:s}, Cycle: {:s}, Forecast: {:s} to database".format(
-                            storm_name,
-                            datetime.strftime(
-                                file_list[key][0]["cycle"], "%Y-%m-%d %H:%M"
-                            ),
-                            datetime.strftime(key, "%Y-%m-%d %H:%M"),
-                        )
-                    )
-
-                    storm_year = datetime.strftime(file_list[key][0]["cycle"], "%Y")
-
-                    for f in dd:
-                        local_file = f["filename"]
-                        cycle = f["cycle"]
-                        remote_path = os.path.join(
-                            "coamps_tc",
-                            "forecast",
-                            storm_year,
-                            storm_name,
-                            datetime.strftime(cycle, "%Y%m%d"),
-                            datetime.strftime(cycle, "%H"),
-                            os.path.basename(f["filename"]),
-                        )
-                        self.__s3.upload_file(local_file, remote_path)
-                        if files == "":
-                            files += remote_path
-                        else:
-                            files += "," + remote_path
-                    self.__database.add(metadata, "coamps", files)
-                    file_count += 1
-
-                self.__database.commit()
-                self.__reset_temp_directory(True)
+                file_count += self.__process_coamps_forecast_data(
+                    filename, forecast.key, storm_name
+                )
 
         return file_count
+
+    def __process_coamps_forecast_data(
+        self, filename: str, forecast: str, storm_name: str
+    ) -> int:
+        """
+        Process the COAMPS forecast data
+
+        Args:
+            filename: Filename to process
+            forecast: Forecast object from S3
+            storm_name: Name of the storm
+
+        Returns:
+            Number of files processed
+        """
+
+        import logging
+        import os
+
+        log = logging.getLogger(__name__)
+
+        file_count = 0
+
+        files = self.__download_and_unpack_forecast(filename, forecast)
+        file_list = self.__generate_forecast_snap_list(files)
+        file_list_keys = sorted(file_list.keys())
+
+        log.debug(f"Processing {len(file_list_keys):d} forecast snapshots")
+
+        for idx, key in enumerate(file_list_keys):
+            log.info(f"Processing forecast snapshot {idx + 1} of {len(file_list_keys)}")
+
+            if key == file_list_keys[0]:
+                previous_key = None
+                next_key = file_list_keys[file_list_keys.index(key) + 1]
+            elif key == file_list_keys[-1]:
+                previous_key = file_list_keys[file_list_keys.index(key) - 1]
+                next_key = None
+            else:
+                previous_key = file_list_keys[file_list_keys.index(key) - 1]
+                next_key = file_list_keys[file_list_keys.index(key) + 1]
+
+            files = ""
+
+            metadata = {
+                "cycledate": file_list[key][1]["cycle"],
+                "forecastdate": key,
+                "name": storm_name,
+            }
+
+            if self.__database.has("coamps", metadata):
+                continue
+
+            log.info(
+                "Adding Storm: {:s}, Cycle: {:s}, Forecast: {:s} to database".format(
+                    storm_name,
+                    datetime.strftime(file_list[key][1]["cycle"], "%Y-%m-%d %H:%M"),
+                    datetime.strftime(key, "%Y-%m-%d %H:%M"),
+                )
+            )
+
+            storm_year = datetime.strftime(file_list[key][1]["cycle"], "%Y")
+
+            for domain_nr in range(3):
+                cycle = file_list[key][domain_nr + 1]["cycle"]
+                remote_path = os.path.join(
+                    "coamps_tc",
+                    "forecast",
+                    storm_year,
+                    storm_name,
+                    datetime.strftime(cycle, "%Y%m%d"),
+                    datetime.strftime(cycle, "%H"),
+                    os.path.basename(file_list[key][domain_nr + 1]["filename"]),
+                )
+
+                if previous_key is None:
+                    local_file_rate = self.__compute_rate_parameters(
+                        file_list[key][domain_nr + 1],
+                        file_list[next_key][domain_nr + 1],
+                    )
+                else:
+                    local_file_rate = self.__compute_rate_parameters(
+                        file_list[previous_key][domain_nr + 1],
+                        file_list[key][domain_nr + 1],
+                    )
+
+                # Remove the original file and rename the rate file
+                log.debug(
+                    "Renaming file {:s} to {:s}".format(
+                        local_file_rate["filename"],
+                        file_list[key][domain_nr + 1]["filename"],
+                    )
+                )
+                os.remove(file_list[key][domain_nr + 1]["filename"])
+                os.rename(
+                    local_file_rate["filename"],
+                    file_list[key][domain_nr + 1]["filename"],
+                )
+
+                self.__s3.upload_file(
+                    file_list[key][domain_nr + 1]["filename"], remote_path
+                )
+                if files == "":
+                    files += remote_path
+                else:
+                    files += "," + remote_path
+
+            self.__database.add(metadata, "coamps", files)
+            file_count += 1
+
+        self.__database.commit()
+        self.__reset_temp_directory(True)
+
+        return file_count
+
+    @staticmethod
+    def __compute_rate_parameters(file1: dict, file2: dict) -> dict:
+        """
+        Compute the associated rate parameters using the accumulated parameters
+
+        Args:
+            file1: First file object
+            file2: Second file object
+
+        Returns:
+            File object with the rate parameters
+        """
+        import logging
+
+        import xarray as xr
+
+        log = logging.getLogger(__name__)
+
+        accumulated_parameter_list = ["precip"]
+        rate_parameter_list = ["precip_rate"]
+
+        log.debug(
+            f"Computing rate parameters for {file1['filename']} and {file2['filename']}"
+        )
+
+        # ...Get the times from the filenames
+        _, forecast_hour1 = CoampsDownloader.__date_from_filename(file1["filename"])
+        _, forecast_hour2 = CoampsDownloader.__date_from_filename(file2["filename"])
+
+        # ...Open the files
+        ds1 = xr.open_dataset(file1["filename"], engine="netcdf4")
+        ds2 = xr.open_dataset(file2["filename"], engine="netcdf4")
+        dt = (forecast_hour2 - forecast_hour1).total_seconds() / 3600
+
+        # ...Compute the rate parameters
+        for param, rate_param in zip(accumulated_parameter_list, rate_parameter_list):
+            if param in ds1.variables and param in ds2.variables:
+                ds2[rate_param] = (ds2[param] - ds1[param]) / dt
+                ds2[rate_param].attrs = ds1[param].attrs
+                ds2[rate_param].attrs[
+                    "long_name"
+                ] = f"{rate_param}_{ds1[param].attrs['long_name']}"
+                ds2[rate_param].attrs["units"] = f"{ds1[param].attrs['units']}/hr"
+
+        out_file = file2["filename"].replace(".nc", "_rate.nc")
+        ds2.to_netcdf(out_file)
+
+        out_dict = copy.deepcopy(file2)
+        out_dict["filename"] = out_file
+
+        return out_dict
 
     @staticmethod
     def __generate_forecast_snap_list(files) -> dict:
@@ -245,15 +365,13 @@ class CoampsDownloader:
             fn = os.path.basename(f)
             domain = int(fn.split("_")[1][1:])
             if forecast_hour not in file_list:
-                file_list[forecast_hour] = []
+                file_list[forecast_hour] = {}
 
-            file_list[forecast_hour].append(
-                {"cycle": cycle_date, "domain": domain, "filename": f}
-            )
+            file_list[forecast_hour][domain] = {"cycle": cycle_date, "filename": f}
 
         return file_list
 
-    def __download_and_unpack_forecast(self, filename, forecast):
+    def __download_and_unpack_forecast(self, filename: str, forecast: str) -> list:
         """
         Download and unpack the forecast file from the tar archive
 
@@ -274,7 +392,7 @@ class CoampsDownloader:
         # ...Download the file
         log.info(f"Downloading file: {filename}")
         local_file = os.path.join(self.__temp_directory, filename)
-        self.__bucket.download_file(forecast.key, local_file)
+        self.__bucket.download_file(forecast, local_file)
 
         # ...Unpack the file
         log.info(f"Unpacking file: {filename}")
