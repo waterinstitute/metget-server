@@ -166,8 +166,13 @@ class FilelistBase:
         variable_type = FilelistBase.__get_variable_type(param)[0]
 
         accumulated = service_var.variable(variable_type).get("is_accumulated", False)
+        accumulation_time = service_var.variable(variable_type).get(
+            "accumulation_time", None
+        )
         skip_0 = service_var.variable(variable_type).get("skip_0", False)
-        if accumulated and tau == 0 or skip_0 and tau == 0:
+        if (accumulated and tau == 0 and accumulation_time is None) or (
+            skip_0 and tau == 0
+        ):
             log.warning("Accumulated parameter and tau is 0, setting tau to 1")
             tau = 1
 
