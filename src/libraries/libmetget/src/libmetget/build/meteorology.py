@@ -29,7 +29,7 @@
 import copy
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -107,9 +107,9 @@ class Meteorology:
         self.__interpolation_result_2: Optional[xr.Dataset] = None
 
         # Check if the variable type is an accumulated variable
-        self.__is_accumulated = self.__check_if_accumulated()
+        self.__is_accumulated, self.__accumulation_time = self.__check_if_accumulated()
 
-    def __check_if_accumulated(self) -> bool:
+    def __check_if_accumulated(self) -> Tuple[bool, Optional[float]]:
         """
         Checks if the variable type is an accumulated variable
 
@@ -121,10 +121,12 @@ class Meteorology:
         service_att = attributes_from_service(str(self.__source_key))
         var = self.__data_type_key.select()[0]
         is_accumulated = service_att.variable(var).get("is_accumulated", False)
+        accumulation_time = service_att.variable(var).get("accumulation_time", None)
 
         log.info(f"Variable {var} is accumulated: {is_accumulated}")
+        log.info(f"Accumulation time: {accumulation_time}")
 
-        return is_accumulated
+        return is_accumulated, accumulation_time
 
     def grid(self) -> OutputGrid:
         """
@@ -270,6 +272,79 @@ class Meteorology:
                 self.__file_2.time() - self.__file_1.time()
             )
 
+    def __compute_accumulated_rate_two_files(self, time: datetime) -> np.array:
+        """
+        Compute the accumulated rate using two file interpolation
+        """
+        if (time > self.__file_2.time() or time < self.__file_1.time()) or (
+            not self.__interpolation_result_2 or not self.__interpolation_result_1
+        ):
+            return np.zeros_like(self.__interpolation_result_1)
+        else:
+            dv = self.__interpolation_result_2 - self.__interpolation_result_1
+            dt = (self.__file_2.time() - self.__file_1.time()).total_seconds()
+
+            # The accumulated value can never be less than zero since it is a rate
+            dv = dv.where(dv > 0, 0)
+
+            return dv / dt
+
+    def __compute_accumulated_rate(self, time: datetime) -> np.array:
+        """
+        Compute the accumulated rate when the accumulation time is known
+
+        Args:
+            time (datetime): The time to get the accumulated rate for
+        """
+        if time >= self.__file_2.time():
+            return self.__interpolation_result_2 / self.__accumulation_time
+        elif time <= self.__file_1.time():
+            return self.__interpolation_result_1 / self.__accumulation_time
+        else:
+            weight = self.time_weight(time)
+            return (
+                self.__interpolation_result_1 * (1.0 - weight)
+                + self.__interpolation_result_2 * weight
+            ) / self.__accumulation_time
+
+    def __compute_time_interpolated_quantity(self, time: datetime) -> np.array:
+        """
+        Compute the time interpolated quantity
+
+        Args:
+            time (datetime): The time to get the interpolated quantity for
+
+        Returns:
+            np.array: The interpolated quantity
+        """
+        if time >= self.__file_2.time():
+            return self.__interpolation_result_2
+        elif time <= self.__file_1.time():
+            return self.__interpolation_result_1
+        else:
+            weight = self.time_weight(time)
+            return (
+                self.__interpolation_result_1 * (1.0 - weight)
+                + self.__interpolation_result_2 * weight
+            )
+
+    def __compute_time_interpolated_accumulated_quantity(
+        self, time: datetime
+    ) -> np.array:
+        """
+        Compute the accumulated quantity based on the type of accumulation
+
+        Args:
+            time (datetime): The time to get the accumulated quantity for
+
+        Returns:
+            np.array: The accumulated quantity
+        """
+        if self.__accumulation_time is not None:
+            return self.__compute_accumulated_rate(time)
+        else:
+            return self.__compute_accumulated_rate_two_files(time)
+
     def get(self, time: datetime) -> np.array:
         """
         Get the meteorological field at the specified time
@@ -281,25 +356,6 @@ class Meteorology:
             np.array: The meteorological field
         """
         if self.__is_accumulated:
-            if (time > self.__file_2.time() or time < self.__file_1.time()) or (
-                not self.__interpolation_result_2 or not self.__interpolation_result_1
-            ):
-                return np.zeros_like(self.__interpolation_result_1)
-            else:
-                dv = self.__interpolation_result_2 - self.__interpolation_result_1
-                dt = (self.__file_2.time() - self.__file_1.time()).total_seconds()
-
-                # The accumulated value can never be less than zero since it is a rate
-                dv = dv.where(dv > 0, 0)
-
-                return dv / dt
-        elif time >= self.__file_2.time():
-            return self.__interpolation_result_2
-        elif time <= self.__file_1.time():
-            return self.__interpolation_result_1
+            return self.__compute_time_interpolated_accumulated_quantity(time)
         else:
-            weight = self.time_weight(time)
-            return (
-                self.__interpolation_result_1 * (1.0 - weight)
-                + self.__interpolation_result_2 * weight
-            )
+            return self.__compute_time_interpolated_quantity(time)
