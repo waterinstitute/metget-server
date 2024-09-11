@@ -410,6 +410,7 @@ NCEP_WPC = MetFileAttributes(
             "grib_name": "tp",
             "scale": 3600.0,
             "is_accumulated": True,
+            "accumulation_time": 21600.0,
         },
     },
     cycles=[0, 6, 12, 18],
