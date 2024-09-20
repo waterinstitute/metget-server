@@ -1,24 +1,48 @@
-FROM ubuntu:23.10
+FROM condaforge/miniforge3 AS conda
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y ca-certificates python3 python3-pip openssl \
-    libgdal-dev libpq-dev libeccodes-dev vim && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
-RUN pip install --break-system-packages boto3 bs4 certifi cfgrib feedparser geojson \
-                                        geopandas h5py netCDF4 numba numpy psycopg2 \
-                                        python-dateutil requests schema scipy shapely sqlalchemy \
-                                        xarray gunicorn flask flask-limiter flask-restful \
-                                        flask-cors flask-healthz pika
+RUN conda create -y -p /env python=3 boto3 bs4 certifi cfgrib feedparser geojson \
+                                     geopandas h5py netCDF4 numba numpy psycopg2 \
+                                     python-dateutil requests schema scipy shapely sqlalchemy \
+                                     xarray flask flask-limiter flask-restful \
+                                     flask-cors pika && \
+    /env/bin/pip install flask-healthz && \
+    conda clean -afy && \
+    find /env -follow -type f -name '*.a' -delete && \
+    find /env -follow -type f -name '*.pyc' -delete && \
+    find /env -follow -type f -name '*.js.map' -delete
 
 COPY src/libraries/triangle/src /tmp/triangle/.
-RUN pip install --break-system-packages /tmp/triangle/. && rm -rf /tmp/triangle
-
 COPY src/libraries/libmetget/ /tmp/libmetget/.
-RUN pip install --break-system-packages /tmp/libmetget/. && rm -rf /tmp/libmetget
-
 COPY src/executables/api /tmp/api/.
-RUN pip install --break-system-packages /tmp/api/. && rm -rf /tmp/metget_api
+
+RUN /env/bin/pip install /tmp/triangle/.
+RUN /env/bin/pip install /tmp/libmetget/.
+RUN /env/bin/pip install /tmp/api/.
+
+FROM debian:bookworm-20240904-slim AS metget
+
+LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
+LABEL version="0.1.6"
+LABEL description="METGET API"
+LABEL io.k8s.description="METGET API"
+LABEL io.k8s.display-name="METGET API"
+
+COPY --from=conda /env /env
+
+RUN ln -s /env/bin/python /usr/bin/python && \
+    ln -s /env/bin/flask /usr/bin/flask && \
+    ln -s /env/bin/gunicorn /usr/bin/gunicorn
+
+ENV PATH="/env/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/env/lib"
+
+RUN useradd -m metget && chown -R metget:metget /home/metget
+USER metget
+WORKDIR /home/metget
 
 ENTRYPOINT ["gunicorn"]
 CMD ["-w","4","metget_api.api:application","--bind","0.0.0.0:8080","--timeout","120"]
