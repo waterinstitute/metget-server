@@ -42,6 +42,8 @@ jobs:
           # platforms: linux/amd64
           tags: thewaterinstitute/metget-api:${{ inputs.tag }}
           labels: org.metget.metget-server
+          provenance: mode=max
+          sbom: true
 
   build-metget-database:
     name: Build metget-server database container
@@ -72,6 +74,8 @@ jobs:
           #platforms: linux/amd64
           tags: thewaterinstitute/metget-database:${{ inputs.tag }}
           labels: org.metget.metget-server
+          provenance: mode=max
+          sbom: true
 
   build-metget-download:
     name: Build metget-server download container
@@ -102,6 +106,8 @@ jobs:
           #platforms: linux/amd64
           tags: thewaterinstitute/metget-download:${{ inputs.tag }}
           labels: org.metget.metget-server
+          provenance: mode=max
+          sbom: true
 
   build-metget-rebuild:
     name: Build metget-server rebuild container
@@ -132,6 +138,8 @@ jobs:
           #platforms: linux/amd64
           tags: thewaterinstitute/metget-rebuild:${{ inputs.tag }}
           labels: org.metget.metget-server
+          provenance: mode=max
+          sbom: true
 
   build-metget-keymanager:
     name: Build metget-server keymanager container
@@ -162,6 +170,8 @@ jobs:
           #platforms: linux/amd64
           tags: thewaterinstitute/metget-keymanager:${{ inputs.tag }}
           labels: org.metget.metget-server
+          provenance: mode=max
+          sbom: true
 
   build-metget-build:
     name: Build metget-server build container
@@ -183,7 +193,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push metget-build Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./containers/build/Dockerfile
@@ -192,3 +202,5 @@ jobs:
           #platforms: linux/amd64
           tags: thewaterinstitute/metget-build:${{ inputs.tag }}
           labels: org.metget.metget-server
+          provenance: mode=max
+          sbom: true
