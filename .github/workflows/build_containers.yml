@@ -6,6 +6,9 @@ on:
       tag:
         required: true
         type: string
+      push:
+        required: true
+        type: boolean
     secrets:
       DOCKERHUB_LOGIN_USERNAME:
         required: true
@@ -37,9 +40,8 @@ jobs:
         with:
           context: .
           file: ./containers/api/Dockerfile
-          push: true
+          push: ${{ inputs.push }}
           platforms: linux/amd64,linux/arm64
-          # platforms: linux/amd64
           tags: thewaterinstitute/metget-api:${{ inputs.tag }}
           labels: org.metget.metget-server
           provenance: mode=max
@@ -69,9 +71,8 @@ jobs:
         with:
           context: .
           file: ./containers/database/Dockerfile
-          push: true
+          push: ${{ inputs.push }}
           platforms: linux/amd64,linux/arm64
-          #platforms: linux/amd64
           tags: thewaterinstitute/metget-database:${{ inputs.tag }}
           labels: org.metget.metget-server
           provenance: mode=max
@@ -101,9 +102,8 @@ jobs:
         with:
           context: .
           file: ./containers/download/Dockerfile
-          push: true
+          push: ${{ inputs.push }}
           platforms: linux/amd64,linux/arm64
-          #platforms: linux/amd64
           tags: thewaterinstitute/metget-download:${{ inputs.tag }}
           labels: org.metget.metget-server
           provenance: mode=max
@@ -133,9 +133,8 @@ jobs:
         with:
           context: .
           file: ./containers/rebuild/Dockerfile
-          push: true
+          push: ${{ inputs.push }}
           platforms: linux/amd64,linux/arm64
-          #platforms: linux/amd64
           tags: thewaterinstitute/metget-rebuild:${{ inputs.tag }}
           labels: org.metget.metget-server
           provenance: mode=max
@@ -165,9 +164,8 @@ jobs:
         with:
           context: .
           file: ./containers/keymanager/Dockerfile
-          push: true
+          push: ${{ inputs.push }}
           platforms: linux/amd64,linux/arm64
-          #platforms: linux/amd64
           tags: thewaterinstitute/metget-keymanager:${{ inputs.tag }}
           labels: org.metget.metget-server
           provenance: mode=max
@@ -197,9 +195,8 @@ jobs:
         with:
           context: .
           file: ./containers/build/Dockerfile
-          push: true
+          push: ${{ inputs.push }}
           platforms: linux/amd64,linux/arm64
-          #platforms: linux/amd64
           tags: thewaterinstitute/metget-build:${{ inputs.tag }}
           labels: org.metget.metget-server
           provenance: mode=max

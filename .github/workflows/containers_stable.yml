@@ -11,4 +11,5 @@ jobs:
     uses: ./.github/workflows/build_containers.yml
     with:
       tag: stable
+      push: true
     secrets: inherit
