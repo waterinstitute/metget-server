@@ -62,7 +62,24 @@ push = false
     'version: {version}',
     'appVersion: "{version}"'
 ]
-
+"containers/api/Dockerfile" = [
+    'LABEL version="{version}"'
+]
+"containers/build/Dockerfile" = [
+    'LABEL version="{version}"'
+]
+"containers/download/Dockerfile" = [
+    'LABEL version="{version}"'
+]
+"containers/rebuild/Dockerfile" = [
+    'LABEL version="{version}"'
+]
+"containers/keymanager/Dockerfile" = [
+    'LABEL version="{version}"'
+]
+"containers/database/Dockerfile" = [
+    'LABEL version="{version}"'
+]
 
 [tool.ruff]
 select = [

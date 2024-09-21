@@ -19,6 +19,12 @@ RUN /env/bin/pip install /tmp/metbuild_run/.
 
 FROM debian:bookworm-20240904-slim AS metget
 
+LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
+LABEL version="0.1.6"
+LABEL description="METGET Build"
+LABEL io.k8s.description="METGET Build"
+LABEL io.k8s.display-name="METGET Build"
+
 COPY --from=conda /env /env
 
 ENV PATH="/env/bin:${PATH}"

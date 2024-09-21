@@ -19,6 +19,12 @@ RUN /env/bin/pip install /tmp/metbuild_download/.
 
 FROM debian:bookworm-20240904-slim AS metget
 
+LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
+LABEL version="0.1.6"
+LABEL description="METGET Download"
+LABEL io.k8s.description="METGET Download"
+LABEL io.k8s.display-name="METGET Download"
+
 COPY --from=conda /env /env
 
 # Link the conda python to the system python
