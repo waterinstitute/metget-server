@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push metget-api Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./containers/api/Dockerfile
@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push metget-database Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./containers/database/Dockerfile
@@ -98,7 +98,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push metget-download Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./containers/download/Dockerfile
@@ -129,7 +129,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push metget-rebuild Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./containers/rebuild/Dockerfile
@@ -160,7 +160,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push metget-keymanager Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./containers/keymanager/Dockerfile
