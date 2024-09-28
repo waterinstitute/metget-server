@@ -36,6 +36,10 @@ ENV LD_LIBRARY_PATH="/env/lib"
 
 # Create a user to run the application
 RUN useradd -ms /bin/bash metget && mkdir /app && chown -R metget:metget /app
+
+# Set the root password
+RUN echo "root:metget" | chpasswd
+
 USER metget
 
 # Set the working directory and change permissions
