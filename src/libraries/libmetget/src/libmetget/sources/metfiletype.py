@@ -679,6 +679,8 @@ def attributes_from_service(service: str) -> MetFileAttributes:
         service_metadata = COAMPS_TC
     elif service == "coamps-ctcx":
         service_metadata = COAMPS_CTCX
+    elif service == "hwrf":
+        service_metadata = NCEP_HWRF
     else:
         msg = f"Invalid service: '{service:s}'"
         raise ValueError(msg)

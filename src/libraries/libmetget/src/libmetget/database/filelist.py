@@ -39,6 +39,7 @@ from ..sources.metfiletype import (
     NCEP_GFS,
     NCEP_HAFS_A,
     NCEP_HAFS_B,
+    NCEP_HWRF,
     NCEP_NAM,
     NCEP_WPC,
 )
@@ -52,7 +53,7 @@ class Filelist:
     """
 
     GENERIC_TYPES: ClassVar = [HRRR_ALASKA, HRRR_CONUS, NCEP_GFS, NCEP_NAM, NCEP_WPC]
-    STORM_TYPES: ClassVar = [NCEP_HAFS_A, NCEP_HAFS_B, COAMPS_TC]
+    STORM_TYPES: ClassVar = [NCEP_HAFS_A, NCEP_HAFS_B, COAMPS_TC, NCEP_HWRF]
     ENSEMBLE_TYPES: ClassVar = [NCEP_GEFS]
     STORM_ENSEMBLE_TYPES: ClassVar = [COAMPS_CTCX]
 
