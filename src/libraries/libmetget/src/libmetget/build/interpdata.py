@@ -124,4 +124,8 @@ class InterpData:
         else:
             msg = "Unknown coordinate dimension"
             raise ValueError(msg)
+
+        dx = abs(dx)
+        dy = abs(dy)
+
         return (dx + dy) / 2.0
