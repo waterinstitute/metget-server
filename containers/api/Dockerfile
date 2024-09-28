@@ -41,6 +41,10 @@ ENV PATH="/env/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/env/lib"
 
 RUN useradd -m metget && chown -R metget:metget /home/metget
+
+# Set the root password
+RUN echo "root:metget" | chpasswd
+
 USER metget
 WORKDIR /home/metget
 
