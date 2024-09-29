@@ -1,6 +1,10 @@
 FROM condaforge/miniforge3:latest AS conda
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG TARGETARCH
+ARG TARGETPLATFORM
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
@@ -13,11 +17,18 @@ COPY src/libraries/triangle/src /tmp/triangle/.
 COPY src/libraries/libmetget/ /tmp/libmetget/.
 COPY src/executables/build /tmp/metbuild_run/.
 
-RUN CFLAGS="-O3" /env/bin/pip install /tmp/triangle/.
+RUN if [[ "x${TARGETARCH}" == "xamd64" ]] ; then \
+      # Provide a generic set of x86_64 optimization flags
+      COPT="-march=core-avx2"; \
+    elif [[ "x${TARGETARCH}" == "xarm64" ]] ; then \
+      # Provide a generic set of ARM optimization flags for Graviton
+      COPT="-mcpu=neoverse-v1"; \
+    fi; \
+    CFLAGS="-DNDEBUG -O3 -funroll-loops $COPT" /env/bin/pip install -v /tmp/triangle/.
 RUN /env/bin/pip install /tmp/libmetget/.
 RUN /env/bin/pip install /tmp/metbuild_run/.
 
-FROM debian:bookworm-20240904-slim AS metget
+FROM debian:stable-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
 LABEL version="0.1.8"

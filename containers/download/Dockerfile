@@ -17,7 +17,7 @@ RUN CFLAGS="-O3" /env/bin/pip install /tmp/triangle/.
 RUN /env/bin/pip install /tmp/libmetget/.
 RUN /env/bin/pip install /tmp/metbuild_download/.
 
-FROM debian:bookworm-20240904-slim AS metget
+FROM debian:stable-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
 LABEL version="0.1.8"
