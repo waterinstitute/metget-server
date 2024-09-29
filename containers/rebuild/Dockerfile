@@ -20,7 +20,7 @@ RUN /env/bin/pip install /tmp/metbuild_rebuild/.
 FROM debian:bookworm-20240904-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
-LABEL version="0.1.7"
+LABEL version="0.1.8"
 LABEL description="METGET Rebuild"
 LABEL io.k8s.description="METGET Rebuild"
 LABEL io.k8s.display-name="METGET Rebuild"
