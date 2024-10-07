@@ -255,26 +255,52 @@ class OwiAsciiDomain(OutputDomain):
     @staticmethod
     def __write_record(fid: TextIO, values: np.ndarray):
         """
-        Write the record to the file in OWI ascii format (4 decimal places and 8 records per line)
+        Write the record to the file in OWI ASCII format (4 decimal places and 8 records per line).
+        The array is padded to ensure that each line has exactly 8 values, but only the original values
+        are written to the file.
 
         Args:
             fid (TextIO): The file id of the file to write to.
-            values (np.ndarray): The first set of values to write to the file.
+            values (np.ndarray): The values to write to the file.
 
         Returns:
             None
         """
-        counter = 0
 
-        for i in range(values.shape[0]):
-            for j in range(values.shape[1]):
-                fid.write(f"{values[i, j]:10.4f}")
-                if (counter + 1) % 8 == 0:
-                    fid.write("\n")
-                    counter = 0
-                else:
-                    counter += 1
-        if counter != 0:
+        # Flatten the values to a 1D array while maintaining the row-wise order
+        flat_values = values.flatten(order="C")
+
+        # Calculate how many values we need to pad
+        padding_needed = (
+            8 - (flat_values.size % 8)
+        ) % 8  # Padding needed to make it a multiple of 8
+
+        # Pad the array with NaN values if needed
+        if padding_needed > 0:
+            padded_values = np.pad(
+                flat_values, (0, padding_needed), constant_values=np.nan
+            )
+        else:
+            padded_values = flat_values
+
+        # Reshape the padded array into rows of 8 values
+        reshaped = padded_values.reshape(-1, 8)
+
+        # Save the last row of the reshaped array if there are padded values
+        if padding_needed > 0:
+            last_row = reshaped[-1]
+            reshaped = reshaped[:-1]
+        else:
+            last_row = None
+
+        # Write the data to the file using np.savetxt
+        np.savetxt(fid, reshaped, fmt="%10.4f", delimiter="", newline="\n")
+
+        # Write the last row if there are padded values
+        if last_row is not None:
+            for value in last_row:
+                if ~np.isnan(value):
+                    fid.write(f"{value:10.4f}")
             fid.write("\n")
 
     def write(self, data: xr.Dataset, variable_type: VariableType, **kwargs) -> None:
