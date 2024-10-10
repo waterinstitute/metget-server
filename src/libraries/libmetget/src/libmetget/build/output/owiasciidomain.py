@@ -27,6 +27,9 @@
 #
 ###################################################################################################
 import io
+import logging
+import os
+import subprocess
 from datetime import datetime
 from typing import List, TextIO, Union
 
@@ -36,6 +39,8 @@ import xarray as xr
 from ...sources.variabletype import VariableType
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
+
+logger = logging.getLogger(__name__)
 
 
 class OwiAsciiDomain(OutputDomain):
@@ -101,15 +106,6 @@ class OwiAsciiDomain(OutputDomain):
         self.__filename = filename
         self.__compression = compression
 
-    def __del__(self):
-        """
-        Destructor for the OWI ASCII output domain.
-
-        Returns:
-            None
-        """
-        self.close()
-
     def open(self) -> None:
         """
         Open the meteorological output domain for writing.
@@ -117,32 +113,17 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-        import gzip
-
-        if not self.__compression:
-            if isinstance(self.__filename, str):
-                fid = open(self.__filename, "w")  # noqa: SIM115
-                self._set_fid(fid)
-            elif isinstance(self.__filename, list):
-                fid = []
-                for filename in self.__filename:
-                    fid.append(open(filename, "w"))  # noqa: SIM115
-                self._set_fid(fid)
-            else:
-                msg = f"Invalid filename type: {type(self.__filename)}"
-                raise TypeError(msg)
-        else:  # noqa: PLR5501
-            if isinstance(self.__filename, str):
-                fid = gzip.open(self.__filename, "wt")
-                self._set_fid(fid)
-            elif isinstance(self.__filename, list):
-                fid = []
-                for filename in self.__filename:
-                    fid.append(gzip.open(filename, "wt"))
-                self._set_fid(fid)
-            else:
-                msg = f"Invalid filename type: {type(self.__filename)}"
-                raise TypeError(msg)
+        if isinstance(self.__filename, str):
+            fid = open(self.__filename, "w")  # noqa: SIM115
+            self._set_fid(fid)
+        elif isinstance(self.__filename, list):
+            fid = []
+            for filename in self.__filename:
+                fid.append(open(filename, "w"))  # noqa: SIM115
+            self._set_fid(fid)
+        else:
+            msg = f"Invalid filename type: {type(self.__filename)}"
+            raise TypeError(msg)
 
         self.__write_ascii_header()
 
@@ -166,6 +147,9 @@ class OwiAsciiDomain(OutputDomain):
         else:
             msg = f"Invalid file id type: {type(self.fid())}"
             raise TypeError(msg)
+
+        if self.__compression:
+            self.__compress_domain()
 
     def filename(self) -> Union[str, List[str]]:
         """
@@ -370,3 +354,38 @@ class OwiAsciiDomain(OutputDomain):
             bool: The compression flag of the meteorological output domain.
         """
         return self.__compression
+
+    def __compress_domain(self) -> None:
+        """
+        Compress the meteorological output files.
+        """
+        if isinstance(self.__filename, str):
+            self.__compress_file(self.__filename)
+        elif isinstance(self.__filename, list):
+            for filename in self.__filename:
+                self.__compress_file(filename)
+        else:
+            msg = f"Invalid filename type: {type(self.__filename)}"
+            raise TypeError(msg)
+
+    @staticmethod
+    def __compress_file(filename: str) -> None:
+        """
+        Compress a file using gzip.
+
+        Args:
+            filename (str): The file to compress.
+
+        Returns:
+            None
+        """
+        temp_filename = f"{filename}.uncompressed"
+        os.rename(filename, temp_filename)
+
+        if filename.endswith(".gz"):
+            out_filename = filename
+        else:
+            out_filename = f"{filename}.gz"
+
+        subprocess.run(["gzip", temp_filename], check=True)
+        os.rename(f"{temp_filename}.gz", out_filename)
