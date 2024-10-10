@@ -1,6 +1,6 @@
 [project]
 name = "metget_api"
-version = "0.1.8"
+version = "0.1.9"
 description = "Package for running the Metget flask api"
 authors = [
     { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },

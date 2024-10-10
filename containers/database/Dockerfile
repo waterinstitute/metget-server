@@ -1,7 +1,7 @@
 FROM postgres:15.8-bookworm
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
-LABEL version="0.1.8"
+LABEL version="0.1.9"
 LABEL description="METGET Database"
 LABEL io.k8s.description="METGET Database"
 LABEL io.k8s.display-name="METGET Database"
