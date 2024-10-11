@@ -105,6 +105,7 @@ class OwiAsciiDomain(OutputDomain):
         )
         self.__filename = filename
         self.__compression = compression
+        self.__is_open = False
 
     def open(self) -> None:
         """
@@ -125,6 +126,7 @@ class OwiAsciiDomain(OutputDomain):
             msg = f"Invalid filename type: {type(self.__filename)}"
             raise TypeError(msg)
 
+        self.__is_open = True
         self.__write_ascii_header()
 
     def close(self) -> None:
@@ -135,6 +137,9 @@ class OwiAsciiDomain(OutputDomain):
             None
         """
         if self.fid() is None:
+            return
+
+        if not self.__is_open:
             return
 
         if isinstance(self.fid(), (TextIO, io.TextIOWrapper)):
@@ -150,6 +155,8 @@ class OwiAsciiDomain(OutputDomain):
 
         if self.__compression:
             self.__compress_domain()
+
+        self.__is_open = False
 
     def filename(self) -> Union[str, List[str]]:
         """
@@ -167,6 +174,10 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
+
+        if not self.__is_open:
+            msg = "The file must be open before writing the header"
+            raise ValueError(msg)
 
         header = (
             "Oceanweather WIN/PRE Format                           "
@@ -236,8 +247,7 @@ class OwiAsciiDomain(OutputDomain):
             date.minute,
         )
 
-    @staticmethod
-    def __write_record(fid: TextIO, values: np.ndarray):
+    def __write_record(self, fid: TextIO, values: np.ndarray):
         """
         Write the record to the file in OWI ASCII format (4 decimal places and 8 records per line).
         The array is padded to ensure that each line has exactly 8 values, but only the original values
@@ -250,6 +260,10 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
+
+        if not self.__is_open:
+            msg = "The file must be open before writing the record"
+            raise ValueError(msg)
 
         # Flatten the values to a 1D array while maintaining the row-wise order
         flat_values = values.flatten(order="C")
@@ -299,8 +313,11 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-
         from ...sources.metdatatype import MetDataType
+
+        if not self.__is_open:
+            msg = "The file must be open before writing the record"
+            raise ValueError(msg)
 
         keys = variable_type.select()
 
@@ -319,7 +336,7 @@ class OwiAsciiDomain(OutputDomain):
                 fid = self.fid()
 
             fid.write(OwiAsciiDomain.__generate_record_header(time, self.grid_obj()))
-            OwiAsciiDomain.__write_record(fid, data[str(keys[0])].to_numpy())
+            self.__write_record(fid, data[str(keys[0])].to_numpy())
         elif isinstance(self.fid(), list):
             # ...Handle the special case for a pack of 2 files (pressure and wind-u/v)
             if variable_type != VariableType.WIND_PRESSURE:
@@ -332,16 +349,12 @@ class OwiAsciiDomain(OutputDomain):
 
             header = OwiAsciiDomain.__generate_record_header(time, self.grid_obj())
             self.fid()[0].write(header)
-            OwiAsciiDomain.__write_record(
+            self.__write_record(
                 self.fid()[0], data[str(MetDataType.PRESSURE)].to_numpy()
             )
             self.fid()[1].write(header)
-            OwiAsciiDomain.__write_record(
-                self.fid()[1], data[str(MetDataType.WIND_U)].to_numpy()
-            )
-            OwiAsciiDomain.__write_record(
-                self.fid()[1], data[str(MetDataType.WIND_V)].to_numpy()
-            )
+            self.__write_record(self.fid()[1], data[str(MetDataType.WIND_U)].to_numpy())
+            self.__write_record(self.fid()[1], data[str(MetDataType.WIND_V)].to_numpy())
         else:
             msg = f"Invalid file id type: {type(self.fid())}"
             raise TypeError(msg)
