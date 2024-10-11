@@ -26,7 +26,7 @@ RUN /env/bin/pip install /tmp/api/.
 FROM debian:stable-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
-LABEL version="0.1.9"
+LABEL version="0.1.10"
 LABEL description="METGET API"
 LABEL io.k8s.description="METGET API"
 LABEL io.k8s.display-name="METGET API"
