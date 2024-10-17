@@ -200,8 +200,7 @@ class MetGetADeck(Resource):
     def get(year: str, basin: str, model: str, storm: str, cycle: str):
         from .adeck import ADeck
 
-        # authorized = AccessControl.check_authorization_token(request.headers)
-        authorized = True
+        authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
             try:
                 storm = int(storm)
