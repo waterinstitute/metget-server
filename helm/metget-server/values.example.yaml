@@ -122,6 +122,7 @@ config:
     nam: False
     nhc: False
     wpc: False
+    adeck: False
   #####################################################
   # Ensure that the API enforces credit limits
   #
