@@ -478,3 +478,20 @@ class NhcFcstTable(TableBase):
     md5 = Column(String)
     accessed = Column(DateTime)
     geometry_data = Column(MutableDict.as_mutable(JSONB))
+
+
+class NhcAdeck(TableBase):
+    from sqlalchemy import Column, DateTime, Integer, String
+
+    __tablename__ = "nhc_adeck"
+
+    index = Column("id", Integer, primary_key=True)
+    storm_year = Column(Integer)
+    basin = Column(String)
+    storm = Column(Integer)
+    model = Column(String)
+    forecastcycle = Column(DateTime)
+    start_time = Column(DateTime)
+    end_time = Column(DateTime)
+    duration = Column(Integer)
+    geometry_data = Column(MutableDict.as_mutable(JSONB))

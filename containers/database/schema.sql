@@ -132,6 +132,19 @@ CREATE TABLE wpc_ncep(
   url VARCHAR(256) NOT NULL,
   accessed TIMESTAMP NOT NULL
 );
+CREATE TABLE nhc_adeck(
+  id SERIAL PRIMARY KEY,
+  model CHAR(4) NOT NULL,
+  storm_year INTEGER NOT NULL,
+  basin CHAR(2) NOT NULL,
+  storm INTEGER NOT NULL,
+  forecastcycle TIMESTAMP NOT NULL,
+  start_time TIMESTAMP NOT NULL,
+  end_time TIMESTAMP NOT NULL,
+  duration INTEGER NOT NULL,
+  geometry_Data JSON NOT NULL
+);
+
 --
 --Creates tables for the storage of metget's API access
 --
@@ -178,6 +191,8 @@ CREATE INDEX ctcx_forecastcycle_idx ON ctcx USING brin (forecastcycle);
 CREATE INDEX hrrr_ncep_forecastcycle_idx ON hrrr_ncep USING brin (forecastcycle);
 CREATE INDEX hrrr_alaska_ncep_forecastcycle_idx ON hrrr_alaska_ncep USING brin (forecastcycle);
 CREATE INDEX wpc_ncep_forecastcycle_idx ON wpc_ncep USING brin (forecastcycle);
+CREATE INDEX nhc_adeck_model_idx ON nhc_adeck USING brin (model);
+CREATE INDEX nhc_adeck_forecastcycle_idx ON nhc_adeck USING brin (forecastcycle);
 --
 --Create Brin Index on basin for nhc_fcst and nhc_btk
 --
