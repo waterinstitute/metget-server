@@ -27,23 +27,22 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def generate_default_date_range():
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
     start = datetime(start.year, start.month, start.day, 0, 0, 0) - timedelta(days=1)
     end = start + timedelta(days=2)
     return start, end
 
 
 def nam_download():
-    import logging
-
     from libmetget.download.ncepnamdownloader import NcepNamdownloader
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     nam = NcepNamdownloader(start, end)
@@ -56,11 +55,7 @@ def nam_download():
 
 
 def gfs_download():
-    import logging
-
     from libmetget.download.ncepgfsdownloader import NcepGfsdownloader
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     gfs = NcepGfsdownloader(start, end)
@@ -73,11 +68,7 @@ def gfs_download():
 
 
 def gefs_download():
-    import logging
-
     from libmetget.download.ncepgefsdownloader import NcepGefsdownloader
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     gefs = NcepGefsdownloader(start, end)
@@ -90,11 +81,7 @@ def gefs_download():
 
 
 def hwrf_download():
-    import logging
-
     from libmetget.download.hwrfdownloader import HwrfDownloader
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     hwrf = HwrfDownloader(start, end)
@@ -107,12 +94,8 @@ def hwrf_download():
 
 
 def hafs_download():
-    import logging
-
     from libmetget.download.hafsdownloader import HafsDownloader
     from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     hafs_a = HafsDownloader(start, end, NCEP_HAFS_A)
@@ -137,11 +120,7 @@ def hafs_download():
 
 
 def nhc_download():
-    import logging
-
     from libmetget.download.nhcdownloader import NhcDownloader
-
-    logger = logging.getLogger(__name__)
 
     nhc = NhcDownloader()
     logger.info("Beginning downloading NHC data")
@@ -151,11 +130,7 @@ def nhc_download():
 
 
 def coamps_download():
-    import logging
-
     from libmetget.download.coampsdownloader import CoampsDownloader
-
-    logger = logging.getLogger(__name__)
 
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
@@ -165,11 +140,7 @@ def coamps_download():
 
 
 def ctcx_download():
-    import logging
-
     from libmetget.download.ctcxdownloader import CtcxDownloader
-
-    logger = logging.getLogger(__name__)
 
     ctcx = CtcxDownloader()
     n = ctcx.download()
@@ -178,11 +149,7 @@ def ctcx_download():
 
 
 def hrrr_download():
-    import logging
-
     from libmetget.download.ncephrrrdownloader import NcepHrrrdownloader
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     hrrr = NcepHrrrdownloader(start, end)
@@ -194,11 +161,7 @@ def hrrr_download():
 
 
 def hrrr_alaska_download():
-    import logging
-
     from libmetget.download.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     hrrr = NcepHrrrAlaskadownloader(start, end)
@@ -209,17 +172,24 @@ def hrrr_alaska_download():
 
 
 def wpc_download():
-    import logging
-
     from libmetget.download.wpcdownloader import WpcDownloader
-
-    logger = logging.getLogger(__name__)
 
     start, end = generate_default_date_range()
     wpc = WpcDownloader(start, end)
     logger.info("Beginning downloading WPC data")
     n = wpc.download()
     logger.info(f"WPC complete. {n:d} files downloaded")
+    return n
+
+
+def adeck_download() -> int:
+    from libmetget.download.adeckdownloader import ADeckDownloader
+
+    a_deck = ADeckDownloader()
+    n = a_deck.download()
+
+    logger.info(f"A-Deck complete. {n:d} files downloaded")
+
     return n
 
 
@@ -233,7 +203,6 @@ def metget_download():
         level=logging.INFO,
         format="%(asctime)s :: %(levelname)s :: %(module)s :: %(message)s",
     )
-    logger = logging.getLogger(__name__)
 
     p = argparse.ArgumentParser(description="MetGet Download Function")
     p.add_argument(
@@ -248,28 +217,23 @@ def metget_download():
 
     logger.info(f"Running with configuration: {args.service:s}")
 
-    if args.service == "nam":
-        nam_download()
-    elif args.service == "gfs":
-        gfs_download()
-    elif args.service == "gefs":
-        gefs_download()
-    elif args.service == "hwrf":
-        hwrf_download()
-    elif args.service == "hafs":
-        hafs_download()
-    elif args.service == "nhc":
-        nhc_download()
-    elif args.service == "coamps":
-        coamps_download()
-    elif args.service == "ctcx":
-        ctcx_download()
-    elif args.service == "hrrr":
-        hrrr_download()
-    elif args.service == "hrrr-alaska":
-        hrrr_alaska_download()
-    elif args.service == "wpc":
-        wpc_download()
+    download_functions = {
+        "nam": nam_download,
+        "gfs": gfs_download,
+        "gefs": gefs_download,
+        "hwrf": hwrf_download,
+        "hafs": hafs_download,
+        "nhc": nhc_download,
+        "coamps": coamps_download,
+        "ctcx": ctcx_download,
+        "hrrr": hrrr_download,
+        "hrrr-alaska": hrrr_alaska_download,
+        "wpc": wpc_download,
+        "adeck": adeck_download,
+    }
+
+    if args.service in download_functions:
+        download_functions[args.service]()
     else:
         msg = "Invalid data source selected"
         raise RuntimeError(msg)
