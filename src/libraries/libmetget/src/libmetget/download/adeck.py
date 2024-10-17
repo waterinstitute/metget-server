@@ -174,10 +174,17 @@ class Track:
             RuntimeError: If the snapshot is not from the same basin and model.
         """
         if snapshot.basin == self.__basin and snapshot.model == self.__model:
-            self.__snapshots.append(snapshot)
+            if snapshot not in self.__snapshots:
+                self.__snapshots.append(snapshot)
         else:
             msg = "Invalid snapshot."
             raise RuntimeError(msg)
+
+    def snaps(self) -> List[DeckSnapshot]:
+        """
+        Returns the snapshots in the track.
+        """
+        return self.__snapshots
 
     def __repr__(self) -> str:
         """

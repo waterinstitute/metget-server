@@ -28,6 +28,7 @@
 ###################################################################################################
 
 import logging
+from datetime import datetime
 from typing import ClassVar
 
 import libmetget.version
@@ -100,7 +101,7 @@ class MetGetStatus(Resource):
         """
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
-            from metget_api.status import Status
+            from .status import Status
 
             s = Status()
             status_data, status_code = s.get_status(request)
@@ -138,7 +139,7 @@ class MetGetBuild(Resource):
         """
         import uuid
 
-        from metget_api.metbuildrequest import MetBuildRequest
+        from .metbuildrequest import MetBuildRequest
 
         request_uuid = str(uuid.uuid4())
         request_api_key = request.headers.get("x-api-key")
@@ -170,13 +171,56 @@ class MetGetCheckRequest(Resource):
     def get():
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
-            from metget_api.check_request import CheckRequest
+            from .check_request import CheckRequest
 
             c = CheckRequest()
             message, status = c.get(request)
             return message, status
         else:
             return AccessControl.unauthorized_response()
+
+
+class MetGetADeck(Resource):
+    """
+    Allows the user to query storm tracks from the A-Deck database
+
+    This endpoint takes the following query parameters:
+    - year - The year that the storm occurs
+    - model - The model that the storm track is from
+    - basin - The basin that the storm is in
+    - storm - The storm number
+    - cycle - The cycle of the storm track (i.e. datetime)
+    """
+
+    decorators: ClassVar = [
+        limiter.limit("30/second", on_breach=ratelimit_error_responder)
+    ]
+
+    @staticmethod
+    def get(year: str, basin: str, model: str, storm: str, cycle: str):
+        from .adeck import ADeck
+
+        # authorized = AccessControl.check_authorization_token(request.headers)
+        authorized = True
+        if authorized:
+            try:
+                storm = int(storm)
+                if storm < 0 or storm > 99:
+                    raise ValueError
+            except ValueError:
+                return {"message": "Invalid storm number"}, 400
+
+            try:
+                cycle = datetime.fromisoformat(cycle)
+            except ValueError:
+                return {"message": "Invalid cycle provided"}, 400
+
+            message, status_code = ADeck.get(year, basin, model, storm, cycle)
+        else:
+            message = AccessControl.unauthorized_response()
+            status_code = 401
+
+        return {"statusCode": status_code, "body": message}, status_code
 
 
 class MetGetTrack(Resource):
@@ -198,7 +242,7 @@ class MetGetTrack(Resource):
 
     @staticmethod
     def get():
-        from metget_api.stormtrack import StormTrack
+        from .stormtrack import StormTrack
 
         # authorized = AccessControl.check_authorization_token(request.headers)
         # if authorized:
@@ -258,6 +302,10 @@ api.add_resource(MetGetStatus, "/status")
 api.add_resource(MetGetBuild, "/build")
 api.add_resource(MetGetCheckRequest, "/check")
 api.add_resource(MetGetTrack, "/stormtrack")
+api.add_resource(
+    MetGetADeck,
+    "/adeck/<string:year>/<string:basin>/<string:model>/<string:storm>/<string:cycle>",
+)
 api.add_resource(MetGetCredits, "/credits")
 
 # ...Add the health check
