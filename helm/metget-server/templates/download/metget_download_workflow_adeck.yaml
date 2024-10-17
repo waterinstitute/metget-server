@@ -1,0 +1,33 @@
+{{ if .Values.config.meteorology.adeck }}
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ .Release.Name }}-download-adeck
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: "Forbid"
+  startingDeadlineSeconds: 0
+  activeDeadlineSeconds: 3600
+  workflowSpec:
+    entrypoint: runner
+    serviceAccountName: operate-workflow-sa
+    ttlStrategy:
+      secondsAfterCompletion: 120    # Time to live after workflow is completed, replaces ttlSecondsAfterFinished
+      secondsAfterSuccess: 120       # Time to live after workflow is successful
+      secondsAfterFailure: 86400     # Time to live after workflow fails
+    arguments:
+      parameters:
+        - name: input-service
+          value: adeck
+    templates:
+      - name: runner
+        steps:
+        - - name: download
+            templateRef:
+              name: download-template
+              template: download-runner
+            arguments:
+              parameters:
+                - name: service
+                  value: '{{ "{{" }}workflow.parameters.input-service{{ "}}" }}'
+{{ end }}

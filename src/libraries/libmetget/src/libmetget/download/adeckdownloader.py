@@ -195,7 +195,7 @@ class ADeckDownloader:
             return True
         return False
 
-    def download(self) -> None:
+    def download(self) -> int:
         """
         Download the A-Deck tracks from the NHC website and store them in the database
         """
@@ -235,12 +235,4 @@ class ADeckDownloader:
                 if this_storm_track_count > 0:
                     self.__session.commit()
 
-        logger.info(f"Added {track_count} tracks to the database")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-    ADeckDownloader().download()
+        return track_count
