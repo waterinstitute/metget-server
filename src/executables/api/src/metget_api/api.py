@@ -198,21 +198,43 @@ class MetGetADeck(Resource):
 
     @staticmethod
     def get(year: str, basin: str, model: str, storm: str, cycle: str):
+        """
+        Method to handle the GET request for the ADeck endpoint
+
+        Args:
+            year: The year that the storm occurs
+            basin: The basin that the storm is in
+            model: The model that the storm track is from
+            storm: The storm number or 'all' for all active storms at the given cycle
+            cycle: The cycle of the storm track (i.e. datetime)
+
+        Returns:
+            The response for the ADeck endpoint
+        """
         from .adeck import ADeck
 
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
             try:
-                storm = int(storm)
-                if storm < 0 or storm > 99:
-                    raise ValueError
+                if isinstance(storm, str) and storm.lower() == "all":
+                    storm = "all"
+                else:
+                    storm = int(storm)
+                    if storm < 0 or storm > 99:
+                        raise ValueError
             except ValueError:
-                return {"message": "Invalid storm number"}, 400
+                return {
+                    "statusCode": 400,
+                    "body": {"message": "Invalid storm number"},
+                }, 400
 
             try:
                 cycle = datetime.fromisoformat(cycle)
             except ValueError:
-                return {"message": "Invalid cycle provided"}, 400
+                return {
+                    "statusCode": 400,
+                    "body": {"message": "Invalid cycle format"},
+                }, 400
 
             message, status_code = ADeck.get(year, basin, model, storm, cycle)
         else:
