@@ -20,7 +20,7 @@ RUN /env/bin/pip install /tmp/metbuild_rebuild/.
 FROM debian:stable-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
-LABEL version="0.2.0"
+LABEL version="0.2.1"
 LABEL description="METGET Rebuild"
 LABEL io.k8s.description="METGET Rebuild"
 LABEL io.k8s.display-name="METGET Rebuild"
