@@ -1,4 +1,4 @@
-FROM postgres:15.8-bookworm
+FROM postgres:17-bookworm
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
 LABEL version="0.2.1"
