@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-pgb-metget
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-pgb-metget
+  template:
+    metadata:
+      labels:
+        app: db-pgb-metget
+    spec:
+      containers:
+      - name: pgbouncer
+        image: bitnami/pgbouncer
+        resources:
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 2Gi
+        env:
+        - name: PGBOUNCER_DATABASE
+          value: metget
+        - name: POSTGRESQL_HOST
+          value: database
+        - name: POSTGRESQL_PORT
+          value: "5432"
+        - name: POSTGRESQL_USERNAME
+          value: postgres
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: password
+        - name: PGBOUNCER_LISTEN_ADDR
+          value: '*'
+        - name: PGBOUNCER_LISTEN_PORT
+          value: "6432"
+        - name: PGBOUNCER_MAX_CLIENT_CONN
+          value: "400"
+        - name: PGBOUNCER_DEFAULT_POOL_SIZE
+          value: "20"
+        - name: PGBOUNCER_MIN_POOL_SIZE
+          value: "10"
+        - name: PGBOUNCER_RESERVE_POOL_SIZE
+          value: "10"
+        - name: PGBOUNCER_MAX_DB_CONNECTIONS
+          value: "50"
+        - name: PGBOUNCER_MAX_USER_CONNECTIONS
+          value: "50"
+        - name: PGBOUNCER_LOG_CONNECTIONS
+          value: "0"
+        - name: PGBOUNCER_LOG_DISCONNECTIONS
+          value: "0"
+        - name: PGBOUNCER_ADMIN_USERS
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: username
+        - name: PGBOUNCER_AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: username
+        ports:
+        - containerPort: 6432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-pgb-metget
+  labels:
+    app: db-pgb-metget
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6432
+  selector:
+    app: db-pgb-metget

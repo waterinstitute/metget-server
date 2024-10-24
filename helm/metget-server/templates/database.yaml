@@ -54,6 +54,8 @@ spec:
         app: database
     spec:
       terminationGracePeriodSeconds: 5
+      securityContext:
+        fsGroup: 1000
       containers:
       - image: {{ .Values.containers.database.image }}:{{ .Values.containers.version }}
         imagePullPolicy: Always
