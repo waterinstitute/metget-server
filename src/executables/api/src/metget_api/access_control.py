@@ -26,6 +26,8 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from datetime import datetime, timezone
+
 from libmetget.database.database import Database
 
 CREDIT_MULTIPLIER = 100000.0
@@ -56,8 +58,6 @@ class AccessControl:
         Keys are hashed before being compared to the database to prevent
         accidental exposure of the keys and/or sql injection
         """
-        from datetime import datetime
-
         from libmetget.database.tables import AuthTable
 
         with Database() as db, db.session() as session:
@@ -68,7 +68,7 @@ class AccessControl:
                 )
                 .filter(AuthTable.key == api_key)
                 .filter(AuthTable.enabled == True)  # noqa: E712
-                .filter(AuthTable.expiration >= datetime.utcnow())
+                .filter(AuthTable.expiration >= datetime.now(timezone.utc))
                 .first()
             )
 
@@ -123,7 +123,7 @@ class AccessControl:
             credit_limit = float(credit_limit) / CREDIT_MULTIPLIER
 
             # ...Queries the database for the credit used for the user over the last 30 days
-            start_date = datetime.utcnow() - timedelta(days=30)
+            start_date = datetime.now(timezone.utc) - timedelta(days=30)
             credit_used = (
                 session.query(func.sum(RequestTable.credit_usage))
                 .filter(RequestTable.last_date >= start_date)
