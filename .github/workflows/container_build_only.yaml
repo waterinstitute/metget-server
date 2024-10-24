@@ -1,0 +1,53 @@
+name: Container build template
+on:
+  workflow_call:
+    inputs:
+      name:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+      dockerfile:
+        required: true
+        type: string
+      organization:
+        required: true
+        type: string
+      container_name:
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_LOGIN_USERNAME:
+        required: true
+      DOCKERHUB_LOGIN_TOKEN:
+        required: true
+
+jobs:
+  build_only_amd64:
+    name: Build ${{ inputs.name }}:amd64
+    uses: ./.github/workflows/container_builder.yaml
+    with:
+      name: ${{ inputs.name }}
+      tag: ${{ inputs.tag }}
+      push: false
+      dockerfile: ${{ inputs.dockerfile }}
+      organization: ${{ inputs.organization }}
+      container_name: ${{ inputs.container_name }}
+      platform: linux/amd64
+      runs_on: ubuntu-latest
+    secrets: inherit
+
+  build_only_arm64:
+    name: Build ${{ inputs.name }}:arm64
+    uses: ./.github/workflows/container_builder.yaml
+    with:
+      name: ${{ inputs.name }}
+      tag: ${{ inputs.tag }}
+      push: false
+      dockerfile: ${{ inputs.dockerfile }}
+      organization: ${{ inputs.organization }}
+      container_name: ${{ inputs.container_name }}
+      platform: linux/arm64
+      runs_on: ubuntu24.04-ARM64
+    secrets: inherit

@@ -1,0 +1,15 @@
+name: Release Deployment
+on:
+  release:
+    types: [published]
+
+jobs:
+  build_pull_request:
+    name: Build Containers
+    uses: ./.github/workflows/all_containers_build_push.yaml
+    with:
+      tag: ${{ github.event.release.tag_name }}
+    secrets: inherit
+  pre_commit:
+    name: Pre-commit checks
+    uses: ./.github/workflows/precommit.yaml

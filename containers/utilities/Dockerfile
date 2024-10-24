@@ -1,7 +1,3 @@
-FROM ubuntu:23.10
-
-ARG DEBIAN_FRONTEND=noninteractive
-
 FROM condaforge/miniforge3 AS conda
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -15,19 +11,21 @@ RUN conda create -y -p /env python=3 boto3 bs4 certifi cfgrib feedparser geojson
 
 COPY src/libraries/triangle/src /tmp/triangle/.
 COPY src/libraries/libmetget/ /tmp/libmetget/.
+COPY src/executables/rebuild /tmp/metbuild_rebuild/.
 COPY src/executables/keymanager /tmp/keymanager/.
 
 RUN CFLAGS="-O3" /env/bin/pip install /tmp/triangle/.
 RUN /env/bin/pip install /tmp/libmetget/.
+RUN /env/bin/pip install /tmp/metbuild_rebuild/.
 RUN /env/bin/pip install /tmp/keymanager/.
 
 FROM debian:stable-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
 LABEL version="0.2.1"
-LABEL description="METGET Keymanager"
-LABEL io.k8s.description="METGET Keymanager"
-LABEL io.k8s.display-name="METGET Keymanager"
+LABEL description="METGET Utilities"
+LABEL io.k8s.description="METGET Utilities"
+LABEL io.k8s.display-name="METGET Utilities"
 
 COPY --from=conda /env /env
 
@@ -46,4 +44,5 @@ RUN echo "root:metget" | chpasswd
 
 USER metget
 
+# Set the working directory and change permissions
 WORKDIR /app
