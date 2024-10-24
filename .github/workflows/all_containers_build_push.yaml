@@ -1,0 +1,68 @@
+name: Build and Push All Containers
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_LOGIN_USERNAME:
+        required: true
+      DOCKERHUB_LOGIN_TOKEN:
+        required: true
+
+jobs:
+  api:
+    name: Build API
+    uses: ./.github/workflows/container_build_push.yaml
+    with:
+      name: API
+      tag: ${{ inputs.tag }}
+      dockerfile: ./containers/api/Dockerfile
+      organization: thewaterinstitute
+      container_name: metget-api
+    secrets: inherit
+
+  download:
+    name: Build Downloader
+    uses: ./.github/workflows/container_build_push.yaml
+    with:
+      name: Download
+      tag: ${{ inputs.tag }}
+      dockerfile: ./containers/download/Dockerfile
+      organization: thewaterinstitute
+      container_name: metget-download
+    secrets: inherit
+
+  build:
+    name: Build Builder
+    uses: ./.github/workflows/container_build_push.yaml
+    with:
+      name: Build
+      tag: ${{ inputs.tag }}
+      dockerfile: ./containers/build/Dockerfile
+      organization: thewaterinstitute
+      container_name: metget-build
+    secrets: inherit
+
+  utils:
+    name: Build Utilities
+    uses: ./.github/workflows/container_build_push.yaml
+    with:
+      name: Utilities
+      tag: ${{ inputs.tag }}
+      dockerfile: ./containers/utilities/Dockerfile
+      organization: thewaterinstitute
+      container_name: metget-utilities
+    secrets: inherit
+
+  database:
+    name: Build Database
+    uses: ./.github/workflows/container_build_push.yaml
+    with:
+      name: Database
+      tag: ${{ inputs.tag }}
+      dockerfile: ./containers/database/Dockerfile
+      organization: thewaterinstitute
+      container_name: metget-database
+    secrets: inherit
