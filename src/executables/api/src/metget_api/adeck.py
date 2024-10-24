@@ -36,20 +36,6 @@ class ADeck:
     """
 
     @staticmethod
-    def __standardize_response(message: str, status_code: int) -> dict:
-        """
-        Method to standardize the response for the ADeck endpoint
-
-        Args:
-            message: The message to include in the response
-            status_code: The status code to include in the response
-
-        Returns:
-            The standardized response for the ADeck endpoint
-        """
-        return {"statusCode": status_code, "body": {"message": message}}
-
-    @staticmethod
     def get(
         year: str, basin: str, model: str, storm: int | str, cycle: datetime
     ) -> Tuple[Union[dict, str], int]:
@@ -69,10 +55,7 @@ class ADeck:
         basin = basin.upper()
         model = model.upper()
         if basin not in ["AL", "EP", "CP"]:
-            return (
-                ADeck.__standardize_response("Basin must be 'AL', 'EP', or 'CP'", 400),
-                400,
-            )
+            return {"message": "Basin must be 'AL', 'EP', or 'CP'"}, 400
 
         if isinstance(storm, str) and storm.lower() == "all":
             return ADeck.__get_all_storms(year, basin, model, cycle)
@@ -81,7 +64,7 @@ class ADeck:
         elif isinstance(storm, int) and model.lower() != "all":
             return ADeck.__get_one_storm_one_model(year, basin, model, storm, cycle)
         else:
-            return ADeck.__standardize_response("Invalid request", 400), 400
+            return {"message": "Invalid request"}, 400
 
     @staticmethod
     def __get_one_storm_all_models(
@@ -113,7 +96,7 @@ class ADeck:
             )
 
             if not query_results:
-                return ADeck.__standardize_response("No results found", 404), 404
+                return {"message": "No results found"}, 404
             else:
                 storm_data = {}
                 for model, track in query_results:
@@ -161,9 +144,9 @@ class ADeck:
             )
 
             if not query_results:
-                return ADeck.__standardize_response("No results found", 404), 404
+                return {"message": "No results found"}, 404
             elif len(query_results) > 1:
-                return ADeck.__standardize_response("Multiple results found", 500), 500
+                return {"message": "Multiple results found"}, 500
             else:
                 track_data = query_results[0].geometry_data
                 return {
@@ -208,7 +191,7 @@ class ADeck:
             )
 
             if not query_results:
-                return ADeck.__standardize_response("No results found", 404), 404
+                return {"message": "No results found"}, 404
             else:
                 storm_data = {}
                 for storm, track in query_results:
