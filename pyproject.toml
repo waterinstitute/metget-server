@@ -71,10 +71,7 @@ push = false
 "containers/download/Dockerfile" = [
     'LABEL version="{version}"'
 ]
-"containers/rebuild/Dockerfile" = [
-    'LABEL version="{version}"'
-]
-"containers/keymanager/Dockerfile" = [
+"containers/utilities/Dockerfile" = [
     'LABEL version="{version}"'
 ]
 "containers/database/Dockerfile" = [
