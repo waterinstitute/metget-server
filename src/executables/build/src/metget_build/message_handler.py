@@ -1401,10 +1401,10 @@ class MessageHandler:
                 }
             )
         if nhc_data[index]["best_track"] and nhc_data[index]["forecast_track"]:
-            merge_file = "nhc_merge_{:04d}_{:s}_{:s}_{:s}.trk".format(
+            merge_file = "nhc_merge_{:04d}_{:s}_{:02d}_{:s}.trk".format(
                 nhc_data[index]["best_track"]["start"].year,
                 domain.basin(),
-                domain.storm(),
+                int(domain.storm()),
                 domain.advisory(),
             )
             local_file_merged = MessageHandler.__merge_nhc_tracks(
