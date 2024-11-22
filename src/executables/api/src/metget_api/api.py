@@ -213,7 +213,9 @@ class MetGetADeck(Resource):
         """
         from .adeck import ADeck
 
-        authorized = AccessControl.check_authorization_token(request.headers)
+        authorized = AccessControl.check_authorization_token(
+            request.headers, with_whitelist=True
+        )
         if authorized:
             try:
                 if isinstance(storm, str) and storm.lower() == "all":

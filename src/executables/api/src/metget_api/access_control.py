@@ -32,6 +32,9 @@ from libmetget.database.database import Database
 
 CREDIT_MULTIPLIER = 100000.0
 
+# ...List of whitelisted domains that can bypass the API key
+WHITELISTED_DOMAINS = [".floodid.org", "localhost:5173"]
+
 
 class AccessControl:
     """
@@ -51,14 +54,45 @@ class AccessControl:
         return sha256(token.encode()).hexdigest()
 
     @staticmethod
-    def is_authorized(api_key: str) -> bool:
+    def check_whitelisted_domain() -> bool:
+        """
+        Checks if the request is coming from a whitelisted domain. Whitelisted
+        domains can bypass the API key check for some functions.
+
+        Returns:
+            bool: True if the request is coming from a whitelisted domain and False if not
+        """
+        from flask import request
+
+        referrer = request.headers.get("Referer")
+        if referrer is None:
+            return False
+        else:
+            return any(domain in referrer for domain in WHITELISTED_DOMAINS)
+
+    @staticmethod
+    def is_authorized(api_key: str, with_whitelist: bool = False) -> bool:
         """
         This method is used to check if the user is authorized to use the API
         The method returns True if the user is authorized and False if not
         Keys are hashed before being compared to the database to prevent
         accidental exposure of the keys and/or sql injection
+
+        Args:
+            api_key (str): The API key used to authenticate the request
+            with_whitelist (bool): A boolean to determine if the whitelist should be checked
+
+        Returns:
+            bool: True if the user is authorized and False if not
         """
         from libmetget.database.tables import AuthTable
+
+        if with_whitelist:
+            whitelist_authorized = AccessControl.check_whitelisted_domain()
+            if whitelist_authorized:
+                return True
+        elif api_key is None or api_key == "":
+            return False
 
         with Database() as db, db.session() as session:
             api_key_db = (
@@ -81,14 +115,22 @@ class AccessControl:
         return bool(api_key_db_hash == api_key_hash)
 
     @staticmethod
-    def check_authorization_token(headers) -> bool:
+    def check_authorization_token(headers: dict, with_whitelist: bool = False) -> bool:
         """
         This method is used to check if the user is authorized to use the API
         The method returns True if the user is authorized and False if not
+
+        Args:
+            headers (dict): The headers from the request
+            with_whitelist (bool): A boolean to determine if the whitelist should be checked
+
+        Returns:
+            bool: True if the user is authorized and False if not
+
         """
         user_token = headers.get("x-api-key")
         gatekeeper = AccessControl()
-        return bool(gatekeeper.is_authorized(user_token))
+        return bool(gatekeeper.is_authorized(user_token, with_whitelist))
 
     @staticmethod
     def unauthorized_response():
@@ -120,7 +162,7 @@ class AccessControl:
             credit_limit = (
                 session.query(AuthTable.credit_limit).filter_by(key=api_key).first()[0]
             )
-            credit_limit = float(credit_limit) / CREDIT_MULTIPLIER
+            credit_limit = float(credit_limit)
 
             # ...Queries the database for the credit used for the user over the last 30 days
             start_date = datetime.now(timezone.utc) - timedelta(days=30)
