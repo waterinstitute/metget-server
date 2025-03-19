@@ -195,11 +195,10 @@ class ADeckDownloader:
             return True
         return False
 
-    def download(self) -> int:
+    def download(self, current_year: datetime.now().year) -> int:
         """
         Download the A-Deck tracks from the NHC website and store them in the database
         """
-        current_year = datetime.now().year
         track_count = 0
 
         db_tracks = self.__get_tracks_currently_in_db()

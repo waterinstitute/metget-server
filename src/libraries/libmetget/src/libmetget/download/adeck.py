@@ -312,6 +312,7 @@ class ADeckStorms:
     """
 
     BASE_URL: ClassVar = "https://ftp.nhc.noaa.gov/atcf/aid_public"
+    BASE_URL_ARCHIVE: ClassVar = "https://ftp.nhc.noaa.gov/atcf/archive"
 
     @staticmethod
     def __generate_url(basin: str, year: int, storm: int) -> str:
@@ -322,7 +323,10 @@ class ADeckStorms:
             msg = "Invalid basin."
             raise ValueError(msg)
 
-        return f"{ADeckStorms.BASE_URL}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
+        if year != datetime.now().year:
+            return f"{ADeckStorms.BASE_URL_ARCHIVE}/{year:4d}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
+        else:
+            return f"{ADeckStorms.BASE_URL}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
 
     def download_storm(self, basin: str, year: int, storm: int) -> dict:
         """
