@@ -27,16 +27,17 @@
 #
 ###################################################################################################
 import logging
+import urllib.request
 from datetime import datetime
 from typing import List
 
 from geojson import FeatureCollection
 
+logger = logging.getLogger(__name__)
+
 
 def rebuild_gfs(start: datetime, end: datetime) -> int:
     from libmetget.download.ncepgfsdownloader import NcepGfsdownloader
-
-    logger = logging.getLogger(__name__)
 
     gfs = NcepGfsdownloader(start, end)
     logger.info(
@@ -50,8 +51,6 @@ def rebuild_gfs(start: datetime, end: datetime) -> int:
 def rebuild_nam(start: datetime, end: datetime) -> int:
     from libmetget.download.ncepnamdownloader import NcepNamdownloader
 
-    logger = logging.getLogger(__name__)
-
     nam = NcepNamdownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-NAM from {start.isoformat():s} to {end.isoformat():s}"
@@ -63,8 +62,6 @@ def rebuild_nam(start: datetime, end: datetime) -> int:
 
 def rebuild_hrrr(start: datetime, end: datetime) -> int:
     from libmetget.download.ncephrrrdownloader import NcepHrrrdownloader
-
-    logger = logging.getLogger(__name__)
 
     hrrr = NcepHrrrdownloader(start, end)
     logger.info(
@@ -78,8 +75,6 @@ def rebuild_hrrr(start: datetime, end: datetime) -> int:
 def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
     from libmetget.download.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
 
-    logger = logging.getLogger(__name__)
-
     hrrr = NcepHrrrAlaskadownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-HRRR-AK from {start.isoformat():s} to {end.isoformat():s}"
@@ -92,8 +87,6 @@ def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
 def rebuild_gefs(start: datetime, end: datetime) -> int:
     from libmetget.download.ncepgefsdownloader import NcepGefsdownloader
 
-    logger = logging.getLogger(__name__)
-
     gefs = NcepGefsdownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-GEFS from {start.isoformat():s} to {end.isoformat():s}"
@@ -104,25 +97,19 @@ def rebuild_gefs(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hafs(start: datetime, end: datetime) -> int:
-    log = logging.getLogger(__name__)
-
     n_added_a = rebuild_hafs_subtype("a", start, end)
     n_added_b = rebuild_hafs_subtype("b", start, end)
 
     n = n_added_a + n_added_b
 
-    log.info(f"NCEP-HAFS complete. {n:d} files added ")
+    logger.info(f"NCEP-HAFS complete. {n:d} files added ")
 
     return n
 
 
 def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
-    import logging
-
     from libmetget.download.hafsdownloader import HafsDownloader
     from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
-
-    log = logging.getLogger(__name__)
 
     if hafs_type == "a":
         hafs = HafsDownloader(start, end, NCEP_HAFS_A)
@@ -132,22 +119,19 @@ def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
         msg = f"Invalid HAFS type: {hafs_type}"
         raise ValueError(msg)
 
-    log.info(
+    logger.info(
         f"Beginning to run NCEP-HAFS-{hafs_type} from {start.isoformat():s} to {end.isoformat():s}"
     )
     n = hafs.download()
-    log.info(f"NCEP-HAFS-{hafs_type} complete. {n:d} files downloaded")
+    logger.info(f"NCEP-HAFS-{hafs_type} complete. {n:d} files downloaded")
 
     return n
 
 
 def rebuild_coamps(start: datetime, end: datetime) -> int:
-    import logging
     import os
 
     from libmetget.download.coampsdownloader import CoampsDownloader
-
-    logger = logging.getLogger(__name__)
 
     if "COAMPS_S3_BUCKET" not in os.environ:
         msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
@@ -162,12 +146,9 @@ def rebuild_coamps(start: datetime, end: datetime) -> int:
 
 
 def rebuild_ctcx(start: datetime, end: datetime) -> int:
-    import logging
     import os
 
     from libmetget.download.ctcxdownloader import CtcxDownloader
-
-    logger = logging.getLogger(__name__)
 
     if "COAMPS_S3_BUCKET" not in os.environ:
         msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
@@ -311,6 +292,10 @@ def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
             continue
         longitude = nhc_position_to_float(d["data"]["longitude"])
         latitude = nhc_position_to_float(d["data"]["latitude"])
+
+        if "radius_to_max_winds" not in d["data"]:
+            d["data"]["radius_to_max_winds"] = "0"
+
         track_points.append((longitude, latitude))
         points.append(
             Feature(
@@ -330,15 +315,12 @@ def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
 
 
 def nhc_download_data(table) -> int:  # noqa: PLR0915
-    import logging
     import os
     import tempfile
 
     import boto3
     from libmetget.database.database import Database
     from libmetget.database.tables import NhcBtkTable, NhcFcstTable
-
-    logging.getLogger(__name__)
 
     bucket = os.environ["METGET_S3_BUCKET"]
     client = boto3.client("s3")
@@ -360,6 +342,8 @@ def nhc_download_data(table) -> int:  # noqa: PLR0915
                     storm_year = obj["Key"].split("/")[2]
                     keys = obj["Key"].split("/")[3].split("_")
                     basin = keys[3]
+
+                    logger.info(f"Processing {obj['Key']}")
 
                     if table == NhcBtkTable:
                         storm_id = int(keys[4].split(".")[0])
@@ -448,16 +432,167 @@ def nhc_download_data(table) -> int:  # noqa: PLR0915
     return n
 
 
-def rebuild_nhc() -> int:
-    import logging
+def nhc_obtain_best_tracks() -> None:
+    import gzip
+    import os
+    from datetime import datetime
 
+    import boto3
+    import requests
+
+    year_start = 2005
+    year_end = datetime.now().year - 1
+    storm_start = 1
+    storm_end = 40
+    basins = ["al", "ep", "cp"]
+
+    for year in range(year_start, year_end + 1):
+        logger.info("Processing year: " + str(year))
+        os.makedirs(f"{year:04d}/btk", exist_ok=True)
+        for basin in basins:
+            for storm in range(storm_start, storm_end + 1):
+                btk_filename = f"https://ftp.nhc.noaa.gov/atcf/archive/{year:4d}/b{basin}{storm:02d}{year:04d}.dat.gz"
+                if not os.path.exists(
+                    f"{year}/btk/nhc_btk_{year}_{basin}_{storm:02d}.btk"
+                ):
+                    logger.info(
+                        f"Downloading {btk_filename} to {year}/btk/nhc_btk_{year}_{basin}_{storm:02d}.btk"
+                    )
+                    try:
+                        response = requests.head(btk_filename)
+                        if response.status_code == 200:
+                            response = urllib.request.urlopen(btk_filename)
+                            with gzip.GzipFile(fileobj=response) as f:
+                                data = f.read()
+                            with open(
+                                f"{year}/btk/nhc_btk_{year}_{basin}_{storm:02d}.btk",
+                                "wb",
+                            ) as f:
+                                f.write(data)
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"Error checking file {btk_filename}: {e}")
+
+    s3 = boto3.client("s3")
+    bucket = os.environ["METGET_S3_BUCKET"]
+    for year in range(year_start, year_end + 1):
+        if os.path.exists(f"{year}/btk"):
+            dl_files = os.listdir(f"{year}/btk")
+            for file in dl_files:
+                file_path = os.path.join(f"{year}/btk", file)
+                s3_path = f"nhc/besttrack/{year}/{file}"
+
+                try:
+                    s3.head_object(Bucket=bucket, Key=s3_path)
+                    logger.info(
+                        f"File {s3_path} already exists in S3. Skipping upload."
+                    )
+                    continue
+                except s3.exceptions.ClientError:
+                    logger.info(f"File {s3_path} does not exist in S3. Uploading.")
+                    s3.upload_file(file_path, bucket, s3_path)
+
+
+def nhc_obtain_forecast_tracks() -> None:  # noqa: PLR0915, PLR0912
+    import gzip
+    import os
+    from datetime import datetime
+
+    import boto3
+    import requests
+
+    year_start = 2005
+    year_end = datetime.now().year - 1
+    storm_start = 1
+    storm_end = 40
+    basins = ["al", "ep", "cp"]
+
+    for year in range(year_start, year_end + 1):
+        logger.info("Processing year: " + str(year))
+        os.makedirs(f"{year:04d}/fcst", exist_ok=True)
+        for basin in basins:
+            for storm in range(storm_start, storm_end + 1):
+                btk_filename = f"https://ftp.nhc.noaa.gov/atcf/archive/{year:4d}/a{basin}{storm:02d}{year:04d}.dat.gz"
+                if not os.path.exists(
+                    f"{year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_all.fcst"
+                ):
+                    logger.info(
+                        f"Downloading {btk_filename} to {year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_all.fcst"
+                    )
+                    try:
+                        response = requests.head(btk_filename)
+                        if response.status_code == 200:
+                            response = urllib.request.urlopen(btk_filename)
+                            with gzip.GzipFile(fileobj=response) as f:
+                                data = f.read()
+                            with open(
+                                f"{year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_all.fcst",
+                                "wb",
+                            ) as f:
+                                f.write(data)
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"Error checking file {btk_filename}: {e}")
+
+                # We need to break apart the forecast files into advisories using the date (column  3)
+                if os.path.exists(
+                    f"{year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_all.fcst"
+                ):
+                    advisory_id = 0
+                    previous_date = None
+                    with open(
+                        f"{year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_all.fcst"
+                    ) as f:
+                        for line in f:
+                            keys = line.rstrip().split(",")
+                            if len(keys) > 5:
+                                date = keys[2][1:11].lstrip()
+                                model = keys[4].lstrip()
+                                if model == "OFCL":
+                                    if date != previous_date:
+                                        previous_date = date
+                                        advisory_id += 1
+                                        fcst_filename = f"{year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_{advisory_id:03d}.fcst"
+                                        with open(fcst_filename, "w") as fcst_file:
+                                            fcst_file.write(line)
+                                    else:
+                                        fcst_filename = f"{year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_{advisory_id:03d}.fcst"
+                                        with open(fcst_filename, "a+") as fcst_file:
+                                            fcst_file.write(line)
+
+                    os.remove(
+                        f"{year}/fcst/nhc_fcst_{year}_{basin}_{storm:02d}_all.fcst"
+                    )
+
+    # Upload the files to S3
+    s3 = boto3.client("s3")
+    bucket = os.environ["METGET_S3_BUCKET"]
+    for year in range(year_start, year_end + 1):
+        if os.path.exists(f"{year}/fcst"):
+            dl_files = os.listdir(f"{year}/fcst")
+            for file in dl_files:
+                file_path = os.path.join(f"{year}/fcst", file)
+                s3_path = f"nhc/forecast/{year}/{file}"
+
+                try:
+                    s3.head_object(Bucket=bucket, Key=s3_path)
+                    logger.info(
+                        f"File {s3_path} already exists in S3. Skipping upload."
+                    )
+                    continue
+                except s3.exceptions.ClientError:
+                    logger.info(f"File {s3_path} does not exist in S3. Uploading.")
+                    s3.upload_file(file_path, bucket, s3_path)
+
+
+def rebuild_nhc() -> int:
     from libmetget.database.tables import NhcBtkTable, NhcFcstTable
 
-    log = logging.getLogger(__name__)
+    logger.info("Beginning to run NHC rebuild")
+    n = 0
 
-    log.info("Beginning to run NHC rebuild")
+    nhc_obtain_best_tracks()
+    nhc_obtain_forecast_tracks()
 
-    n = nhc_download_data(NhcBtkTable)
+    n += nhc_download_data(NhcBtkTable)
     n += nhc_download_data(NhcFcstTable)
 
     return n
