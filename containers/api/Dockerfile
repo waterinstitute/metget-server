@@ -1,10 +1,11 @@
 FROM condaforge/miniforge3 AS conda
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG PYTHON_VERSION=3.12
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
-RUN conda create -y -p /env python=3 boto3 bs4 certifi cfgrib feedparser geojson \
+RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib feedparser geojson \
                                      geopandas h5py netCDF4 numba numpy psycopg2 \
                                      python-dateutil requests schema scipy shapely sqlalchemy \
                                      xarray flask flask-limiter flask-restful \
