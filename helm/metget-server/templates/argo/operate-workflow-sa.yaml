@@ -18,6 +18,7 @@ rules:
       - workflowtemplates
       - cronworkflows
       - clusterworkflowtemplates
+      - workflowtaskresults
   - apiGroups:
       - ""
     resources:
