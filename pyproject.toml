@@ -62,6 +62,9 @@ push = false
     'version: {version}',
     'appVersion: "{version}"'
 ]
+"helm/metget-server/values.example.yaml" = [
+    'version: {version}-stable'
+]
 "containers/api/Dockerfile" = [
     'LABEL version="{version}"'
 ]
