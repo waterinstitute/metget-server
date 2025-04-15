@@ -527,7 +527,7 @@ COAMPS_TC = MetFileAttributes(
             "name": "hourly_precip",
             "long_name": "Hourly precipitation",
             "var_name": "precip",
-            "scale": 3600.0,
+            "scale": 1.0,
             "is_accumulated": False,
             "skip_0": True,
         },
