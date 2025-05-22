@@ -689,14 +689,10 @@ class NoaaDownloader:
                 file_path, n, err = self.get_grib(p)
                 nerror += err
                 if file_path:
-                    self.__database.add(p, self.met_type(), file_path)
-                    num_download += n
+                    num_download += self.__database.add(p, self.met_type(), file_path)
             else:
                 filepath = "s3://{:s}/{:s}".format(self.big_data_bucket(), p["grb"])
-
-                if not self.__database.has(self.met_type(), p):
-                    num_download += 1
-                    self.__database.add(p, self.met_type(), filepath)
+                num_download += self.__database.add(p, self.met_type(), filepath)
 
         return num_download
 

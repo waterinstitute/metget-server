@@ -145,9 +145,8 @@ class WpcDownloader:
                     and os.path.getsize(temp_file_path) > 0
                 ):
                     s3.upload_file(temp_file_path, remote_path)
-                    db.add(data_pair, "wpc_ncep", remote_path)
+                    num_downloads += db.add(data_pair, "wpc_ncep", remote_path)
                     os.remove(temp_file_path)
-                    num_downloads += 1
 
         return num_downloads
 

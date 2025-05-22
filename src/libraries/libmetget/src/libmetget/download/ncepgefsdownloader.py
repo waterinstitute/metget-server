@@ -124,11 +124,9 @@ class NcepGefsdownloader(NoaaDownloader):
                 file_path, n, err = self.get_grib(p)
                 nerror += err
                 if file_path:
-                    db.add(p, self.met_type(), file_path)
-                    num_download += n
+                    num_download += db.add(p, self.met_type(), file_path)
             else:
                 filepath = "s3://{:s}/{:s}".format(self.big_data_bucket(), p["grb"])
-                num_download += 1
-                db.add(p, self.met_type(), filepath)
+                num_download += db.add(p, self.met_type(), filepath)
 
         return num_download

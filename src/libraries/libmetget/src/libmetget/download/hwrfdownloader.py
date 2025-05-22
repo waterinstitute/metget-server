@@ -67,8 +67,7 @@ class HwrfDownloader(NoaaDownloader):
         for p in pairs:
             fpath, n, _ = self.get_grib(p)
             if fpath:
-                db.add(p, self.met_type(), fpath)
-                num_download = num_download + n
+                num_download += db.add(p, self.met_type(), fpath)
 
         return num_download
 

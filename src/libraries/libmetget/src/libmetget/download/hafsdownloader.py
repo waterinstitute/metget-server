@@ -146,26 +146,16 @@ class HafsDownloader(NoaaDownloader):
                                         obj["Key"] + ".idx",
                                     ],
                                 }
-                                path_found = self.database().has(
-                                    self.met_type(), metadata
-                                )
 
-                                if not path_found:
-                                    filepath = [
-                                        "s3://"
-                                        + self.big_data_bucket()
-                                        + "/"
-                                        + storm_file,
-                                        "s3://"
-                                        + self.big_data_bucket()
-                                        + "/"
-                                        + obj["Key"],
-                                    ]
-                                    filepath_str = ",".join(filepath)
-                                    self.database().add(
-                                        metadata, self.met_type(), filepath_str
-                                    )
-                                    n += 1
+                                filepath = [
+                                    "s3://" + self.big_data_bucket() + "/" + storm_file,
+                                    "s3://" + self.big_data_bucket() + "/" + obj["Key"],
+                                ]
+                                filepath_str = ",".join(filepath)
+
+                                n += self.database().add(
+                                    metadata, self.met_type(), filepath_str
+                                )
 
         return n
 
