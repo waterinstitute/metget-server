@@ -475,10 +475,11 @@ class NoaaDownloader:
                 http.mount("http://", adaptor)
 
                 inv = http.get(info["inv"], timeout=30)
-                inv.raise_for_status()
-                if inv.status_code in (302, 403):
+                if inv.status_code in (302, 403, 404):
                     logger.error("RESP: ".format())
                     return None, 0, 0
+                else:
+                    inv.raise_for_status()
 
                 inv_lines = str(inv.text).split("\n")
                 retlist = []
