@@ -677,14 +677,28 @@ class NhcDownloader:
 
         logger = logging.getLogger(__name__)
 
-        ftp = FTP("ftp.nhc.noaa.gov")
-        ftp.login()
-        ftp.cwd("atcf/fst")
+        logger.info("Connecting to NHC FTP server...")
+        try:
+            ftp = FTP("ftp.nhc.noaa.gov", timeout=30)
+            ftp.login()
+            ftp.cwd("atcf/fst")
+        except ConnectionResetError:
+            logger.error("Could not connect to NHC FTP server, connection reset")
+            return 0
+        except TimeoutError:
+            logger.error("Could not connect to NHC FTP server, connection timed out")
+            return 0
 
         try:
             filelist = ftp.nlst("*.fst")
         except ftplib.error_temp as e:
             logger.warning(f"No NHC forecast files found. FTP error: {e}")
+            return 0
+        except ConnectionResetError:
+            logger.error("Could not connect to NHC FTP server, connection reset")
+            return 0
+        except TimeoutError:
+            logger.error("Could not connect to NHC FTP server, connection timed out")
             return 0
 
         n = 0
@@ -746,8 +760,21 @@ class NhcDownloader:
                                 )
                             )
                             temp_file_path = tempfile.gettempdir() + "/" + fn
-                            with open(temp_file_path, "wb") as out_file:
-                                ftp.retrbinary("RETR " + f, out_file.write)
+
+                            try:
+                                with open(temp_file_path, "wb") as out_file:
+                                    ftp.retrbinary("RETR " + f, out_file.write)
+                            except ConnectionResetError:
+                                logger.error(
+                                    "Error getting file from NHC FTP. Connection reset"
+                                )
+                                continue
+                            except TimeoutError:
+                                logger.error(
+                                    "Error getting file from NHC FTP. Connection timed out"
+                                )
+                                continue
+
                             (
                                 start_date,
                                 end_date,
@@ -850,7 +877,7 @@ class NhcDownloader:
 
         # Anonymous FTP login
         try:
-            ftp = FTP("ftp.nhc.noaa.gov")
+            ftp = FTP("ftp.nhc.noaa.gov", timeout=30)
             ftp.login()
             ftp.cwd("atcf/btk")
 
@@ -886,8 +913,15 @@ class NhcDownloader:
                     try:
                         with open(file_path, "wb") as out_file:
                             ftp.retrbinary("RETR " + f, out_file.write)
-                    except:  # noqa: E722
-                        logger.error("Error getting file from NHC FTP")
+                    except ConnectionResetError:
+                        logger.error(
+                            "Error getting file from NHC FTP. Connection reset"
+                        )
+                        continue
+                    except TimeoutError:
+                        logger.error(
+                            "Error getting file from NHC FTP. Connection timed out"
+                        )
                         continue
 
                     start_date, end_date, duration = self.get_nhc_start_end_date(
@@ -929,9 +963,12 @@ class NhcDownloader:
             return n
         except KeyboardInterrupt:
             raise
-        # except:
-        #     print("[ERROR]: An error occured connecting to the NHC ftp site", flush=True)
-        #     return 0
+        except ConnectionResetError:
+            logger.error("Error connecting to NHC FTP. Connection reset")
+            return 0
+        except TimeoutError:
+            logger.error("Error connecting to NHC FTP. Connection timed out")
+            return 0
 
     @staticmethod
     def generate_storm_forecast_homepage_url(year, basin, storm):
