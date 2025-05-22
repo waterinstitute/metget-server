@@ -468,7 +468,7 @@ class Metdb:
 
         return v is not None
 
-    def add(self, metadata: dict, datatype: str, filepath: str) -> None:
+    def add(self, metadata: dict, datatype: str, filepath: str) -> int:
         """
         Adds a file listing to the database
 
@@ -478,28 +478,28 @@ class Metdb:
             filepath (str): File location
 
         Returns:
-            None
+            1 if the record was added, 0 otherwise
         """
         if datatype == "hwrf":
-            self.__add_record_hwrf(filepath, metadata)
+            n_files = self.__add_record_hwrf(filepath, metadata)
         elif "hafs" in datatype:
-            self.__add_record_hafs(datatype, filepath, metadata)
+            n_files = self.__add_record_hafs(datatype, filepath, metadata)
         elif datatype == "coamps":
-            self.__add_record_coamps(filepath, metadata)
+            n_files = self.__add_record_coamps(filepath, metadata)
         elif datatype == "ctcx":
-            self.__add_record_ctcx(filepath, metadata)
+            n_files = self.__add_record_ctcx(filepath, metadata)
         elif datatype == "nhc_fcst":
-            self.__add_record_nhc_fcst(filepath, metadata)
+            n_files = self.__add_record_nhc_fcst(filepath, metadata)
         elif datatype == "nhc_btk":
-            self.__add_record_nhc_btk(filepath, metadata)
+            n_files = self.__add_record_nhc_btk(filepath, metadata)
         elif datatype == "gefs_ncep":
-            self.__add_record_gefs_ncep(filepath, metadata)
+            n_files = self.__add_record_gefs_ncep(filepath, metadata)
         else:
-            self.__add_record_generic(datatype, filepath, metadata)
+            n_files = self.__add_record_generic(datatype, filepath, metadata)
 
-    def __add_record_generic(
-        self, datatype: str, filepath: str, metadata: dict
-    ) -> None:
+        return n_files
+
+    def __add_record_generic(self, datatype: str, filepath: str, metadata: dict) -> int:
         """
         Adds a generic file listing to the database (i.e. gfs_ncep)
 
@@ -509,7 +509,7 @@ class Metdb:
             metadata (dict): dict containing cycledate and forecastdate
 
         Returns:
-            None
+            1 if the record was added, 0 otherwise
         """
         import math
 
@@ -521,7 +521,9 @@ class Metdb:
             WpcTable,
         )
 
-        if not self.__has_generic(datatype, metadata):
+        if self.__has_generic(datatype, metadata):
+            return 0
+        else:
             if datatype == "gfs_ncep":
                 table = GfsTable
             elif datatype == "nam_ncep":
@@ -555,7 +557,9 @@ class Metdb:
             )
             self.__add_delayed_object(record)
 
-    def __add_record_gefs_ncep(self, filepath: str, metadata: dict) -> None:
+            return 1
+
+    def __add_record_gefs_ncep(self, filepath: str, metadata: dict) -> int:
         """
         Adds a GEFS file listing to the database
 
@@ -564,13 +568,15 @@ class Metdb:
             metadata (dict): dict containing the metadata for the file
 
         Returns:
-            None
+            1 if the record was added, 0 otherwise
         """
         import math
 
         from ..database.tables import GefsTable
 
-        if not self.__has_gefs(metadata):
+        if self.__has_gefs(metadata):
+            return 0
+        else:
             cdate = metadata["cycledate"]
             fdate = metadata["forecastdate"]
             member = str(metadata["ensemble_member"])
@@ -593,7 +599,9 @@ class Metdb:
             )
             self.__add_delayed_object(record)
 
-    def __add_record_nhc_btk(self, filepath: str, metadata: dict) -> None:
+            return 1
+
+    def __add_record_nhc_btk(self, filepath: str, metadata: dict) -> int:
         """
         Adds a NHC BTK file listing to the database
 
@@ -602,8 +610,10 @@ class Metdb:
             metadata (dict): dict containing the metadata for the file
 
         Returns:
-            None
+            Always returns 1 since the record is either added or updated
         """
+        from datetime import datetime, timezone
+
         from ..database.tables import NhcBtkTable
 
         (
@@ -633,7 +643,6 @@ class Metdb:
             )
 
             self.__add_delayed_object(record)
-
         else:
             # Update the record
             record = (
@@ -650,11 +659,12 @@ class Metdb:
             record.advisory_duration_hr = duration
             record.filepath = filepath
             record.md5 = md5
-            record.accessed = datetime.utcnow()
+            record.accessed = datetime.now(tz=timezone.utc)
             record.geometry_data = geojson
             self.__session.commit()
+        return 1
 
-    def __add_record_nhc_fcst(self, filepath: str, metadata: dict) -> None:
+    def __add_record_nhc_fcst(self, filepath: str, metadata: dict) -> int:
         """
         Adds a NHC forecast file listing to the database
 
@@ -663,7 +673,7 @@ class Metdb:
             metadata (dict): dict containing the metadata for the file
 
         Returns:
-            None
+            Always returns 1 since the record is either added or updated
         """
         from ..database.tables import NhcFcstTable
 
@@ -714,7 +724,9 @@ class Metdb:
             record.md5 = md5
             self.__session.commit()
 
-    def __add_record_hafs(self, datatype: str, filepath: str, metadata: dict) -> None:
+        return 1
+
+    def __add_record_hafs(self, datatype: str, filepath: str, metadata: dict) -> int:
         """
         Adds a HAFS file listing to the database
 
@@ -730,7 +742,9 @@ class Metdb:
 
         from ..database.tables import HafsATable, HafsBTable
 
-        if not self.__has_hafs(datatype, metadata):
+        if self.__has_hafs(datatype, metadata):
+            return 0
+        else:
             cdate = metadata["cycledate"]
             fdate = metadata["forecastdate"]
             url = ",".join(metadata["grb"])
@@ -768,7 +782,9 @@ class Metdb:
 
             self.__add_delayed_object(record)
 
-    def __add_record_hwrf(self, filepath: str, metadata: dict) -> None:
+            return 1
+
+    def __add_record_hwrf(self, filepath: str, metadata: dict) -> int:
         """
         Adds a HWRF file listing to the database
 
@@ -777,13 +793,15 @@ class Metdb:
             metadata (dict): dict containing the metadata for the file
 
         Returns:
-            None
+            1 if the file was added, 0 if it was not
         """
         import math
 
         from ..database.tables import HwrfTable
 
-        if not self.__has_hwrf(metadata):
+        if self.__has_hwrf(metadata):
+            return 0
+        else:
             cdate = metadata["cycledate"]
             fdate = metadata["forecastdate"]
             url = metadata["grb"]
@@ -807,7 +825,9 @@ class Metdb:
 
             self.__add_delayed_object(record)
 
-    def __add_record_coamps(self, filepath: str, metadata: dict) -> None:
+            return 1
+
+    def __add_record_coamps(self, filepath: str, metadata: dict) -> int:
         """
         Adds a COAMPS file listing to the database
 
@@ -816,13 +836,15 @@ class Metdb:
             metadata (dict): dict containing the metadata for the file
 
         Returns:
-            None
+            1 if the file was added, 0 if it was not
         """
         import math
 
         from ..database.tables import CoampsTable
 
-        if not self.__has_coamps(metadata):
+        if self.__has_coamps(metadata):
+            return 0
+        else:
             cdate = metadata["cycledate"]
             fdate = metadata["forecastdate"]
             name = metadata["name"]
@@ -843,7 +865,9 @@ class Metdb:
             )
             self.__add_delayed_object(record)
 
-    def __add_record_ctcx(self, filepath: str, metadata: dict) -> None:
+            return 1
+
+    def __add_record_ctcx(self, filepath: str, metadata: dict) -> int:
         """
         Adds a COAMPS CTCX file listing to the database
 
@@ -852,13 +876,15 @@ class Metdb:
             metadata (dict): dict containing the metadata for the file
 
         Returns:
-            None
+            1 if the file was added, 0 if it was not
         """
         import math
 
         from ..database.tables import CtcxTable
 
-        if not self.__has_ctcx(metadata):
+        if self.__has_ctcx(metadata):
+            return 0
+        else:
             cdate = metadata["cycledate"]
             fdate = metadata["forecastdate"]
             ensemble_member = metadata["ensemble_member"]
@@ -880,6 +906,8 @@ class Metdb:
                 accessed=datetime.now(),
             )
             self.__add_delayed_object(record)
+
+            return 1
 
     @staticmethod
     def __generate_nhc_vars_from_dict(metadata: dict) -> tuple:

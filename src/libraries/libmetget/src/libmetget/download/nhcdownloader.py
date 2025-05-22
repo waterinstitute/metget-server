@@ -362,10 +362,7 @@ class NhcDownloader:
                                 "advisory_end": end_date,
                                 "advisory_duration_hr": duration,
                             }
-                            self.__database.add(nhc_metadata, "nhc_fcst", filepath)
-
-                            # Increment the counter
-                            n += 1
+                            n += self.__database.add(nhc_metadata, "nhc_fcst", filepath)
                         else:
                             logger.warning(
                                 "Dropping forecast for having < {:d} forecast records".format(
@@ -809,11 +806,10 @@ class NhcDownloader:
 
                             if self.__use_aws:
                                 self.__s3file.upload_file(temp_file_path, remote_path)
-                                self.__database.add(data, "nhc_fcst", remote_path)
+                                n += self.__database.add(data, "nhc_fcst", remote_path)
                                 os.remove(temp_file_path)
                             else:
-                                self.__database.add(data, "nhc_fcst", filepath)
-                            n += 1
+                                n += self.__database.add(data, "nhc_fcst", filepath)
             except Exception as e:
                 logger.error(
                     f"The following exception was thrown for file {f:s}: {e!s:s}"
@@ -955,11 +951,10 @@ class NhcDownloader:
                         }
                         if self.__use_aws:
                             self.__s3file.upload_file(file_path, remote_path)
-                            self.__database.add(data, "nhc_btk", remote_path)
+                            n += self.__database.add(data, "nhc_btk", remote_path)
                             os.remove(file_path)
                         else:
-                            self.__database.add(data, "nhc_btk", file_path)
-                        n += 1
+                            n += self.__database.add(data, "nhc_btk", file_path)
             return n
         except KeyboardInterrupt:
             raise

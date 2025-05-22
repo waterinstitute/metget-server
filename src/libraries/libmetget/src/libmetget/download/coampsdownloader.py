@@ -217,8 +217,7 @@ class CoampsDownloader:
                             files += remote_path
                         else:
                             files += "," + remote_path
-                    self.__database.add(metadata, "coamps", files)
-                    file_count += 1
+                    file_count += self.__database.add(metadata, "coamps", files)
 
                 self.__database.commit()
                 self.__reset_temp_directory(True)
