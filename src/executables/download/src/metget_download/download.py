@@ -174,10 +174,8 @@ def hrrr_alaska_download():
 def wpc_download():
     from libmetget.download.wpcdownloader import WpcDownloader
 
-    start, end = generate_default_date_range()
-    wpc = WpcDownloader(start, end)
     logger.info("Beginning downloading WPC data")
-    n = wpc.download()
+    n = WpcDownloader.download()
     logger.info(f"WPC complete. {n:d} files downloaded")
     return n
 

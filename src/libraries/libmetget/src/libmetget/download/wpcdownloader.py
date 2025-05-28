@@ -36,7 +36,8 @@ class WpcDownloader:
         self.__start_time = start_time
         self.__end_time = end_time
 
-    def download(self) -> int:  # noqa: PLR0915, PLR0912
+    @staticmethod
+    def download() -> int:  # noqa: PLR0915, PLR0912
         import logging
         import os
         import tempfile
@@ -61,8 +62,13 @@ class WpcDownloader:
         for i in range(max_retries):
             try:
                 filelist = ftp.nlst("p06m*.grb")
+                break
             except ConnectionResetError as e:
                 log.error(f"Connection reset error: {e}")
+                log.error(f"Retrying {i + 1} of {max_retries}")
+                ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
+            except TimeoutError as e:
+                log.error(f"Timeout error: {e}")
                 log.error(f"Retrying {i + 1} of {max_retries}")
                 ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
 
@@ -117,6 +123,7 @@ class WpcDownloader:
                     try:
                         with open(temp_file_path, "wb") as out_file:
                             ftp.retrbinary(f"RETR {f:s}", out_file.write)
+                        break
                     except ConnectionResetError:
                         log.error(
                             f"Connection reset error, retrying... (retry {i + 1} of {max_retries})"
@@ -126,7 +133,7 @@ class WpcDownloader:
                             log.error(
                                 f"Could not connect to FTP server after {max_retries} attempts"
                             )
-                            break
+                            return 0
                     except TimeoutError:
                         time.sleep(30)
                         log.error(
@@ -137,7 +144,7 @@ class WpcDownloader:
                             log.error(
                                 f"Could not connect to FTP server after {max_retries} attempts"
                             )
-                            break
+                            return 0
 
                 # If the file exists on disk and the size is greater than 0, upload it to S3 and add it to the database
                 if (
