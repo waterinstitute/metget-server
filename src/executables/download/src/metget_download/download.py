@@ -183,10 +183,13 @@ def wpc_download():
 
 
 def adeck_download() -> int:
+    from datetime import datetime, timezone
+
     from libmetget.download.adeckdownloader import ADeckDownloader
 
     a_deck = ADeckDownloader()
-    n = a_deck.download()
+    current_year = datetime.now(tz=timezone.utc).year
+    n = a_deck.download(current_year)
 
     logger.info(f"A-Deck complete. {n:d} files downloaded")
 
