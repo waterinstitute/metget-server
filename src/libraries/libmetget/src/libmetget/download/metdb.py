@@ -28,7 +28,7 @@
 ###################################################################################################
 import logging
 from datetime import datetime
-from typing import Union
+from typing import Optional, Union
 
 
 class Metdb:
@@ -129,7 +129,9 @@ class Metdb:
         else:
             return "0"
 
-    def get_nhc_fcst_md5(self, year, basin, storm, advisory) -> Union[str, list]:
+    def get_nhc_fcst_md5(
+        self, year: int, basin: str, storm: str, advisory: Optional[int]
+    ) -> Union[str, list]:
         """
         Get the md5 hash for a nhc fcst file
 
@@ -638,7 +640,7 @@ class Metdb:
                 advisory_duration_hr=duration,
                 filepath=filepath,
                 md5=md5,
-                accessed=datetime.utcnow(),
+                accessed=datetime.now(tz=timezone.utc),
                 geometry_data=geojson,
             )
 
@@ -675,6 +677,8 @@ class Metdb:
         Returns:
             Always returns 1 since the record is either added or updated
         """
+        from datetime import datetime, timezone
+
         from ..database.tables import NhcFcstTable
 
         (
@@ -712,7 +716,7 @@ class Metdb:
                 advisory_duration_hr=duration,
                 filepath=filepath,
                 md5=md5,
-                accessed=datetime.utcnow(),
+                accessed=datetime.now(tz=timezone.utc),
                 geometry_data=geojson,
             )
             self.__add_delayed_object(record)
