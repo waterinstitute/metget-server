@@ -114,11 +114,16 @@ class Database:
             msg = "Database environment variables not set"
             raise RuntimeError(msg)
 
-        db_host = "db-pgb-metget"
+        db_host = os.environ.get("METGET_DATABASE_HOST", "db-pgb-metget")
+
+        if "METGET_DATABASE_PORT" in os.environ:
+            db_port = int(os.environ["METGET_DATABASE_PORT"])
+        else:
+            db_port = 6432
+
         db_password = os.environ["METGET_DATABASE_PASSWORD"]
         db_username = os.environ["METGET_DATABASE_USER"]
         db_name = os.environ["METGET_DATABASE"]
-        db_port = 6432
         url = URL.create(
             "postgresql+psycopg2",
             username=db_username,

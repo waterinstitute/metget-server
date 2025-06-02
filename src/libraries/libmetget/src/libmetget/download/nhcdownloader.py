@@ -98,6 +98,18 @@ class NhcDownloader:
         self.__database = Metdb()
         self.__min_forecast_length = 2
 
+        self.__rss_feeds = [
+            "https://www.nhc.noaa.gov/index-at.xml",
+            "https://www.nhc.noaa.gov/index-ep.xml",
+            "https://www.nhc.noaa.gov/index-cp.xml",
+        ]
+
+        self.__rss_feed_basins = {
+            "al": self.__rss_feeds[0],
+            "ep": self.__rss_feeds[1],
+            "cp": self.__rss_feeds[2],
+        }
+
         if self.__use_aws:
             from .s3file import S3file
 
@@ -449,7 +461,8 @@ class NhcDownloader:
                         continue
 
                     nhc_file_metadata = self.get_nhc_atcf_metadata(temp_file_path, True)
-                    if nhc_file_metadata["advisory"]:
+                    advisory = self.get_current_advisory_from_rss(basin, storm)
+                    if advisory:
                         fn = (
                             "nhc_fcst_"
                             + year
@@ -458,7 +471,7 @@ class NhcDownloader:
                             + "_"
                             + storm
                             + "_"
-                            + nhc_file_metadata["advisory"]
+                            + advisory
                             + ".fcst"
                         )
 
@@ -475,7 +488,7 @@ class NhcDownloader:
                             "year": year,
                             "basin": basin,
                             "storm": storm,
-                            "advisory": nhc_file_metadata["advisory"],
+                            "advisory": advisory,
                         }
 
                         if self.__use_aws:
@@ -490,7 +503,7 @@ class NhcDownloader:
                                     basin2string(basin),
                                     str(year),
                                     str(storm),
-                                    nhc_file_metadata["advisory"],
+                                    advisory,
                                 )
                             )
 
@@ -513,7 +526,7 @@ class NhcDownloader:
                                 "basin": basin,
                                 "storm": storm,
                                 "md5": md5,
-                                "advisory": nhc_file_metadata["advisory"],
+                                "advisory": advisory,
                                 "advisory_start": nhc_file_metadata["start_date"],
                                 "advisory_end": nhc_file_metadata["end_date"],
                                 "advisory_duration_hr": nhc_file_metadata["duration"],
@@ -751,23 +764,35 @@ class NhcDownloader:
         basin = first_line[0].strip().lower()
         storm = first_line[1].strip().lower()
 
-        if is_forecast:
-            advisory_number = first_line[3].strip()
-            advisory_number_last = last_line[3].strip()
-            if advisory_number != advisory_number_last:
-                msg = f"Advisory numbers do not match in the forecast file: {advisory_number} != {advisory_number_last}"
-                raise ValueError(msg)
-        else:
-            advisory_number = None
-
         return {
             "basin": basin,
             "storm_id": storm,
             "start_date": start_date,
             "end_date": end_date,
             "duration": duration,
-            "advisory": advisory_number,
         }
+
+    def get_current_advisory_from_rss(self, basin: str, storm: str):
+        import feedparser
+
+        feed = feedparser.parse(self.__rss_feed_basins[basin.lower()])
+        for e in feed.entries:
+            if "forecast advisory" in e["title"].lower():
+                adv_number_str = e["title"].split()[-1]
+                adv_lines = e["description"].split("\n")
+
+                for adv_line in adv_lines:
+                    if "nws national hurricane center" in adv_line.lower():
+                        adv_lines_split = adv_line.split()
+                        if len(adv_lines_split) > 0:
+                            id_str = (adv_line.split()[-1]).lstrip()
+                            basin_str = str(id_str[0:2]).lower()
+                            storm_str = id_str[2:4]
+                            if storm_str == storm and basin_str == basin:
+                                return NhcDownloader.generate_advisory_number(
+                                    adv_number_str
+                                )
+        return None
 
 
 def basin2string(basin_abbrev):
