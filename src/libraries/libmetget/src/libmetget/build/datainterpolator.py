@@ -658,6 +658,8 @@ class DataInterpolator:
             ds = xr.open_dataset(
                 filename,
                 engine="cfgrib",
+                decode_times=False,
+                decode_timedelta=False,
                 backend_kwargs={
                     "indexpath": filename + ".idx",
                     "filter_by_keys": {"shortName": grib_var_name},
