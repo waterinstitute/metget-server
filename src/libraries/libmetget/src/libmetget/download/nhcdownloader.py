@@ -553,6 +553,10 @@ class NhcDownloader:
                     f"The following exception was thrown for file {f:s}: {e!s:s}"
                 )
 
+        if n > 0:
+            self.__database.commit()
+            logger.info(f"Added {n} NHC forecast entries to the database")
+
         return n
 
     @staticmethod
@@ -608,6 +612,8 @@ class NhcDownloader:
 
         logger.info("Connecting to NHC FTP site")
 
+        n = 0
+
         # Anonymous FTP login
         try:
             ftp = FTP("ftp.nhc.noaa.gov", timeout=30)
@@ -621,8 +627,6 @@ class NhcDownloader:
                 return 0
 
             logger.info("NHC FTP connection successful")
-
-            n = 0
 
             # Iterate through files and find the associated advisory
             for f in file_list:
@@ -690,15 +694,24 @@ class NhcDownloader:
                             os.remove(file_path)
                         else:
                             n += self.__database.add(data, "nhc_btk", file_path)
+
+            if n > 0:
+                self.__database.commit()
+                logger.info(f"Added {n} NHC best track entries to the database")
+
             return n
         except KeyboardInterrupt:
             raise
         except ConnectionResetError:
             logger.error("Error connecting to NHC FTP. Connection reset")
-            return 0
+            if n > 0:
+                self.__database.commit()
+            return n
         except TimeoutError:
             logger.error("Error connecting to NHC FTP. Connection timed out")
-            return 0
+            if n > 0:
+                self.__database.commit()
+            return n
 
     @staticmethod
     def compute_checksum(path):
