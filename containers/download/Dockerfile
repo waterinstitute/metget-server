@@ -21,7 +21,7 @@ RUN /env/bin/pip install /tmp/metbuild_download/.
 FROM debian:stable-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
-LABEL version="0.4.9"
+LABEL version="0.4.10"
 LABEL description="METGET Download"
 LABEL io.k8s.description="METGET Download"
 LABEL io.k8s.display-name="METGET Download"
