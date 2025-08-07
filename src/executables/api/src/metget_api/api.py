@@ -300,6 +300,44 @@ class MetGetCredits(Resource):
             return AccessControl.unauthorized_response()
 
 
+class MetGetDashboard(Resource):
+    """
+    Serves the MetGet status dashboard HTML interface.
+
+    This dashboard provides a web interface to visualize meteorological
+    data status by making calls to the existing status API endpoints.
+    """
+
+    @staticmethod
+    def get():
+        """
+        Serves the dashboard HTML page that displays real-time status
+        of meteorological models and NHC data.
+
+        This endpoint is publicly accessible to allow users to view the dashboard.
+        The dashboard will need valid API credentials to fetch data from the status endpoints.
+        """
+        return MetGetDashboard._load_dashboard_html()
+
+    @staticmethod
+    def _load_dashboard_html():
+        """Load and return the dashboard HTML template."""
+        import os
+
+        from flask import Response
+
+        template_path = os.path.join(
+            os.path.dirname(__file__), "templates", "dashboard.html"
+        )
+        try:
+            with open(template_path, encoding="utf-8") as f:
+                dashboard_html = f.read()
+            return Response(dashboard_html, mimetype="text/html")
+        except FileNotFoundError:
+            error_html = "<html><body><h1>Dashboard template not found</h1><p>Please ensure dashboard.html exists in the templates directory.</p></body></html>"
+            return Response(error_html, mimetype="text/html", status=404)
+
+
 def health_ready():
     """
     This method is used to check the readiness of the MetGet API
@@ -330,6 +368,7 @@ api.add_resource(
     "/adeck/<string:year>/<string:basin>/<string:model>/<string:storm>/<string:cycle>",
 )
 api.add_resource(MetGetCredits, "/credits")
+api.add_resource(MetGetDashboard, "/dashboard")
 
 # ...Add the health check
 HEALTHZ = {

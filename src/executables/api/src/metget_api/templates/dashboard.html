@@ -1,0 +1,2997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetGet Status Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0f172a;
+            --secondary-color: #334155;
+            --accent-color: #3b82f6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header .logo {
+            max-height: 80px;
+            width: auto;
+            margin: 0 0 0.5rem 0;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            margin: 0 0 1.5rem 0;
+        }
+
+        /* Dashboard Controls */
+        .dashboard-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin: 0 auto 2rem auto;
+            max-width: 800px;
+            padding: 1.25rem;
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .control-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        /* Duration Selector */
+        .duration-selector {
+            display: flex;
+            background: var(--background);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .duration-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .duration-button:last-child {
+            border-right: none;
+        }
+
+        .duration-button:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .duration-button.active {
+            background: var(--accent-color);
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Refresh Button */
+        .refresh-button {
+            padding: 0.625rem 1.25rem;
+            background: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+        }
+
+        .refresh-button:hover {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .refresh-button:active {
+            transform: translateY(0);
+        }
+
+        .refresh-button.loading {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .refresh-button.loading .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        .refresh-icon {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.2s ease;
+        }
+
+        /* Clear API Key Button */
+        .clear-key-button {
+            padding: 0.625rem 1.25rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+        }
+
+        .clear-key-button:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .clear-key-button:active {
+            transform: translateY(0);
+        }
+
+        .clear-icon {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.2s ease;
+        }
+
+        /* Responsive Design for Controls */
+        @media (max-width: 768px) {
+            .dashboard-controls {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .control-group {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.5rem;
+            }
+
+            .duration-selector {
+                width: 100%;
+            }
+
+            .duration-button {
+                flex: 1;
+                text-align: center;
+            }
+        }
+
+        /* API Key Section */
+        .api-key-section {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .api-input-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .input-group label {
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .api-input {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            width: 300px;
+            transition: all 0.2s ease;
+            background: var(--surface);
+        }
+
+        .api-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Status Dots - Bulletproof Identical Base */
+        .status-dot {
+            /* Explicit size with important to override any inheritance */
+            width: 10px !important;
+            height: 10px !important;
+            min-width: 10px !important;
+            min-height: 10px !important;
+            max-width: 10px !important;
+            max-height: 10px !important;
+
+            /* Perfect circle with fallbacks */
+            border-radius: 50% !important;
+            -webkit-border-radius: 50% !important;
+            -moz-border-radius: 50% !important;
+
+            /* Display and positioning */
+            display: inline-block !important;
+            margin-right: 8px !important;
+            flex-shrink: 0 !important;
+
+            /* Box model reset */
+            border: none !important;
+            padding: 0 !important;
+            outline: none !important;
+            box-sizing: border-box !important;
+
+            /* Transform origin for animations */
+            transform-origin: center center !important;
+
+            /* Smooth rendering */
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+
+            /* Prevent any text or content issues */
+            font-size: 0 !important;
+            line-height: 0 !important;
+            text-indent: -9999px !important;
+            overflow: hidden !important;
+
+            /* Force hardware acceleration for smoother animations */
+            will-change: opacity, transform !important;
+            -webkit-transform: translateZ(0) !important;
+            transform: translateZ(0) !important;
+            /* Ensure animations work on all browsers */
+            -webkit-backface-visibility: hidden !important;
+            backface-visibility: hidden !important;
+        }
+
+        /* All states inherit the exact same base properties */
+        .status-dot.active {
+            background-color: #10b981 !important;
+        }
+
+        .status-dot.warning {
+            background-color: #f59e0b !important;
+        }
+
+        .status-dot.error {
+            background-color: #dc2626 !important;
+        }
+
+        .status-dot.loading {
+            background-color: #06b6d4 !important;
+            animation: status-pulse 1.5s ease-in-out infinite, status-glow 1.5s ease-in-out infinite !important;
+            -webkit-animation: status-pulse 1.5s ease-in-out infinite, status-glow 1.5s ease-in-out infinite !important;
+            position: relative !important;
+        }
+
+        .status-dot.loading::before {
+            content: '' !important;
+            position: absolute !important;
+            top: -2px !important;
+            left: -2px !important;
+            width: 14px !important;
+            height: 14px !important;
+            border-radius: 50% !important;
+            background-color: rgba(6, 182, 212, 0.3) !important;
+            animation: status-ripple 1.5s ease-out infinite !important;
+            -webkit-animation: status-ripple 1.5s ease-out infinite !important;
+            z-index: -1 !important;
+        }
+
+        /* Enhanced pulse with more dramatic opacity change */
+        @keyframes status-pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.1;
+                transform: scale(0.95);
+            }
+        }
+
+        /* Webkit-specific pulse animation */
+        @-webkit-keyframes status-pulse {
+            0%, 100% {
+                opacity: 1;
+                -webkit-transform: scale(1);
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.1;
+                -webkit-transform: scale(0.95);
+                transform: scale(0.95);
+            }
+        }
+
+        /* Glow effect for the loading dot */
+        @keyframes status-glow {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 15px rgba(6, 182, 212, 0.8), 0 0 25px rgba(6, 182, 212, 0.4);
+            }
+        }
+
+        @-webkit-keyframes status-glow {
+            0%, 100% {
+                -webkit-box-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+                box-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+            }
+            50% {
+                -webkit-box-shadow: 0 0 15px rgba(6, 182, 212, 0.8), 0 0 25px rgba(6, 182, 212, 0.4);
+                box-shadow: 0 0 15px rgba(6, 182, 212, 0.8), 0 0 25px rgba(6, 182, 212, 0.4);
+            }
+        }
+
+        /* Ripple effect around the loading dot */
+        @keyframes status-ripple {
+            0% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(2.5);
+            }
+        }
+
+        @-webkit-keyframes status-ripple {
+            0% {
+                opacity: 0.8;
+                -webkit-transform: scale(1);
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                -webkit-transform: scale(2.5);
+                transform: scale(2.5);
+            }
+        }
+
+
+        /* Model Grid */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .model-card {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            cursor: grab;
+            overflow: hidden;
+        }
+
+        .model-card:hover {
+            /* Hover effects disabled for static card layout */
+            /* transform: translateY(-2px); */
+            /* box-shadow: var(--shadow-lg); */
+        }
+
+        .model-card.dragging {
+            transform: rotate(5deg);
+            opacity: 0.8;
+            cursor: grabbing;
+        }
+
+        .card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+
+        .card-title {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 0;
+        }
+
+        .model-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .model-name {
+            font-size: 1.375rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            letter-spacing: -0.025em;
+        }
+
+        .status-row {
+            /* Standardized container for consistent positioning */
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            margin-left: 1.875rem !important; /* Align with model name (status-dot width + gap) */
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            margin-right: 0 !important;
+            padding: 0 !important;
+
+            /* Ensure identical height and positioning */
+            min-height: 1.1rem !important;
+            box-sizing: border-box !important;
+
+            /* Prevent any layout disruption */
+            position: relative !important;
+            z-index: 1 !important;
+            flex-shrink: 0 !important;
+        }
+
+        .status-text {
+            /* Explicit dimensions and positioning to ensure identical layout */
+            display: block !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+            line-height: 1.25 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+
+            /* Box model standardization */
+            box-sizing: border-box !important;
+            min-height: 1.1rem !important;
+
+            /* Text properties */
+            font-family: inherit !important;
+            letter-spacing: 0 !important;
+            text-align: left !important;
+            text-transform: none !important;
+            text-decoration: none !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+
+            /* Default color */
+            color: var(--text-secondary) !important;
+
+            /* Prevent any inherited styles from affecting layout */
+            border: none !important;
+            background: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .status-text.active {
+            color: var(--success-color) !important;
+        }
+
+        .status-text.warning {
+            color: var(--warning-color) !important;
+        }
+
+        .status-text.error {
+            color: #dc2626 !important;
+        }
+
+        .status-text.loading {
+            color: var(--info-color) !important;
+            animation: text-pulse 2s ease-in-out infinite !important;
+            -webkit-animation: text-pulse 2s ease-in-out infinite !important;
+        }
+
+        /* Subtle text pulse for loading status */
+        @keyframes text-pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        @-webkit-keyframes text-pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            /* Ensure proper box model and prevent overlaps */
+            box-sizing: border-box;
+            position: relative;
+            /* Clear any floated elements */
+            clear: both;
+            /* Prevent content overflow */
+            overflow: hidden;
+        }
+
+        .model-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-item {
+            padding: 0;
+            background: none;
+            border: none;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-container {
+            position: relative;
+            margin-top: 1rem;
+            background: var(--surface);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .chart-container.bar-chart {
+            height: 250px;
+        }
+
+        .chart-container.commit-graph {
+            min-height: 120px;
+            height: auto;
+        }
+
+        /* Basin selector controls - Enhanced with debugging and improved visibility */
+        .basin-selector {
+            /* Ensure always visible during development */
+            padding: 0.5rem 1rem !important;
+            margin-bottom: 1rem !important;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+            border-radius: var(--radius-md) !important;
+            border: 1px solid var(--border-color) !important;
+
+            /* Prevent accidental hiding */
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+
+            /* Ensure proper box model */
+            box-sizing: border-box !important;
+            position: relative !important;
+
+            /* Debugging: Add subtle background when empty */
+            min-height: 2rem !important;
+
+            /* Ensure it stays above other elements */
+            z-index: 10 !important;
+        }
+
+        /* Debug mode - add red border when selector should be visible but empty */
+        .basin-selector:empty {
+            border: 2px dashed #ef4444 !important;
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%) !important;
+        }
+
+        /* Add content to empty selectors for debugging */
+        .basin-selector:empty::after {
+            content: "⚠️ Basin selector is empty - check data structure" !important;
+            color: var(--danger-color) !important;
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            display: block !important;
+        }
+
+        .basin-selector-label {
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            color: var(--text-primary) !important;
+            margin-bottom: 0.5rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+
+            /* Ensure label is always visible */
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        .basin-buttons {
+            /* Enhanced flexbox layout with debugging */
+            display: flex !important;
+            gap: 0.5rem !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+
+            /* Ensure container is visible */
+            min-height: 1.5rem !important;
+            position: relative !important;
+
+            /* Debugging: Show empty state */
+            box-sizing: border-box !important;
+        }
+
+        /* Debug indicator for empty button container */
+        .basin-buttons:empty::before {
+            content: "🚫 No basin buttons generated" !important;
+            color: var(--warning-color) !important;
+            font-size: 0.7rem !important;
+            font-weight: 500 !important;
+            font-style: italic !important;
+            display: block !important;
+        }
+
+        .basin-btn {
+            /* Enhanced button styles with better visibility */
+            padding: 0.25rem 0.75rem !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: var(--radius-sm) !important;
+            background: var(--surface) !important;
+            color: var(--text-secondary) !important;
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            white-space: nowrap !important;
+
+            /* Ensure buttons are always visible */
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+
+            /* Prevent layout issues */
+            box-sizing: border-box !important;
+            vertical-align: top !important;
+            position: relative !important;
+
+            /* Enhanced accessibility */
+            user-select: none !important;
+            outline: none !important;
+
+            /* Minimum size for touch targets */
+            min-width: 2rem !important;
+            min-height: 1.5rem !important;
+
+            /* Debug: Subtle shadow to verify presence */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        }
+
+        .basin-btn:hover {
+            background: var(--accent-color) !important;
+            color: white !important;
+            border-color: var(--accent-color) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+
+        .basin-btn.active {
+            background: var(--accent-color) !important;
+            color: white !important;
+            border-color: var(--accent-color) !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+            font-weight: 600 !important;
+        }
+
+        /* Debug mode: Show button count - DISABLED */
+        .basin-buttons::after {
+            /* content: "(" attr(data-button-count) " buttons)" !important; */
+            /* font-size: 0.65rem !important; */
+            /* color: var(--text-muted) !important; */
+            /* margin-left: 0.5rem !important; */
+            /* font-style: italic !important; */
+            /* opacity: 0.7 !important; */
+        }
+
+        /* Error state for basin selector */
+        .basin-selector.error {
+            border: 2px solid var(--danger-color) !important;
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%) !important;
+        }
+
+        .basin-selector.error .basin-selector-label::after {
+            content: " (Error: Check console)" !important;
+            color: var(--danger-color) !important;
+            font-weight: normal !important;
+            text-transform: none !important;
+        }
+
+        /* Loading state for basin selector */
+        .basin-selector.loading {
+            border: 2px solid var(--info-color) !important;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+            animation: basin-loading 2s ease-in-out infinite !important;
+        }
+
+        @keyframes basin-loading {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .basin-selector.loading .basin-selector-label::after {
+            content: " (Loading...)" !important;
+            color: var(--info-color) !important;
+            font-weight: normal !important;
+            text-transform: none !important;
+        }
+
+        /* No data state */
+        .basin-selector.no-data {
+            border: 2px dashed var(--text-muted) !important;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%) !important;
+        }
+
+        .basin-selector.no-data .basin-selector-label::after {
+            content: " (No basin data available)" !important;
+            color: var(--text-muted) !important;
+            font-weight: normal !important;
+            text-transform: none !important;
+        }
+
+        /* Development/Debug helper styles */
+        .basin-selector[data-debug="true"] {
+            border: 3px solid #9333ea !important;
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
+        }
+
+        .basin-selector[data-debug="true"]::before {
+            content: "🔧 DEBUG MODE" !important;
+            position: absolute !important;
+            top: -1.5rem !important;
+            left: 0 !important;
+            font-size: 0.7rem !important;
+            font-weight: 600 !important;
+            color: #9333ea !important;
+            background: white !important;
+            padding: 0.2rem 0.4rem !important;
+            border-radius: 0.25rem !important;
+            border: 1px solid #9333ea !important;
+            z-index: 20 !important;
+        }
+
+        /* Button focus states for better accessibility */
+        .basin-btn:focus {
+            outline: 2px solid var(--accent-color) !important;
+            outline-offset: 2px !important;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        /* Responsive adjustments for basin buttons */
+        @media (max-width: 768px) {
+            .basin-buttons {
+                gap: 0.25rem !important;
+            }
+
+            .basin-btn {
+                font-size: 0.7rem !important;
+                padding: 0.2rem 0.5rem !important;
+            }
+        }
+
+        /* GitHub-style commit graph - Table-like Aligned Layout */
+        .commit-grid-aligned {
+            display: grid;
+            grid-template-columns: auto auto 1fr;
+            gap: 0.5rem 1rem;
+            align-items: center;
+            /* Ensure the entire grid stays within card boundaries */
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .storm-row {
+            display: contents; /* Makes children participate directly in parent grid */
+        }
+
+        .storm-name-cell {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 2rem;
+            white-space: nowrap;
+        }
+
+        .cycle-count-cell {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: var(--text-muted);
+            text-align: left;
+            min-height: 2rem;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .storm-cycles-aligned {
+            display: grid;
+            gap: 2px;
+            /* Dynamic grid columns - will be set by JavaScript */
+            grid-template-columns: repeat(var(--cycle-count, 15), minmax(12px, 1fr));
+            min-height: 2rem;
+            align-items: center;
+            /* Constrain to container width */
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .cycle-box {
+            /* BULLETPROOF SIZE LOCKING - Forces identical dimensions for all states */
+            width: 12px !important;
+            height: 12px !important;
+            min-width: 12px !important;
+            min-height: 12px !important;
+            max-width: 12px !important;
+            max-height: 12px !important;
+
+            /* EXPLICIT DISPLAY AND POSITIONING - Prevents layout differences */
+            display: inline-block !important;
+            box-sizing: border-box !important;
+            flex-shrink: 0 !important;
+            flex-grow: 0 !important;
+            position: relative !important;
+
+            /* RESET ALL SPACING - Ensures no inherited spacing affects dimensions */
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            outline: none !important;
+
+            /* VISUAL PROPERTIES */
+            border-radius: 2px !important;
+            cursor: pointer !important;
+
+            /* ANIMATION PREPARATION - Locks transform origin to prevent size changes */
+            transform-origin: center center !important;
+
+            /* SMOOTH TRANSITIONS - Only for non-critical properties */
+            transition: background-color 0.2s ease, opacity 0.2s ease !important;
+
+            /* RENDERING OPTIMIZATION - Forces consistent rendering context */
+            will-change: opacity !important;
+            contain: none !important;
+        }
+
+        .cycle-box:hover {
+            transform: scale(1.2) !important;
+            /* ENHANCED Z-INDEX - Only for the cycle box, not tooltip */
+            z-index: 100 !important;
+            /* Override will-change during hover for smooth scaling */
+            will-change: transform !important;
+            /* Remove isolation to prevent tooltip trapping */
+        }
+
+        .cycle-box.complete {
+            background-color: var(--success-color);
+        }
+
+        .cycle-box.incomplete {
+            background-color: var(--warning-color);
+        }
+
+        .cycle-box.failed {
+            background-color: var(--danger-color);
+        }
+
+        .cycle-box.loading {
+            background-color: var(--info-color) !important;
+            animation: cycle-pulse 1.5s ease-in-out infinite !important;
+        }
+
+        .cycle-box.empty {
+            background-color: var(--border-color);
+            opacity: 0.3;
+        }
+
+        @keyframes cycle-pulse {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+            }
+            50% {
+                opacity: 0.3;
+                box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.4);
+            }
+        }
+
+        /* Global tooltip system - positioned on document.body to bypass all container clipping */
+        .global-cycle-tooltip {
+            position: fixed;
+            background: var(--primary-color);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 2147483647; /* Maximum z-index */
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform: translateX(-50%);
+        }
+
+        .global-cycle-tooltip.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .global-cycle-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--primary-color);
+        }
+
+        /* Enhanced chart container - simplified since tooltips are now global */
+        .chart-container.commit-graph {
+            /* Restore normal overflow behavior since tooltips are no longer contained */
+            overflow: hidden;
+        }
+
+        /* Prevent model cards from creating stacking contexts that interfere with tooltips */
+        .model-card {
+            /* Remove transform on hover to prevent stacking context issues */
+            transition: box-shadow 0.2s ease, margin 0.2s ease !important;
+        }
+
+        .model-card:hover {
+            /* Hover effects disabled for static card layout */
+            /* transform: none !important; */
+            /* box-shadow: var(--shadow-lg); */
+            /* margin-top: -2px !important; */
+            /* margin-bottom: calc(2rem + 2px) !important; */
+        }
+
+        /* NHC Section */
+        .nhc-section {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            margin-top: 2rem;
+        }
+
+        .nhc-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+        }
+
+        .nhc-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--danger-color);
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .nhc-body {
+            padding: 1.5rem;
+        }
+
+        .storm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .storm-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .storm-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .advisory-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .advisory-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Loading and Error States */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            border: 1px solid #fecaca;
+            color: var(--danger-color);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            margin: 1rem 0;
+        }
+
+        .refresh-info {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .model-grid {
+                grid-template-columns: repeat(auto-fill, minmax(min(400px, 100vw - 2rem), 1fr));
+            }
+
+            .api-input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .api-input {
+                width: 100%;
+            }
+        }
+
+        @media (min-width: 1400px) {
+            .model-grid {
+                grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+            }
+        }
+
+        /* NHC Storm List Styles */
+        .nhc-storm-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            padding: 1rem;
+        }
+
+        .nhc-storm-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background: var(--background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+        }
+
+        .nhc-storm-item:hover {
+            background: var(--surface);
+            border-color: var(--accent-color);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .storm-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .storm-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+            min-width: 120px;
+        }
+
+        .storm-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .storm-basin {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .advisory-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+            flex: 1;
+            text-align: right;
+        }
+
+        .advisory-count {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--accent-color);
+        }
+
+        .advisory-latest, .advisory-time, .advisory-duration {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .advisory-latest {
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        .storm-list-empty {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .storm-list-empty p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive Design for NHC Storm List */
+        @media (max-width: 768px) {
+            .nhc-storm-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+                text-align: left;
+            }
+
+            .advisory-info {
+                text-align: left;
+                width: 100%;
+            }
+
+            .storm-info {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://raw.githubusercontent.com/waterinstitute/metget/main/static/img/MetGet_logo_blue.png"
+                 alt="MetGet Status Dashboard"
+                 class="logo" />
+            <p>Real-time meteorological forecast status</p>
+
+            <div class="dashboard-controls" id="dashboard-controls" style="display: none;">
+                <div class="control-group">
+                    <span class="control-label">Time Range:</span>
+                    <div class="duration-selector">
+                        <button class="duration-button" data-days="1">24 Hours</button>
+                        <button class="duration-button active" data-days="3">3 Days</button>
+                        <button class="duration-button" data-days="7">7 Days</button>
+                        <button class="duration-button" data-days="14">14 Days</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <button class="refresh-button" id="refresh-button">
+                        <svg class="refresh-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                        </svg>
+                        Refresh
+                    </button>
+                    <button class="clear-key-button" id="clear-key-button" onclick="clearSavedApiKey()" title="Clear saved API key">
+                        <svg class="clear-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                        </svg>
+                        Clear API Key
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="api-key-section" id="api-key-section">
+            <div class="api-input-group">
+                <div class="input-group">
+                    <label for="api-key-input">MetGet API Key</label>
+                    <input
+                        type="password"
+                        id="api-key-input"
+                        class="api-input"
+                        placeholder="Enter your API key..."
+                        onkeypress="if(event.key==='Enter') setApiKey()"
+                    />
+                </div>
+                <button onclick="setApiKey()" class="btn btn-primary">
+                    Load Dashboard
+                </button>
+            </div>
+        </div>
+
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            <div>Loading meteorological data...</div>
+        </div>
+
+        <div id="dashboard" style="display: none;">
+            <div class="model-grid" id="model-grid">
+                <!-- Model cards will be populated here -->
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const MODELS = ['nhc', 'gfs', 'hrrr', 'wpc', 'hafsa', 'hafsb', 'hwrf', 'coamps', 'nam'];
+        const MODEL_DISPLAY_NAMES = {
+            'gfs': 'GFS',
+            'nam': 'NAM',
+            'hwrf': 'HWRF',
+            'hafsa': 'HAFS-A',
+            'hafsb': 'HAFS-B',
+            'hrrr': 'HRRR',
+            'wpc': 'WPC',
+            'coamps': 'COAMPS-TC',
+            'nhc': 'NHC'
+        };
+
+        // Storm-based models have different data structure with storm names
+        const STORM_BASED_MODELS = ['hwrf', 'hafsa', 'hafsb', 'coamps', 'nhc'];
+
+        // Models that support basin filtering (COAMPS doesn't have basins)
+        const BASIN_FILTERABLE_MODELS = ['hwrf', 'hafsa', 'hafsb', 'nhc'];
+
+        // Basin letter to full name mapping
+        const BASIN_NAMES = {
+            'L': 'Atlantic',
+            'E': 'Eastern Pacific',
+            'C': 'Central Pacific',
+            'W': 'Western Pacific',
+            'S': 'Southern Hemisphere',
+            'I': 'North Indian Ocean',
+            'A': 'Arabian Sea',
+            'B': 'Bay of Bengal'
+        };
+
+        // NHC basin mapping (different from storm model basins)
+        const NHC_BASIN_NAMES = {
+            'al': 'Atlantic',
+            'ep': 'Eastern Pacific',
+            'cp': 'Central Pacific',
+            'wp': 'Western Pacific',
+            'io': 'Indian Ocean',
+            'sh': 'Southern Hemisphere'
+        };
+
+        // Note: HAFS-A and HAFS-B are model names, not basin indicators
+        // The basin is extracted from the storm name itself, not the model name
+
+        // Helper function to extract all storms from year-based data structure
+        function getAllStormsFromYearData(data) {
+            const storms = [];
+            if (!data || typeof data !== 'object') return storms;
+
+            // Data structure: { "2024": { "FRANCINE": {...}, "HELEN": {...} }, "2023": {...} }
+            for (const year of Object.values(data)) {
+                if (year && typeof year === 'object') {
+                    for (const stormData of Object.values(year)) {
+                        if (stormData && typeof stormData === 'object') {
+                            storms.push(stormData);
+                        }
+                    }
+                }
+            }
+            return storms;
+        }
+
+        // Helper function to get storms with names from year-based data structure
+        function getStormsWithNamesFromYearData(data, model = null, selectedBasin = null) {
+            const storms = {};
+            if (!data || typeof data !== 'object') {
+                return storms;
+            }
+
+            // Data structure: { "2024": { "FRANCINE": {...}, "HELEN": {...} }, "2023": {...} }
+            for (const [year, yearData] of Object.entries(data)) {
+                if (yearData && typeof yearData === 'object') {
+                    for (const [stormName, stormData] of Object.entries(yearData)) {
+                        if (stormData && typeof stormData === 'object') {
+                            // Extract basin from storm name if applicable
+                            const stormBasin = extractBasinFromStormName(stormName, model);
+
+                            // Filter by basin if specified
+                            if (selectedBasin && selectedBasin !== 'all' && stormBasin !== selectedBasin) {
+                                continue;
+                            }
+
+                            // Use just the storm name without the year since we're always looking at current data
+                            storms[stormName] = {
+                                ...stormData,
+                                basin: stormBasin
+                            };
+                        }
+                    }
+                }
+            }
+            return storms;
+        }
+
+        // Extract basin from storm name based on model type
+        function extractBasinFromStormName(stormName, model) {
+            if (!model || !BASIN_FILTERABLE_MODELS.includes(model)) {
+                return null;
+            }
+
+            // For all storm-based models (HWRF, HAFS-A, HAFS-B), extract basin from last character
+            // Storm names end with lowercase basin identifier (e.g., "FRANCINEl", "HELENe", etc.)
+            const lastChar = stormName.slice(-1).toUpperCase();
+
+            if (BASIN_NAMES[lastChar]) {
+                return lastChar;
+            }
+
+            return null;
+        }
+
+        // Get all unique basins from storm data for a model - Enhanced with better detection
+        function getAvailableBasins(data, model) {
+            const basins = new Set();
+            const stormSummary = [];
+
+            if (!data) {
+                console.warn(`[WARN] No data provided to getAvailableBasins for ${model}`);
+                return [];
+            }
+
+            if (!BASIN_FILTERABLE_MODELS.includes(model)) {
+                return [];
+            }
+
+            // Special handling for NHC data
+            if (model === 'nhc') {
+                for (const [year, yearData] of Object.entries(data)) {
+                    if (yearData && typeof yearData === 'object') {
+                        for (const [stormName, stormData] of Object.entries(yearData)) {
+                            if (stormData && stormData.basin) {
+                                basins.add(stormData.basin);
+                            }
+                        }
+                    }
+                }
+                const result = Array.from(basins);
+                return result;
+            }
+
+            try {
+                // For all storm-based models (HWRF, HAFS-A, HAFS-B), extract basins from storm names
+                let totalStorms = 0;
+                let stormsWithBasins = 0;
+
+                for (const [year, yearData] of Object.entries(data)) {
+                    if (yearData && typeof yearData === 'object') {
+                        const stormNames = Object.keys(yearData);
+                        totalStorms += stormNames.length;
+
+                        for (const stormName of stormNames) {
+                            const basin = extractBasinFromStormName(stormName, model);
+
+                            stormSummary.push({
+                                year,
+                                name: stormName,
+                                basin: basin,
+                                basinName: basin ? BASIN_NAMES[basin] : 'Unknown'
+                            });
+
+                            if (basin) {
+                                basins.add(basin);
+                                stormsWithBasins++;
+                            }
+                        }
+                    }
+                }
+
+                const result = Array.from(basins).sort();
+
+                // Enhanced validation
+                if (result.length === 0 && model === 'hwrf') {
+                    console.warn(`[WARN] No basins detected for HWRF model. This might indicate:`);
+                    console.warn(`  1. Storm names don't follow expected pattern (NAME_BASIN)`);
+                    console.warn(`  2. Basin codes are not in BASIN_NAMES:`, Object.keys(BASIN_NAMES));
+                    console.warn(`  3. Data structure is different than expected`);
+                    console.warn(`  Storm summary:`, stormSummary);
+                }
+
+                return result;
+
+            } catch (error) {
+                console.error(`[ERROR] Exception in getAvailableBasins for ${model}:`, error);
+                console.error(`[ERROR] Stack trace:`, error.stack);
+                return [];
+            }
+        }
+
+        // Calculate maximum number of cycle boxes that can fit without overflow
+        function calculateMaxCycles() {
+            // Calculate based on actual available space in the 3-column table layout
+            const width = window.innerWidth;
+            let cardMinWidth;
+
+            // Determine card width based on responsive breakpoints
+            if (width < 768) {
+                cardMinWidth = 400; // Mobile
+            } else if (width < 1400) {
+                cardMinWidth = 500; // Tablet/medium
+            } else {
+                cardMinWidth = 600; // Desktop
+            }
+
+            // Calculate available space for cycles in the 3-column table layout
+            const cardPadding = 48; // 24px on each side (1.5rem * 2)
+            const stormNameColumnWidth = 140; // Estimated width for storm names
+            const cycleCountColumnWidth = 80;  // Estimated width for "(XX cycles)"
+            const gridGaps = 32; // 1rem gap between columns * 2 gaps
+
+            const availableSpace = cardMinWidth - cardPadding - stormNameColumnWidth - cycleCountColumnWidth - gridGaps;
+
+            // Each cycle box is 12px + 2px gap = 14px
+            const cycleSpace = 14;
+            const maxCycles = Math.floor(availableSpace / cycleSpace);
+
+            // Ensure reasonable bounds - be more conservative to prevent overflow
+            return Math.max(8, Math.min(20, maxCycles));
+        }
+
+        const EXPECTED_DURATIONS = {
+            'gfs': 384,
+            'nam': 84,
+            'hwrf': 126,
+            'hafsa': 126,
+            'hafsb': 126,
+            'hrrr': [18, 48], // Variable based on cycle
+            'wpc': [162, 168],
+            'coamps': 120
+        };
+        let LIMIT_DAYS = 3; // Default to 3 days
+        let charts = {};
+        let apiKey = '';
+        let sortable = null;
+
+        function setApiKey() {
+            const input = document.getElementById('api-key-input');
+            apiKey = input.value.trim();
+
+            if (!apiKey) {
+                alert('Please enter your API key');
+                return;
+            }
+
+            // Save API key to localStorage
+            try {
+                localStorage.setItem('metget-api-key', apiKey);
+            } catch (error) {
+                console.warn('Failed to save API key to localStorage:', error);
+                // Continue anyway - the key will work for this session
+            }
+
+            // Hide API key section and show dashboard controls
+            document.getElementById('api-key-section').style.display = 'none';
+            document.getElementById('dashboard-controls').style.display = 'flex';
+
+            // Initialize dashboard controls
+            initializeDashboardControls();
+
+            // Load dashboard data
+            loadDashboard();
+        }
+
+        function loadSavedApiKey() {
+            try {
+                const savedKey = localStorage.getItem('metget-api-key');
+                if (savedKey) {
+                    apiKey = savedKey;
+                    document.getElementById('api-key-input').value = savedKey;
+
+                    // Hide API key section and show dashboard controls
+                    document.getElementById('api-key-section').style.display = 'none';
+                    document.getElementById('dashboard-controls').style.display = 'flex';
+
+                    // Initialize dashboard controls
+                    initializeDashboardControls();
+
+                    // Load dashboard data
+                    loadDashboard();
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Failed to load saved API key:', error);
+                // Clear invalid key if localStorage access fails
+                try {
+                    localStorage.removeItem('metget-api-key');
+                } catch (clearError) {
+                    // Ignore clear errors
+                }
+            }
+            return false;
+        }
+
+        function clearSavedApiKey() {
+            try {
+                localStorage.removeItem('metget-api-key');
+            } catch (error) {
+                console.warn('Failed to clear saved API key:', error);
+            }
+
+            apiKey = '';
+
+            // Show API key section and hide dashboard controls
+            document.getElementById('api-key-section').style.display = 'block';
+            document.getElementById('dashboard-controls').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('loading').style.display = 'none';
+
+            // Clear the input field
+            document.getElementById('api-key-input').value = '';
+        }
+
+        function initializeDashboardControls() {
+            // Duration selector event listeners
+            document.querySelectorAll('.duration-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.duration-button').forEach(btn =>
+                        btn.classList.remove('active'));
+
+                    // Add active class to clicked button
+                    this.classList.add('active');
+
+                    // Update LIMIT_DAYS and reload dashboard
+                    LIMIT_DAYS = parseInt(this.dataset.days);
+
+                    // Reload dashboard with new duration
+                    loadDashboard();
+                });
+            });
+
+            // Refresh button event listener
+            document.getElementById('refresh-button').addEventListener('click', function() {
+                const button = this;
+
+                // Add loading state
+                button.classList.add('loading');
+                button.disabled = true;
+
+                // Reload dashboard
+                loadDashboard().finally(() => {
+                    // Remove loading state
+                    button.classList.remove('loading');
+                    button.disabled = false;
+                });
+            });
+        }
+
+        function getExpectedDuration(model, cycleTime) {
+            const duration = EXPECTED_DURATIONS[model];
+            if (model === 'hrrr' && Array.isArray(duration)) {
+                // For HRRR: 18h for cycles where hour is NOT 00, 06, 12, or 18Z, 48h for main cycles
+                const hour = parseAsUTC(cycleTime).getUTCHours();
+                const isMainCycle = [0, 6, 12, 18].includes(hour);
+                return isMainCycle ? 48 : 18;
+            }
+            return Array.isArray(duration) ? duration[0] : duration;
+        }
+
+        function calculateLocalSuccessRate(model, cycles) {
+            if (!cycles || cycles.length === 0) {
+                return { complete: 0, total: 0 };
+            }
+
+            let completeCount = 0;
+            let debugInfo = [];
+
+            for (const cycle of cycles) {
+                const expectedDuration = getExpectedDuration(model, cycle.cycle);
+                const isComplete = cycle.duration >= expectedDuration;
+                if (isComplete) {
+                    completeCount++;
+                }
+
+                // Debug info for HRRR specifically
+                if (model === 'hrrr') {
+                    const cycleDate = parseAsUTC(cycle.cycle);
+                    const hour = cycleDate.getUTCHours();
+                    const isMainCycle = [0, 6, 12, 18].includes(hour);
+                    debugInfo.push({
+                        cycle: cycle.cycle,
+                        hour: hour,
+                        isMainCycle: isMainCycle,
+                        expectedDuration: expectedDuration,
+                        actualDuration: cycle.duration,
+                        isComplete: isComplete
+                    });
+                }
+            }
+
+
+            return { complete: completeCount, total: cycles.length };
+        }
+
+        function getModelStatus(model, data) {
+            if (!data) {
+                return 'error';
+            }
+
+            // Special handling for NHC - simpler status logic
+            if (model === 'nhc') {
+                // If we have any storm data, mark as active (normal)
+                const allStorms = getAllStormsFromYearData(data);
+                return allStorms.length > 0 ? 'active' : 'error';
+            }
+
+            // Handle storm-based models (data structured as year -> storm_name -> storm_data)
+            if (STORM_BASED_MODELS.includes(model)) {
+                const allStorms = getAllStormsFromYearData(data);
+                if (allStorms.length === 0) {
+                    return 'error';
+                }
+
+                // Get overall status based on all storms
+                let hasActive = false;
+                let hasLoading = false;
+                let hasWarning = false;
+
+                for (const stormData of allStorms) {
+                    if (!stormData.cycles || stormData.cycles.length === 0) {
+                        hasWarning = true;
+                        continue;
+                    }
+
+                    const latestCycle = stormData.cycles[0];
+                    const expectedDuration = getExpectedDuration(model, latestCycle.cycle);
+
+                    if (latestCycle.duration < expectedDuration) {
+                        hasLoading = true;
+                    } else if (latestCycle.duration >= expectedDuration) {
+                        hasActive = true;
+                    } else {
+                        hasWarning = true;
+                    }
+                }
+
+                // Priority: loading > active > warning > error
+                if (hasLoading) return 'loading';
+                if (hasActive) return 'active';
+                if (hasWarning) return 'warning';
+                return 'error';
+            }
+
+            // Handle regular models
+            if (!data.cycles || data.cycles.length === 0) {
+                return 'error';
+            }
+
+            const latestCycle = data.cycles[0];
+            const expectedDuration = getExpectedDuration(model, latestCycle.cycle);
+
+            // Check if model is actively posting (latest cycle is incomplete)
+            if (latestCycle.duration < expectedDuration) {
+                return 'loading'; // Actively posting
+            }
+
+            // Check if latest cycle meets expectations
+            if (latestCycle.duration >= expectedDuration) {
+                return 'active'; // Complete and good
+            }
+
+            return 'warning';
+        }
+
+        function getStatusText(status, model, data) {
+            // Special handling for NHC status text
+            if (model === 'nhc') {
+                if (status === 'active') {
+                    const allStorms = getAllStormsFromYearData(data);
+                    const stormCount = allStorms.length;
+                    const stormText = stormCount === 1 ? 'storm' : 'storms';
+                    return `operating normally with advisory data (${stormCount} ${stormText})`;
+                } else {
+                    return 'no recent advisory data available';
+                }
+            }
+
+            // Handle storm-based models
+            if (STORM_BASED_MODELS.includes(model) && data) {
+                const allStorms = getAllStormsFromYearData(data);
+                const stormCount = allStorms.length;
+                const stormText = stormCount === 1 ? 'storm' : 'storms';
+
+                switch (status) {
+                    case 'active':
+                        return `operating normally with complete cycles (${stormCount} ${stormText})`;
+                    case 'loading':
+                        return `actively retrieving data (${stormCount} ${stormText})`;
+                    case 'warning':
+                        return `has incomplete or delayed cycles (${stormCount} ${stormText})`;
+                    case 'error':
+                    default:
+                        return `has failed or no recent data available`;
+                }
+            }
+
+            // Handle regular models
+            switch (status) {
+                case 'active':
+                    return `operating normally with complete cycles`;
+                case 'loading':
+                    return `actively retrieving data`;
+                case 'warning':
+                    const latestCycle = data && data.cycles && data.cycles[0];
+                    if (latestCycle) {
+                        const expectedDuration = getExpectedDuration(model, latestCycle.cycle);
+                        return `latest cycle incomplete (${latestCycle.duration}/${expectedDuration}h)`;
+                    }
+                    return `has incomplete or delayed cycles`;
+                case 'error':
+                default:
+                    return `has failed or no recent data available`;
+            }
+        }
+
+        async function fetchModelData(model) {
+            try {
+                const response = await fetch(`/status?model=${model}&limit=${LIMIT_DAYS}`, {
+                    headers: {
+                        'x-api-key': apiKey
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('Invalid API key');
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                return data.body || data;
+            } catch (error) {
+                console.error(`Error fetching ${model} data:`, error);
+                return null;
+            }
+        }
+
+
+        // Utility function to parse date strings as UTC
+        function parseAsUTC(dateStr) {
+            if (!dateStr) return null;
+            // If the date string doesn't end with 'Z' or have timezone info, treat it as UTC
+            if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+                // Add 'Z' to force UTC interpretation
+                return new Date(dateStr + 'Z');
+            }
+            return new Date(dateStr);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = parseAsUTC(dateStr);
+            return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()} ${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}Z`;
+        }
+
+        function createModelCard(model, data) {
+            const card = document.createElement('div');
+            card.className = 'model-card';
+            card.dataset.model = model;
+
+            const displayName = MODEL_DISPLAY_NAMES[model] || model.toUpperCase();
+            const status = getModelStatus(model, data);
+            const statusText = getStatusText(status, model, data);
+
+            if (!data) {
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="model-header">
+                                <span class="status-dot error"></span>
+                                <h3 class="model-name">${displayName}</h3>
+                            </div>
+                            <div class="status-row">
+                                <span class="status-text error">${getStatusText('error', model, null)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Model stats will be shown here -->
+                    </div>
+                `;
+                return card;
+            }
+
+            // Handle storm-based models
+            if (STORM_BASED_MODELS.includes(model) && data) {
+                // Special simplified layout for NHC (no metrics)
+                if (model === 'nhc') {
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="model-header">
+                                    <span class="status-dot ${status}"></span>
+                                    <h3 class="model-name">${displayName}</h3>
+                                </div>
+                                <div class="status-row">
+                                    <span class="status-text ${status}">${statusText}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container commit-graph">
+                                ${BASIN_FILTERABLE_MODELS.includes(model) ? `
+                                    <div class="basin-selector" id="${model}-basin-selector">
+                                        <div class="basin-selector-label">Filter by Basin</div>
+                                        <div class="basin-buttons" id="${model}-basin-buttons">
+                                            <!-- Basin buttons will be populated here -->
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <div id="${model}-chart-container">
+                                    <!-- Storm list will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Regular storm-based models with full metrics
+                    const allStorms = getAllStormsFromYearData(data);
+                    const stormCount = allStorms.length;
+                    const totalCycles = allStorms.reduce((sum, storm) => sum + (storm.cycles ? storm.cycles.length : 0), 0);
+
+                    // Calculate complete cycles using UTC-aware logic
+                    const completeCycles = allStorms.reduce((sum, storm) => {
+                        if (!storm.cycles) return sum;
+                        const successRate = calculateLocalSuccessRate(model, storm.cycles);
+                        return sum + successRate.complete;
+                    }, 0);
+
+                    // Find latest cycle across all storms
+                    let latestCycle = null;
+                    let latestTime = null;
+                    for (const stormData of allStorms) {
+                        if (stormData.cycles && stormData.cycles.length > 0) {
+                            const cycleTime = new Date(stormData.cycles[0].cycle);
+                            if (!latestTime || cycleTime > latestTime) {
+                                latestTime = cycleTime;
+                                latestCycle = stormData.cycles[0];
+                            }
+                        }
+                    }
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="model-header">
+                                    <span class="status-dot ${status}"></span>
+                                    <h3 class="model-name">${displayName}</h3>
+                                </div>
+                                <div class="status-row">
+                                    <span class="status-text ${status}">${statusText}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="model-stats">
+                                <div class="stat-item">
+                                    <div class="stat-label">Active Storms</div>
+                                    <div class="stat-value">${stormCount}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Latest Cycle</div>
+                                    <div class="stat-value">${latestCycle ? formatDate(latestCycle.cycle) : 'N/A'}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Total Cycles</div>
+                                    <div class="stat-value">${totalCycles}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Success Rate</div>
+                                    <div class="stat-value">${completeCycles}/${totalCycles} cycles</div>
+                                </div>
+                            </div>
+                            <div class="chart-container commit-graph">
+                                ${BASIN_FILTERABLE_MODELS.includes(model) ? `
+                                    <div class="basin-selector" id="${model}-basin-selector">
+                                        <div class="basin-selector-label">Filter by Basin</div>
+                                        <div class="basin-buttons" id="${model}-basin-buttons">
+                                            <!-- Basin buttons will be populated here -->
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <div id="${model}-chart-container">
+                                    <!-- Storm graphs will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                // Handle regular models
+                const cycles = data.cycles || [];
+
+                // Calculate complete cycles using UTC-aware logic
+                const successRate = calculateLocalSuccessRate(model, cycles);
+                const completeCycles = { length: successRate.complete }; // Maintain compatibility with existing display code
+
+                const latestCycle = cycles.length > 0 ? cycles[0] : null;
+                const expectedDuration = latestCycle ? getExpectedDuration(model, latestCycle.cycle) : 'N/A';
+
+                // Calculate completion percentage for latest cycle
+                let completionPercentage = 0;
+                if (latestCycle && expectedDuration !== 'N/A') {
+                    completionPercentage = Math.min(100, (latestCycle.duration / expectedDuration) * 100);
+                }
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="model-header">
+                                <span class="status-dot ${status}"></span>
+                                <h3 class="model-name">${displayName}</h3>
+                            </div>
+                            <div class="status-row">
+                                <span class="status-text ${status}">${statusText}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="model-stats">
+                            <div class="stat-item">
+                                <div class="stat-label">Latest Cycle</div>
+                                <div class="stat-value">${formatDate(data.latest_available_cycle)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Cycle Progress</div>
+                                <div class="stat-value">${latestCycle ? latestCycle.duration : 'N/A'}/${expectedDuration}h (${completionPercentage.toFixed(0)}%)</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Latest Complete</div>
+                                <div class="stat-value">${formatDate(data.latest_complete_cycle)}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Success Rate</div>
+                                <div class="stat-value">${completeCycles.length}/${cycles.length} cycles</div>
+                            </div>
+                        </div>
+                        <div class="chart-container commit-graph" id="${model}-chart-container">
+                            <!-- Commit graphs will be populated here -->
+                        </div>
+                    </div>
+                `;
+            }
+
+            return card;
+        }
+
+        function createChart(model, data) {
+            // All models now use commit graph style
+            if (BASIN_FILTERABLE_MODELS.includes(model)) {
+                setupBasinSelector(model, data);
+                // Basin selector will create the filtered commit graph
+            } else {
+                // Non-filterable models create commit graph directly
+                createCommitGraph(model, data);
+            }
+        }
+
+        function setupBasinSelector(model, data) {
+
+            const basinSelector = document.getElementById(`${model}-basin-selector`);
+            const buttonsContainer = document.getElementById(`${model}-basin-buttons`);
+
+            if (!buttonsContainer) {
+                console.error(`[ERROR] No buttons container found for: ${model}-basin-buttons`);
+                if (basinSelector) {
+                    basinSelector.classList.add('error');
+                }
+                return;
+            }
+
+            if (!basinSelector) {
+                console.error(`[ERROR] No basin selector found for: ${model}-basin-selector`);
+                return;
+            }
+
+            // Reset selector states
+            basinSelector.classList.remove('error', 'loading', 'no-data');
+            basinSelector.classList.add('loading');
+
+            const availableBasins = getAvailableBasins(data, model);
+
+            // Remove loading state
+            basinSelector.classList.remove('loading');
+
+            // Clear existing buttons
+            buttonsContainer.innerHTML = '';
+            buttonsContainer.removeAttribute('data-button-count');
+
+            if (availableBasins.length === 0) {
+                console.warn(`[WARN] No available basins found for ${model}`);
+
+                // Instead of hiding, show with "no data" state and a single "All" button
+                basinSelector.classList.add('no-data');
+
+                // Add "All" button even when no basins are detected
+                const allButton = document.createElement('button');
+                allButton.className = 'basin-btn active';
+                allButton.textContent = 'All Data';
+                allButton.dataset.basin = 'all';
+                allButton.title = 'Show all available data (basin detection failed)';
+                allButton.onclick = () => selectBasin(model, data, 'all');
+                buttonsContainer.appendChild(allButton);
+
+                // Set button count for debugging
+                buttonsContainer.setAttribute('data-button-count', '1');
+
+                return;
+            }
+
+            // Sort basins alphabetically by their full names
+            const sortedBasins = availableBasins.sort((a, b) => {
+                const nameA = BASIN_NAMES[a] || a;
+                const nameB = BASIN_NAMES[b] || b;
+                return nameA.localeCompare(nameB);
+            });
+
+            // Determine default selection: Atlantic if available, otherwise All Basins
+            let hasAtlantic, atlanticCode;
+            if (model === 'nhc') {
+                hasAtlantic = sortedBasins.includes('al');
+                atlanticCode = 'al';
+            } else {
+                hasAtlantic = sortedBasins.includes('L');
+                atlanticCode = 'L';
+            }
+            const defaultBasin = hasAtlantic ? atlanticCode : 'all';
+
+            // Add "All Basins" button (always first)
+            const allButton = document.createElement('button');
+            allButton.className = `basin-btn ${defaultBasin === 'all' ? 'active' : ''}`;
+            allButton.textContent = 'All Basins';
+            allButton.dataset.basin = 'all';
+            allButton.title = 'Show all basins';
+            allButton.onclick = () => selectBasin(model, data, 'all');
+            buttonsContainer.appendChild(allButton);
+
+            let buttonCount = 1;
+
+            // Add basin-specific buttons (sorted alphabetically)
+            sortedBasins.forEach(basinCode => {
+                // Use appropriate basin names based on model
+                let basinName;
+                if (model === 'nhc') {
+                    basinName = NHC_BASIN_NAMES[basinCode] || basinCode.toUpperCase();
+                } else {
+                    basinName = BASIN_NAMES[basinCode] || basinCode;
+                }
+
+                const isActive = defaultBasin === basinCode;
+                const button = document.createElement('button');
+                button.className = `basin-btn ${isActive ? 'active' : ''}`;
+                button.textContent = basinName;
+                button.dataset.basin = basinCode;
+                button.title = `Show only ${basinName} basin data`;
+                button.onclick = () => selectBasin(model, data, basinCode);
+                buttonsContainer.appendChild(button);
+                buttonCount++;
+            });
+
+            // Apply default filter immediately
+            if (defaultBasin !== 'all') {
+                const basinName = model === 'nhc' ?
+                    (NHC_BASIN_NAMES[defaultBasin] || defaultBasin) :
+                    (BASIN_NAMES[defaultBasin] || defaultBasin);
+                selectBasin(model, data, defaultBasin);
+            } else {
+                createCommitGraph(model, data, 'all');
+            }
+
+            // Set button count for debugging
+            buttonsContainer.setAttribute('data-button-count', buttonCount.toString());
+
+            // Verify buttons are in DOM
+            const actualButtons = buttonsContainer.querySelectorAll('.basin-btn');
+
+            if (actualButtons.length !== buttonCount) {
+                console.error(`[ERROR] Button count mismatch! Expected: ${buttonCount}, Actual: ${actualButtons.length}`);
+                basinSelector.classList.add('error');
+            }
+        }
+
+        function selectBasin(model, data, selectedBasin) {
+
+            // Update button states
+            const buttonsContainer = document.getElementById(`${model}-basin-buttons`);
+            if (buttonsContainer) {
+                buttonsContainer.querySelectorAll('.basin-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.basin === selectedBasin) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+
+            // Recreate the commit graph with filtered data
+            createCommitGraph(model, data, selectedBasin);
+        }
+
+        function createBarChart(model, data) {
+            const chartId = `${model}-chart`;
+            const ctx = document.getElementById(chartId);
+
+            if (!ctx || !data || !data.cycles) return;
+
+            if (charts[model]) {
+                charts[model].destroy();
+            }
+
+            const cycles = data.cycles.slice(-10);
+            const labels = cycles.map(c => {
+                const date = parseAsUTC(c.cycle);
+                return `${date.getUTCMonth() + 1}/${date.getUTCDate()} ${date.getUTCHours().toString().padStart(2, '0')}Z`;
+            });
+            const durations = cycles.map(c => c.duration);
+
+            // Get expected durations for each cycle
+            const expectedDurations = cycles.map(c => getExpectedDuration(model, c.cycle));
+
+            charts[model] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Forecast Duration (hours)',
+                        data: durations,
+                        backgroundColor: durations.map((d, i) => {
+                            const expected = expectedDurations[i];
+                            if (d >= expected) return '#10b981'; // success
+                            if (d >= expected * 0.8) return '#f59e0b'; // warning
+                            return '#ef4444'; // danger
+                        }),
+                        borderColor: durations.map((d, i) => {
+                            const expected = expectedDurations[i];
+                            if (d >= expected) return '#059669';
+                            if (d >= expected * 0.8) return '#d97706';
+                            return '#dc2626';
+                        }),
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${MODEL_DISPLAY_NAMES[model] || model.toUpperCase()} - Last 10 Cycles`,
+                            font: {
+                                size: 14,
+                                weight: '600'
+                            },
+                            color: '#1e293b'
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    const index = context[0].dataIndex;
+                                    return `Cycle: ${cycles[index].cycle}`;
+                                },
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const duration = durations[index];
+                                    const expected = expectedDurations[index];
+                                    return [
+                                        `Duration: ${duration} hours`,
+                                        `Expected: ${expected} hours`,
+                                        `Status: ${duration >= expected ? 'Complete' : 'Incomplete'}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours',
+                                color: '#64748b',
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            },
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                color: '#64748b',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Cycle Date',
+                                color: '#64748b',
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#64748b',
+                                font: {
+                                    size: 10
+                                },
+                                maxRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCommitGraph(model, data, selectedBasin = null) {
+            const containerId = `${model}-chart-container`;
+            const container = document.getElementById(containerId);
+
+            // Special handling for NHC - create storm list instead of commit graph
+            if (model === 'nhc') {
+                createNHCStormList(container, data, selectedBasin);
+                return;
+            }
+
+            if (!container || !data) {
+                return;
+            }
+
+            container.innerHTML = '<div class="commit-grid-aligned"></div>';
+            const commitGrid = container.querySelector('.commit-grid-aligned');
+
+            // Handle storm-based models (data structured as year -> storm_name -> storm_data)
+            if (STORM_BASED_MODELS.includes(model)) {
+                const stormsWithNames = getStormsWithNamesFromYearData(data, model, selectedBasin);
+
+                if (Object.keys(stormsWithNames).length === 0) {
+                    container.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--text-muted);">No storms found${selectedBasin && selectedBasin !== 'all' ? ` for ${BASIN_NAMES[selectedBasin] || selectedBasin} basin` : ''}.</div>`;
+                    return;
+                }
+
+                // Collect all unique cycle dates across all storms
+                const allCycleDates = new Set();
+                Object.values(stormsWithNames).forEach(stormData => {
+                    if (stormData.cycles) {
+                        stormData.cycles.forEach(cycle => {
+                            allCycleDates.add(cycle.cycle);
+                        });
+                    }
+                });
+
+                // Sort cycle dates and limit to fit available space
+                const maxCycles = calculateMaxCycles();
+                const sortedCycleDates = Array.from(allCycleDates).sort((a, b) => new Date(b) - new Date(a)).slice(0, maxCycles);
+
+                // Set CSS custom property for grid columns
+                commitGrid.style.setProperty('--cycle-count', sortedCycleDates.length);
+
+                // Sort storms by latest cycle date first, then by name
+                const sortedStorms = Object.entries(stormsWithNames)
+                    .filter(([stormName, stormData]) => stormData.cycles && stormData.cycles.length > 0)
+                    .sort(([nameA, dataA], [nameB, dataB]) => {
+                        // Get latest cycle date for each storm
+                        const latestA = new Date(dataA.cycles[0].cycle);
+                        const latestB = new Date(dataB.cycles[0].cycle);
+
+                        // Sort by latest cycle date (descending), then by name (ascending)
+                        if (latestA.getTime() !== latestB.getTime()) {
+                            return latestB - latestA; // Most recent first
+                        }
+                        return nameA.localeCompare(nameB); // Then alphabetical by name
+                    });
+
+                // Create aligned grid for each storm
+                sortedStorms.forEach(([stormName, stormData]) => {
+                    createStormRow(commitGrid, stormName, stormData, sortedCycleDates, model);
+                });
+            } else {
+                // Handle regular models (single row)
+                if (!data.cycles || data.cycles.length === 0) {
+                    return;
+                }
+
+                const maxCycles = calculateMaxCycles();
+                const modelName = MODEL_DISPLAY_NAMES[model] || model.toUpperCase();
+
+                // Set CSS custom property for grid columns
+                commitGrid.style.setProperty('--cycle-count', Math.min(maxCycles, data.cycles.length));
+
+                createStormRow(commitGrid, modelName, data, null, model);
+            }
+        }
+
+        function createStormRow(container, rowName, rowData, alignedDates, model) {
+            const stormRow = document.createElement('div');
+            stormRow.className = 'storm-row';
+
+            // Create storm name cell
+            const stormNameCell = document.createElement('div');
+            stormNameCell.className = 'storm-name-cell';
+            const icon = STORM_BASED_MODELS.includes(model) ? '🌀' : '📊';
+
+            // Clean up storm name by removing basin suffix if present
+            let cleanStormName = rowName;
+            if (STORM_BASED_MODELS.includes(model) && rowName.includes('_')) {
+                cleanStormName = rowName.split('_')[0];
+            }
+
+            // Add basin indicator for HAFS models
+            let basinIndicator = '';
+            if (model === 'hafsa') {
+                basinIndicator = ' <span style="color: var(--text-muted); font-size: 0.75em;">(Atlantic)</span>';
+            } else if (model === 'hafsb') {
+                basinIndicator = ' <span style="color: var(--text-muted); font-size: 0.75em;">(E. Pacific)</span>';
+            } else if (rowData.basin && BASIN_NAMES[rowData.basin]) {
+                basinIndicator = ` <span style="color: var(--text-muted); font-size: 0.75em;">(${BASIN_NAMES[rowData.basin]})</span>`;
+            }
+
+            stormNameCell.innerHTML = `${icon} ${cleanStormName}${basinIndicator}`;
+
+            // Create cycle count cell
+            const cycleCountCell = document.createElement('div');
+            cycleCountCell.className = 'cycle-count-cell';
+            cycleCountCell.textContent = `(${rowData.cycles.length} cycles)`;
+
+            // Create cycles grid cell
+            const stormCycles = document.createElement('div');
+            stormCycles.className = 'storm-cycles-aligned';
+
+            if (alignedDates) {
+                // Storm-based: align cycles by date
+                const cycleMap = new Map();
+                rowData.cycles.forEach(cycle => {
+                    cycleMap.set(cycle.cycle, cycle);
+                });
+
+                alignedDates.forEach(cycleDate => {
+                    const cycle = cycleMap.get(cycleDate);
+                    const cycleBox = createCycleBox(cycle, rowData, model, cycleDate);
+                    stormCycles.appendChild(cycleBox);
+                });
+            } else {
+                // Show most recent cycles - slice logic depends on data ordering
+                const maxCycles = calculateMaxCycles();
+                let cycles;
+                if (STORM_BASED_MODELS.includes(model)) {
+                    // Storm-based models: cycles are oldest-first, take last N
+                    cycles = rowData.cycles.slice(-maxCycles);
+                } else {
+                    // Regular models: cycles are newest-first, take first N
+                    cycles = rowData.cycles.slice(0, maxCycles);
+                }
+                cycles.forEach(cycle => {
+                    const cycleBox = createCycleBox(cycle, rowData, model);
+                    stormCycles.appendChild(cycleBox);
+                });
+            }
+
+            // Add all cells to the container (they'll be arranged by CSS Grid)
+            stormRow.appendChild(stormNameCell);
+            stormRow.appendChild(cycleCountCell);
+            stormRow.appendChild(stormCycles);
+            container.appendChild(stormRow);
+        }
+
+        function createCycleBox(cycle, rowData, model, fallbackDate = null) {
+            const cycleBox = document.createElement('div');
+            cycleBox.className = 'cycle-box';
+
+            if (!cycle) {
+                // Empty slot for alignment
+                cycleBox.classList.add('empty');
+                if (fallbackDate) {
+                    // Store tooltip data directly on the cycle box element
+                    const date = parseAsUTC(fallbackDate);
+                    cycleBox.dataset.tooltipText = `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()} ${date.getUTCHours().toString().padStart(2, '0')}Z: No data`;
+                }
+                return cycleBox;
+            }
+
+            const expectedDuration = getExpectedDuration(model, cycle.cycle);
+            let status = 'complete';
+
+            if (cycle.duration < expectedDuration) {
+                // Check if this is the latest cycle to determine loading vs incomplete
+                // For storm-based models, latest cycle is at the end; for regular models, it's at the start
+                let isLatest;
+                if (STORM_BASED_MODELS.includes(model)) {
+                    isLatest = cycle === rowData.cycles[rowData.cycles.length - 1];
+                } else {
+                    isLatest = cycle === rowData.cycles[0];
+                }
+                status = isLatest ? 'loading' : 'incomplete';
+            } else if (cycle.duration >= expectedDuration) {
+                status = 'complete';
+            } else {
+                status = 'failed';
+            }
+
+            cycleBox.classList.add(status);
+
+            // Store tooltip data directly on the cycle box element
+            const cycleDate = parseAsUTC(cycle.cycle);
+            cycleBox.dataset.tooltipText = `${cycleDate.getUTCMonth() + 1}/${cycleDate.getUTCDate()}/${cycleDate.getUTCFullYear()} ${cycleDate.getUTCHours().toString().padStart(2, '0')}Z: ${cycle.duration}/${expectedDuration}h`;
+
+            return cycleBox;
+        }
+
+        function createNHCStormList(container, data, selectedBasin = null) {
+            if (!container) {
+                return;
+            }
+
+            if (!data) {
+                container.innerHTML = '<div class="error">No NHC data available</div>';
+                return;
+            }
+
+            const allStorms = getAllStormsFromYearData(data);
+            let filteredStorms = allStorms;
+
+            // Apply basin filtering if specified
+            if (selectedBasin && selectedBasin !== 'all') {
+                filteredStorms = allStorms.filter(storm => storm.basin === selectedBasin);
+            }
+
+            if (filteredStorms.length === 0) {
+                container.innerHTML = `
+                    <div class="storm-list-empty">
+                        <p>No storms found${selectedBasin && selectedBasin !== 'all' ? ` in ${NHC_BASIN_NAMES[selectedBasin] || selectedBasin}` : ''}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort storms by latest advisory date
+            filteredStorms.sort((a, b) => {
+                const latestA = a.latest_advisory ? new Date(a.latest_advisory.advisory_start) : new Date(0);
+                const latestB = b.latest_advisory ? new Date(b.latest_advisory.advisory_start) : new Date(0);
+                return latestB - latestA;
+            });
+
+            let html = '<div class="nhc-storm-list">';
+
+            filteredStorms.forEach(storm => {
+                const basinName = NHC_BASIN_NAMES[storm.basin] || storm.basin.toUpperCase();
+                const latestAdvisory = storm.latest_advisory;
+                const advisoryTime = latestAdvisory ? formatDate(latestAdvisory.advisory_start) : 'N/A';
+                const advisoryDuration = latestAdvisory ? `${latestAdvisory.duration}h` : 'N/A';
+
+                // Format storm name with zero-padded 2-digit ID
+                let formattedStormName = storm.name || storm.storm_name || 'Unknown Storm';
+                // Extract numeric ID from storm name and format it
+                const stormNameMatch = formattedStormName.match(/^(\D*)(\d+)(.*)$/);
+                if (stormNameMatch) {
+                    const [, prefix, number, suffix] = stormNameMatch;
+                    const paddedNumber = number.padStart(2, '0');
+                    formattedStormName = `${prefix}${paddedNumber}${suffix}`;
+                }
+
+                // Get latest advisory number
+                const latestAdvisoryNumber = latestAdvisory ? latestAdvisory.advisory_number : 'N/A';
+
+                html += `
+                    <div class="nhc-storm-item">
+                        <div class="storm-icon">🌀</div>
+                        <div class="storm-info">
+                            <div class="storm-name">
+                                ${formattedStormName} <span class="storm-basin">(${basinName})</span>
+                            </div>
+                        </div>
+                        <div class="advisory-info">
+                            <div class="advisory-count">${storm.advisory_count} advisories</div>
+                            <div class="advisory-latest">Latest Advisory: ${latestAdvisoryNumber}</div>
+                            <div class="advisory-time">Latest: ${advisoryTime}</div>
+                            <div class="advisory-duration">Duration: ${advisoryDuration}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function processNHCData(data) {
+            // Convert NHC data structure to match storm-based models
+            if (!data || !data.forecast) {
+                return null;
+            }
+
+            const processedData = {};
+
+            // Process forecast data only (removing best track data)
+            for (const [year, basins] of Object.entries(data.forecast)) {
+                processedData[year] = {};
+
+                for (const [basin, storms] of Object.entries(basins)) {
+                    for (const [stormName, advisories] of Object.entries(storms)) {
+                        // Create a storm entry with advisory information
+                        const advisoryList = Object.entries(advisories)
+                            .sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
+                            .map(([advNum, advData]) => ({
+                                advisory_number: parseInt(advNum),
+                                advisory_start: advData.advisory_start,
+                                duration: advData.duration
+                            }));
+
+                        const latestAdvisory = advisoryList[0];
+
+                        processedData[year][stormName] = {
+                            name: stormName, // Ensure name is explicitly set
+                            basin: basin,
+                            advisory_count: advisoryList.length,
+                            latest_advisory: latestAdvisory,
+                            advisories: advisoryList,
+                            // Add fake cycles property for compatibility with storm-based model structure
+                            cycles: [{
+                                cycle: latestAdvisory ? latestAdvisory.advisory_start : null,
+                                duration: latestAdvisory ? latestAdvisory.duration : 0
+                            }]
+                        };
+                    }
+                }
+            }
+
+            return processedData;
+        }
+
+        function getNHCAvailableBasins(data) {
+            const basins = new Set();
+
+            if (data && data.forecast) {
+                for (const [year, yearBasins] of Object.entries(data.forecast)) {
+                    for (const basin of Object.keys(yearBasins)) {
+                        basins.add(basin);
+                    }
+                }
+            }
+
+            return Array.from(basins);
+        }
+
+        async function loadDashboard() {
+            const modelGrid = document.getElementById('model-grid');
+            const loadingDiv = document.getElementById('loading');
+            const dashboardDiv = document.getElementById('dashboard');
+
+            loadingDiv.style.display = 'block';
+            dashboardDiv.style.display = 'none';
+
+            try {
+                // Fetch data for all models concurrently (including NHC)
+                const modelPromises = MODELS.map(model => fetchModelData(model));
+
+                const modelResults = await Promise.all(modelPromises);
+
+                // Clear existing content
+                modelGrid.innerHTML = '';
+
+                // Get saved order or use default
+                const savedOrder = JSON.parse(localStorage.getItem('modelOrder') || 'null');
+                const orderedModels = savedOrder && savedOrder.length === MODELS.length
+                    ? savedOrder.filter(m => MODELS.includes(m)) // Ensure all saved models are still valid
+                    : MODELS;
+
+                // Create model cards in the correct order
+                orderedModels.forEach((model) => {
+                    const index = MODELS.indexOf(model);
+                    if (index !== -1) {
+                        let data = modelResults[index];
+
+                        // Special processing for NHC data
+                        if (model === 'nhc') {
+                            const originalData = data;
+                            data = processNHCData(data);
+
+                            // If no processed data, still show the NHC card with error state
+                            if (!data) {
+                                data = null; // This will trigger error state in createModelCard
+                            }
+                        }
+
+                        const card = createModelCard(model, data);
+                        modelGrid.appendChild(card);
+
+                        // Create chart after card is in DOM (skip for NHC as it uses storm list format)
+                        if (model !== 'nhc') {
+                            setTimeout(() => createChart(model, data), 100);
+                        } else if (data) {
+                            // For NHC, setup basin selector and create storm list
+                            setTimeout(() => {
+                                if (BASIN_FILTERABLE_MODELS.includes(model)) {
+                                    setupBasinSelector(model, data);
+                                } else {
+                                    createCommitGraph(model, data);
+                                }
+                            }, 100);
+                        }
+                    }
+                });
+
+                // Drag-and-drop functionality disabled - tiles are now static
+                if (sortable) {
+                    sortable.destroy();
+                }
+                // Tiles are now static and not draggable
+                // sortable = new Sortable(modelGrid, {
+                //     animation: 150,
+                //     ghostClass: 'dragging',
+                //     chosenClass: 'dragging',
+                //     onStart: function(evt) {
+                //         evt.item.classList.add('dragging');
+                //     },
+                //     onEnd: function(evt) {
+                //         evt.item.classList.remove('dragging');
+                //         // Save the new order to localStorage for persistence
+                //         const newOrder = Array.from(modelGrid.children).map(card => card.dataset.model);
+                //         localStorage.setItem('modelOrder', JSON.stringify(newOrder));
+                //     }
+                // });
+
+                loadingDiv.style.display = 'none';
+                dashboardDiv.style.display = 'block';
+
+                // CRITICAL: Reinitialize tooltip system after dynamic content is loaded
+                if (typeof window.reinitializeTooltips === 'function') {
+                    window.reinitializeTooltips();
+                } else {
+                    console.warn('⚠️ reinitializeTooltips function not found');
+                }
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                if (error.message === 'Invalid API key') {
+                    // Clear the invalid saved API key
+                    try {
+                        localStorage.removeItem('metget-api-key');
+                    } catch (clearError) {
+                        console.warn('Failed to clear invalid API key:', clearError);
+                    }
+
+                    // Show API key section again
+                    document.getElementById('api-key-section').style.display = 'block';
+                    document.getElementById('dashboard-controls').style.display = 'none';
+                    loadingDiv.style.display = 'none';
+                    dashboardDiv.style.display = 'none';
+
+                    // Clear the input field and reset apiKey variable
+                    document.getElementById('api-key-input').value = '';
+                    apiKey = '';
+
+                    alert('Invalid API key. The saved key has been cleared. Please enter a valid API key.');
+                } else {
+                    loadingDiv.innerHTML = '<div class="error">Failed to load dashboard data. Please check the API connection.</div>';
+                }
+            }
+        }
+
+
+
+
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to load saved API key, if not found show API key input
+            const keyLoaded = loadSavedApiKey();
+            if (!keyLoaded) {
+                // Show API key input section if no saved key
+                document.getElementById('api-key-section').style.display = 'block';
+            }
+        });
+
+        // METGET GLOBAL TOOLTIP SYSTEM
+        // Global tooltip system - creates tooltip on document.body to bypass all containment issues
+        let globalTooltip = null;
+
+        function initializeGlobalTooltipSystem() {
+            // Create single global tooltip element
+            if (!globalTooltip) {
+                globalTooltip = document.createElement('div');
+                globalTooltip.className = 'global-cycle-tooltip';
+                document.body.appendChild(globalTooltip);
+            }
+
+            // Use event delegation for all cycle boxes
+            document.addEventListener('mouseenter', function(e) {
+                if (e.target && e.target.classList && e.target.classList.contains('cycle-box') && e.target.dataset.tooltipText) {
+                    showGlobalTooltip(e.target, e.target.dataset.tooltipText);
+                }
+            }, true);
+
+            document.addEventListener('mouseleave', function(e) {
+                if (e.target && e.target.classList && e.target.classList.contains('cycle-box')) {
+                    hideGlobalTooltip();
+                }
+            }, true);
+
+            // Update position on scroll/resize
+            document.addEventListener('scroll', function() {
+                if (globalTooltip && globalTooltip.classList.contains('visible')) {
+                    hideGlobalTooltip();
+                }
+            });
+
+            window.addEventListener('resize', function() {
+                if (globalTooltip && globalTooltip.classList.contains('visible')) {
+                    hideGlobalTooltip();
+                }
+            });
+        }
+
+        function showGlobalTooltip(cycleBox, text) {
+            if (!globalTooltip) return;
+
+            // Set tooltip content
+            globalTooltip.textContent = text;
+
+            // Position tooltip using fixed positioning relative to viewport
+            const rect = cycleBox.getBoundingClientRect();
+
+            // Calculate optimal position above the cycle box
+            const tooltipHeight = 32; // Approximate height
+            const spacing = 10;
+
+            let top = rect.top - tooltipHeight - spacing;
+            let left = rect.left + (rect.width / 2);
+
+            // Viewport boundary checks
+            const margin = 10;
+            const viewportWidth = window.innerWidth;
+
+            // Ensure tooltip stays within viewport horizontally
+            // (transform: translateX(-50%) will center it on the calculated left position)
+            if (left < margin + 75) { // 75px is roughly half the average tooltip width
+                left = margin + 75;
+            } else if (left > viewportWidth - margin - 75) {
+                left = viewportWidth - margin - 75;
+            }
+
+            // If not enough space above, position below
+            if (top < margin) {
+                top = rect.bottom + spacing;
+            }
+
+            // Apply position
+            globalTooltip.style.top = `${Math.max(margin, top)}px`;
+            globalTooltip.style.left = `${left}px`;
+
+            // Show tooltip
+            requestAnimationFrame(() => {
+                globalTooltip.classList.add('visible');
+            });
+        }
+
+        function hideGlobalTooltip() {
+            if (globalTooltip) {
+                globalTooltip.classList.remove('visible');
+            }
+        }
+
+        // Initialize global tooltip system
+        function setupTooltipSystem() {
+            // Clean up any old tooltip elements
+            document.querySelectorAll('.cycle-tooltip, .global-cycle-tooltip').forEach(tooltip => {
+                if (tooltip.parentNode === document.body) {
+                    document.body.removeChild(tooltip);
+                }
+            });
+
+            // Reset global tooltip reference
+            globalTooltip = null;
+
+            // Initialize new global system
+            initializeGlobalTooltipSystem();
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', setupTooltipSystem);
+
+        // Re-initialize after dynamic content updates
+        window.reinitializeTooltips = setupTooltipSystem;
+    </script>
+</body>
+</html>
