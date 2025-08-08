@@ -48,9 +48,6 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
-            /* Ensure container maintains consistent dimensions */
-            min-height: 100vh;
-            position: relative;
         }
 
         .header {
@@ -98,19 +95,12 @@
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-md);
             border: 1px solid var(--border-color);
-            /* Isolate controls layout from content changes */
-            position: relative;
-            z-index: 10;
-            /* Prevent layout collapse by maintaining consistent space */
-            min-height: 70px;
         }
 
         .control-group {
             display: flex;
             align-items: center;
             gap: 1rem;
-            /* Prevent flex layout changes during button state transitions */
-            flex-shrink: 0;
         }
 
         .control-label {
@@ -193,6 +183,80 @@
         /* Icon spinning animation - only affects the icon, not the button */
         .refresh-icon.spinning {
             animation: spin 1s linear infinite;
+        }
+
+        /* Auto Refresh Button */
+        .auto-refresh-button {
+            padding: 0.625rem 1.25rem;
+            background: var(--text-secondary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 4px rgba(100, 116, 139, 0.2);
+        }
+
+        .auto-refresh-button:hover {
+            background: #475569;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+        }
+
+        .auto-refresh-button:active {
+            transform: translateY(0);
+        }
+
+        /* Active state when auto-refresh is enabled */
+        .auto-refresh-button.active {
+            background: var(--accent-color);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        }
+
+        .auto-refresh-button.active:hover {
+            background: #2563eb;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .auto-refresh-icon {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.2s ease;
+        }
+
+        /* Countdown display */
+        .auto-refresh-countdown {
+            font-size: 0.75rem;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-left: 0.25rem;
+            display: none;
+            min-width: 20px;
+            text-align: right;
+        }
+
+        /* Show countdown only when auto-refresh is active */
+        .auto-refresh-button.active .auto-refresh-countdown {
+            display: inline;
+        }
+
+        /* Subtle animation when auto-refresh is active */
+        .auto-refresh-button.active .auto-refresh-icon {
+            animation: pulse-rotate 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-rotate {
+            0%, 100% {
+                transform: rotate(0deg) scale(1);
+            }
+            50% {
+                transform: rotate(180deg) scale(1.1);
+            }
         }
 
         /* Clear API Key Button */
@@ -479,8 +543,6 @@
         /* Dashboard Container */
         #dashboard {
             position: relative;
-            /* Maintain minimum height to prevent layout collapse */
-            min-height: 400px;
         }
 
         /* Model Grid */
@@ -1380,6 +1442,15 @@
                         </svg>
                         Refresh
                     </button>
+                    <button class="auto-refresh-button" id="auto-refresh-button" title="Toggle automatic refresh every 5 minutes">
+                        <svg class="auto-refresh-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                            <circle cx="8" cy="8" r="1.5"/>
+                        </svg>
+                        <span class="auto-refresh-text">Auto Refresh</span>
+                        <span class="auto-refresh-countdown" id="auto-refresh-countdown"></span>
+                    </button>
                     <button class="clear-key-button" id="clear-key-button" onclick="clearSavedApiKey()" title="Clear saved API key">
                         <svg class="clear-icon" viewBox="0 0 16 16" fill="currentColor">
                             <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
@@ -1760,12 +1831,141 @@
                 // Start icon spinning - only affects the icon, not the button
                 icon.classList.add('spinning');
 
+                // If auto-refresh is enabled, reset the countdown
+                if (autoRefreshEnabled) {
+                    countdownEndTime = Date.now() + (5 * 60 * 1000); // Reset to 5 minutes from now
+                }
+
                 // Reload dashboard
                 loadDashboard().finally(() => {
                     // Stop icon spinning
                     icon.classList.remove('spinning');
                 });
             });
+
+            // Auto-refresh functionality
+            let autoRefreshTimer = null;
+            let countdownAnimationId = null;
+            let countdownEndTime = 0;
+            let lastCountdownUpdate = 0;
+            const autoRefreshButton = document.getElementById('auto-refresh-button');
+            const countdownElement = document.getElementById('auto-refresh-countdown');
+
+            // Load saved auto-refresh state
+            const savedAutoRefresh = localStorage.getItem('auto-refresh-enabled');
+            let autoRefreshEnabled = savedAutoRefresh === 'true';
+
+            // Set initial button state
+            if (autoRefreshEnabled) {
+                autoRefreshButton.classList.add('active');
+                startAutoRefresh();
+            }
+
+            // Auto-refresh button event listener
+            autoRefreshButton.addEventListener('click', function() {
+                autoRefreshEnabled = !autoRefreshEnabled;
+
+                if (autoRefreshEnabled) {
+                    // Enable auto-refresh
+                    this.classList.add('active');
+                    startAutoRefresh();
+                    console.log('Auto-refresh enabled - refreshing every 5 minutes');
+                } else {
+                    // Disable auto-refresh
+                    this.classList.remove('active');
+                    stopAutoRefresh();
+                    console.log('Auto-refresh disabled');
+                }
+
+                // Save state to localStorage
+                localStorage.setItem('auto-refresh-enabled', autoRefreshEnabled.toString());
+            });
+
+            function startAutoRefresh() {
+                // Clear any existing timers
+                if (autoRefreshTimer) {
+                    clearInterval(autoRefreshTimer);
+                }
+                if (countdownAnimationId) {
+                    cancelAnimationFrame(countdownAnimationId);
+                }
+
+                // Set countdown end time (5 minutes from now)
+                countdownEndTime = Date.now() + (5 * 60 * 1000);
+                lastCountdownUpdate = 0;
+
+                // Start animation-frame based countdown
+                animateCountdown();
+            }
+
+            function animateCountdown(timestamp) {
+                if (!autoRefreshEnabled) return;
+
+                const now = Date.now();
+                const remaining = Math.max(0, countdownEndTime - now);
+
+                // Update countdown display every ~1000ms, synced with animation frames
+                if (!lastCountdownUpdate || timestamp - lastCountdownUpdate >= 1000) {
+                    updateCountdownDisplay(remaining);
+                    lastCountdownUpdate = timestamp;
+                }
+
+                // Check if time is up
+                if (remaining <= 0) {
+                    console.log('Auto-refresh triggered');
+                    triggerAutoRefresh();
+                    return;
+                }
+
+                // Continue animation loop
+                countdownAnimationId = requestAnimationFrame(animateCountdown);
+            }
+
+            function triggerAutoRefresh() {
+                const refreshButton = document.getElementById('refresh-button');
+                const icon = refreshButton.querySelector('.refresh-icon');
+
+                // Start icon spinning
+                icon.classList.add('spinning');
+
+                // Reload dashboard
+                loadDashboard().finally(() => {
+                    // Stop icon spinning
+                    icon.classList.remove('spinning');
+                    // Restart countdown if still enabled
+                    if (autoRefreshEnabled) {
+                        countdownEndTime = Date.now() + (5 * 60 * 1000);
+                        animateCountdown();
+                    }
+                });
+            }
+
+            function stopAutoRefresh() {
+                if (countdownAnimationId) {
+                    cancelAnimationFrame(countdownAnimationId);
+                    countdownAnimationId = null;
+                }
+                countdownEndTime = 0;
+                countdownElement.textContent = '';
+            }
+
+            function updateCountdownDisplay(remainingMs) {
+                const remainingSeconds = Math.ceil(remainingMs / 1000);
+                if (remainingSeconds > 0) {
+                    const minutes = Math.floor(remainingSeconds / 60);
+                    const seconds = remainingSeconds % 60;
+                    const newText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                    // Only update DOM if the text actually changed
+                    if (countdownElement.textContent !== newText) {
+                        countdownElement.textContent = newText;
+                    }
+                } else {
+                    if (countdownElement.textContent !== '') {
+                        countdownElement.textContent = '';
+                    }
+                }
+            }
         }
 
         function getExpectedDuration(model, cycleTime) {
