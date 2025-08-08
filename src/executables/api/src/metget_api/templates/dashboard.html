@@ -2518,13 +2518,9 @@
                 cleanStormName = rowName.split('_')[0];
             }
 
-            // Add basin indicator for HAFS models
+            // Add basin indicator for storm-based models
             let basinIndicator = '';
-            if (model === 'hafsa') {
-                basinIndicator = ' <span style="color: var(--text-muted); font-size: 0.75em;">(Atlantic)</span>';
-            } else if (model === 'hafsb') {
-                basinIndicator = ' <span style="color: var(--text-muted); font-size: 0.75em;">(E. Pacific)</span>';
-            } else if (rowData.basin && BASIN_NAMES[rowData.basin]) {
+            if (rowData.basin && BASIN_NAMES[rowData.basin]) {
                 basinIndicator = ` <span style="color: var(--text-muted); font-size: 0.75em;">(${BASIN_NAMES[rowData.basin]})</span>`;
             }
 
