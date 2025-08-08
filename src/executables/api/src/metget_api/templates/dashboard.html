@@ -2091,7 +2091,7 @@
                     const allStorms = getAllStormsFromYearData(data);
                     const stormCount = allStorms.length;
                     const stormText = stormCount === 1 ? 'storm' : 'storms';
-                    return `operating normally with advisory data (${stormCount} ${stormText})`;
+                    return `Operating Normally`;
                 } else {
                     return 'no recent advisory data available';
                 }
@@ -2105,33 +2105,33 @@
 
                 switch (status) {
                     case 'active':
-                        return `operating normally with complete cycles (${stormCount} ${stormText})`;
+                        return `Operating Normally`;
                     case 'loading':
-                        return `actively retrieving data (${stormCount} ${stormText})`;
+                        return `Data Posting`;
                     case 'warning':
-                        return `has incomplete or delayed cycles (${stormCount} ${stormText})`;
+                        return `Incomplete or delayed cycles (${stormCount} ${stormText})`;
                     case 'error':
                     default:
-                        return `has failed or no recent data available`;
+                        return `Failed or no recent data available`;
                 }
             }
 
             // Handle regular models
             switch (status) {
                 case 'active':
-                    return `operating normally with complete cycles`;
+                    return `Operating Normally`;
                 case 'loading':
-                    return `actively retrieving data`;
+                    return `Data Posting`;
                 case 'warning':
                     const latestCycle = data && data.cycles && data.cycles[0];
                     if (latestCycle) {
                         const expectedDuration = getExpectedDuration(model, latestCycle.cycle);
                         return `latest cycle incomplete (${latestCycle.duration}/${expectedDuration}h)`;
                     }
-                    return `has incomplete or delayed cycles`;
+                    return `Incomplete or delayed cycles`;
                 case 'error':
                 default:
-                    return `has failed or no recent data available`;
+                    return `Failed or no recent data available`;
             }
         }
 
