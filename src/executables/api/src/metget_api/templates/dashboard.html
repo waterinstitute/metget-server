@@ -48,6 +48,9 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
+            /* Ensure container maintains consistent dimensions */
+            min-height: 100vh;
+            position: relative;
         }
 
         .header {
@@ -95,12 +98,19 @@
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-md);
             border: 1px solid var(--border-color);
+            /* Isolate controls layout from content changes */
+            position: relative;
+            z-index: 10;
+            /* Prevent layout collapse by maintaining consistent space */
+            min-height: 70px;
         }
 
         .control-group {
             display: flex;
             align-items: center;
             gap: 1rem;
+            /* Prevent flex layout changes during button state transitions */
+            flex-shrink: 0;
         }
 
         .control-label {
@@ -147,7 +157,7 @@
             font-weight: 600;
         }
 
-        /* Refresh Button */
+        /* Refresh Button - Completely minimal approach */
         .refresh-button {
             padding: 0.625rem 1.25rem;
             background: var(--success-color);
@@ -174,20 +184,15 @@
             transform: translateY(0);
         }
 
-        .refresh-button.loading {
-            background: var(--text-muted);
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .refresh-button.loading .refresh-icon {
-            animation: spin 1s linear infinite;
-        }
-
         .refresh-icon {
             width: 16px;
             height: 16px;
             transition: transform 0.2s ease;
+        }
+
+        /* Icon spinning animation - only affects the icon, not the button */
+        .refresh-icon.spinning {
+            animation: spin 1s linear infinite;
         }
 
         /* Clear API Key Button */
@@ -470,6 +475,13 @@
             }
         }
 
+
+        /* Dashboard Container */
+        #dashboard {
+            position: relative;
+            /* Maintain minimum height to prevent layout collapse */
+            min-height: 400px;
+        }
 
         /* Model Grid */
         .model-grid {
@@ -1158,6 +1170,16 @@
             justify-content: center;
             padding: 3rem;
             color: var(--text-secondary);
+            /* Position loading overlay to avoid layout disruption */
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(248, 250, 252, 0.95);
+            backdrop-filter: blur(2px);
+            z-index: 50;
+            border-radius: var(--radius-lg);
         }
 
         .loading-spinner {
@@ -1387,16 +1409,14 @@
         </div>
 
 
-        <div id="loading" class="loading" style="display: none;">
-            <div class="loading-spinner"></div>
-            <div>Loading meteorological data...</div>
-        </div>
-
         <div id="dashboard" style="display: none;">
+            <div id="loading" class="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <div>Loading meteorological data...</div>
+            </div>
             <div class="model-grid" id="model-grid">
                 <!-- Model cards will be populated here -->
             </div>
-
         </div>
 
     </div>
@@ -1735,16 +1755,15 @@
             // Refresh button event listener
             document.getElementById('refresh-button').addEventListener('click', function() {
                 const button = this;
+                const icon = button.querySelector('.refresh-icon');
 
-                // Add loading state
-                button.classList.add('loading');
-                button.disabled = true;
+                // Start icon spinning - only affects the icon, not the button
+                icon.classList.add('spinning');
 
                 // Reload dashboard
                 loadDashboard().finally(() => {
-                    // Remove loading state
-                    button.classList.remove('loading');
-                    button.disabled = false;
+                    // Stop icon spinning
+                    icon.classList.remove('spinning');
                 });
             });
         }
@@ -2754,8 +2773,10 @@
             const loadingDiv = document.getElementById('loading');
             const dashboardDiv = document.getElementById('dashboard');
 
-            loadingDiv.style.display = 'block';
-            dashboardDiv.style.display = 'none';
+            // Show loading overlay instead of hiding dashboard
+            loadingDiv.style.display = 'flex';
+            // Keep dashboard visible to maintain layout stability
+            dashboardDiv.style.display = 'block';
 
             try {
                 // Fetch data for all models concurrently (including NHC)
@@ -2763,14 +2784,14 @@
 
                 const modelResults = await Promise.all(modelPromises);
 
-                // Clear existing content
-                modelGrid.innerHTML = '';
-
                 // Get saved order or use default
                 const savedOrder = JSON.parse(localStorage.getItem('modelOrder') || 'null');
                 const orderedModels = savedOrder && savedOrder.length === MODELS.length
                     ? savedOrder.filter(m => MODELS.includes(m)) // Ensure all saved models are still valid
                     : MODELS;
+
+                // Create new content in a document fragment to avoid layout thrashing
+                const newContent = document.createDocumentFragment();
 
                 // Create model cards in the correct order
                 orderedModels.forEach((model) => {
@@ -2790,7 +2811,7 @@
                         }
 
                         const card = createModelCard(model, data);
-                        modelGrid.appendChild(card);
+                        newContent.appendChild(card);
 
                         // Create chart after card is in DOM (skip for NHC as it uses storm list format)
                         if (model !== 'nhc') {
@@ -2807,6 +2828,10 @@
                         }
                     }
                 });
+
+                // Replace content atomically to prevent layout thrashing
+                modelGrid.innerHTML = '';
+                modelGrid.appendChild(newContent);
 
                 // Drag-and-drop functionality disabled - tiles are now static
                 if (sortable) {
@@ -2828,8 +2853,9 @@
                 //     }
                 // });
 
+                // Hide loading overlay - dashboard stays visible
                 loadingDiv.style.display = 'none';
-                dashboardDiv.style.display = 'block';
+                // Dashboard is already visible, no need to show it again
 
                 // CRITICAL: Reinitialize tooltip system after dynamic content is loaded
                 if (typeof window.reinitializeTooltips === 'function') {
