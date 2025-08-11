@@ -2771,8 +2771,8 @@
                 const maxCycles = calculateMaxCycles();
                 let cycles;
                 if (STORM_BASED_MODELS.includes(model)) {
-                    // Storm-based models: cycles are oldest-first, take last N
-                    cycles = rowData.cycles.slice(-maxCycles);
+                    // Storm-based models: cycles are newest-first (same as regular models), take first N
+                    cycles = rowData.cycles.slice(0, maxCycles);
                 } else {
                     // Regular models: cycles are newest-first, take first N
                     cycles = rowData.cycles.slice(0, maxCycles);
@@ -2810,13 +2810,8 @@
 
             if (cycle.duration < expectedDuration) {
                 // Check if this is the latest cycle to determine loading vs incomplete
-                // For storm-based models, latest cycle is at the end; for regular models, it's at the start
-                let isLatest;
-                if (STORM_BASED_MODELS.includes(model)) {
-                    isLatest = cycle === rowData.cycles[rowData.cycles.length - 1];
-                } else {
-                    isLatest = cycle === rowData.cycles[0];
-                }
+                // Both storm-based and regular models have cycles in newest-first order, latest cycle is at index 0
+                const isLatest = cycle === rowData.cycles[0];
                 status = isLatest ? 'loading' : 'incomplete';
             } else if (cycle.duration >= expectedDuration) {
                 status = 'complete';
