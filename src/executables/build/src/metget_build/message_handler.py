@@ -358,39 +358,15 @@ class MessageHandler:
         Returns:
             The output file object
         """
-        from libmetget.build.output.netcdfoutput import NetcdfOutput
-        from libmetget.build.output.owiasciioutput import OwiAsciiOutput
+        from libmetget.build.output.outputfilefactory import OutputFileFactory
 
-        # log = logging.getLogger(__name__)
-
-        if (
-            input_data.format() == "ascii"
-            or input_data.format() == "owi-ascii"
-            or input_data.format() == "adcirc-ascii"
-        ):
-            return OwiAsciiOutput(
-                input_data.start_date(),
-                input_data.end_date(),
-                input_data.time_step(),
-                input_data.compression(),
-            )
-        # elif output_format == "owi-netcdf" or output_format == "adcirc-netcdf":
-        #     return pymetbuild.OwiNetcdf(start, end, time_step, filename)
-        elif (
-            input_data.format() == "hec-netcdf"
-            or input_data.format() == "netcdf"
-            or input_data.format() == "cf-netcdf"
-        ):
-            return NetcdfOutput(
-                input_data.start_date(), input_data.end_date(), input_data.time_step()
-            )
-        # elif output_format == "delft3d":
-        #     return pymetbuild.DelftOutput(start, end, time_step, filename)
-        elif input_data.format() == "raw":
-            return None
-        else:
-            msg = f"Invalid output format selected: {input_data.format():s}"
-            raise RuntimeError(msg)
+        return OutputFileFactory.create_output_file(
+            input_data.format(),
+            input_data.start_date(),
+            input_data.end_date(),
+            input_data.time_step(),
+            input_data.compression(),
+        )
 
     @staticmethod
     def __generate_met_domain(input_data: Input, met_object: OutputFile, index: int):
@@ -440,7 +416,13 @@ class MessageHandler:
             if input_data.compression():
                 for i, s in enumerate(fns):
                     fns[i] = s + ".gz"
-        elif output_format in ("hec-netcdf", "netcdf", "cf-netcdf"):
+        elif output_format in (
+            "hec-netcdf",
+            "netcdf",
+            "cf-netcdf",
+            "owi-netcdf",
+            "adcirc-netcdf",
+        ):
             if not input_data.filename().endswith(".nc"):
                 fns = [input_data.filename() + ".nc"]
             else:

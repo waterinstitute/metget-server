@@ -72,7 +72,7 @@ class OutputDomain:
         if not isinstance(end_date, datetime):
             msg = "end_date must be of type datetime"
             raise TypeError(msg)
-        if not isinstance(time_step, int):
+        if time_step is not None and not isinstance(time_step, int):
             msg = "time_step must be of type int"
             raise TypeError(msg)
 

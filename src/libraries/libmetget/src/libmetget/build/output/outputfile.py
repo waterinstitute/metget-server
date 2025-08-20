@@ -28,7 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime
-from typing import List, Union
+from typing import List, Optional, Union
 
 import xarray as xr
 
@@ -38,7 +38,9 @@ from .outputgrid import OutputGrid
 
 
 class OutputFile:
-    def __init__(self, start_time: datetime, end_time: datetime, time_step: int):
+    def __init__(
+        self, start_time: datetime, end_time: datetime, time_step: Optional[int]
+    ):
         """
         A class to represent a meteorological field.
 
@@ -113,7 +115,7 @@ class OutputFile:
         """
         return self.__end_time
 
-    def time_step(self) -> int:
+    def time_step(self) -> Optional[int]:
         """
         Get the time step of the meteorological field.
 
