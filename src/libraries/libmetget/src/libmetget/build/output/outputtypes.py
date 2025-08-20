@@ -55,7 +55,7 @@ class OutputTypes(Enum):
             return OutputTypes.OWI_ASCII
         elif s in ("owi-netcdf", "adcirc-netcdf"):
             return OutputTypes.OWI_NETCDF
-        elif s in ("hec-netcdf", "cf-netcdf"):
+        elif s in ("hec-netcdf", "cf-netcdf", "netcdf"):
             return OutputTypes.CF_NETCDF
         elif s == "delft3d":
             return OutputTypes.DELFT_ASCII

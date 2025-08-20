@@ -29,9 +29,11 @@
 
 from datetime import datetime
 
+from .netcdfoutput import NetcdfOutput
 from .outputfile import OutputFile
 from .outputtypes import OutputTypes
 from .owiasciioutput import OwiAsciiOutput
+from .owinetcdfoutput import OwiNetcdfOutput
 
 
 class OutputFileFactory:
@@ -44,7 +46,11 @@ class OutputFileFactory:
 
     @staticmethod
     def create_output_file(
-        output_format: str, start_time: datetime, end_time: datetime, time_step: int
+        output_format: str,
+        start_time: datetime,
+        end_time: datetime,
+        time_step: int,
+        compression: bool,
     ) -> OutputFile:
         """
         Create an output file.
@@ -54,6 +60,7 @@ class OutputFileFactory:
             start_time (datetime): The start time of the meteorological field.
             end_time (datetime): The end time of the meteorological field.
             time_step (int): The time step of the meteorological field.
+            compression (bool): Whether to compress the output file. (ascii only)
 
         Returns:
             OutputFile: The output file.
@@ -61,6 +68,11 @@ class OutputFileFactory:
         output_type = OutputTypes.from_string(output_format)
 
         if output_type == OutputTypes.OWI_ASCII:
-            return OwiAsciiOutput(start_time, end_time, time_step)
+            return OwiAsciiOutput(start_time, end_time, time_step, compression)
+        elif output_type == OutputTypes.OWI_NETCDF:
+            return OwiNetcdfOutput(start_time, end_time, time_step)
+        elif output_type == OutputTypes.CF_NETCDF:
+            return NetcdfOutput(start_time, end_time, time_step)
         else:
-            raise ValueError("Invalid output format: " + output_format)
+            msg = "Invalid output format: " + output_format
+            raise ValueError(msg)
