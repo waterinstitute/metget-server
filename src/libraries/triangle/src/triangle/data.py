@@ -12,7 +12,7 @@ def split(tup, pos):
     return tup[:pos], tup[pos:]
 
 
-def loads(  # noqa: PLR0915,  PLR0913
+def loads(  # noqa: PLR0915 PLR0913
     node=None,
     ele=None,
     poly=None,
