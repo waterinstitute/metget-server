@@ -240,19 +240,19 @@ class OwiNetcdfDomain(OutputDomain):
         self.__group_ds.createDimension("yi", grid.nj())
         self.__group_ds.createDimension("time", None)
 
-        lat_var = self.__group_ds.createVariable("lat", "f4", ("yi", "xi"))
+        lat_var = self.__group_ds.createVariable("lat", "f8", ("yi", "xi"))
         lat_var.units = "degrees_north"
         lat_var.long_name = "latitude"
         lat_var.axis = "Y"
         lat_var.coordinates = "time lat lon"
 
-        lon_var = self.__group_ds.createVariable("lon", "f4", ("yi", "xi"))
+        lon_var = self.__group_ds.createVariable("lon", "f8", ("yi", "xi"))
         lon_var.units = "degrees_east"
         lon_var.long_name = "longitude"
         lon_var.axis = "X"
         lon_var.coordinates = "time lat lon"
 
-        self.__time_var = self.__group_ds.createVariable("time", "f8", ("time",))
+        self.__time_var = self.__group_ds.createVariable("time", "i8", ("time",))
         self.__time_var.units = "minutes since 1990-01-01T00:00:00"
         self.__time_var.calendar = "proleptic_gregorian"
         self.__group_ds.rank = np.int32(self.__group_rank)
@@ -290,7 +290,7 @@ class OwiNetcdfDomain(OutputDomain):
             ("time", "yi", "xi"),
             zlib=True,
             complevel=4,
-            fill_value=np.nan,
+            fill_value=var_info["met_type"].fill_value(),
         )
         this_var.units = var_info["met_type"].units()
         this_var.long_name = var_info["met_type"].cf_long_name()
@@ -355,7 +355,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         time_index = len(self.__time_var)
         dt = time - datetime(1990, 1, 1, 0, 0, 0)
-        minutes_since = dt.total_seconds() / 60.0
+        minutes_since = int(dt.total_seconds() / 60.0)
 
         self.__time_var[time_index] = minutes_since
 
