@@ -121,6 +121,8 @@ config:
     nhc: False
     wpc: False
     adeck: False
+    rrfs: False
+    refs: False
   #####################################################
   # Ensure that the API enforces credit limits
   #

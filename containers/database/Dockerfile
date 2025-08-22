@@ -1,4 +1,4 @@
-FROM postgres:17-bookworm
+FROM postgres:17-trixie
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
 LABEL version="0.4.13"

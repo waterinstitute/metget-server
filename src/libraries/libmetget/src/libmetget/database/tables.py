@@ -495,3 +495,36 @@ class NhcAdeck(TableBase):
     end_time = Column(DateTime)
     duration = Column(Integer)
     geometry_data = Column(MutableDict.as_mutable(JSONB))
+
+
+class RrfsTable(TableBase):
+    """
+    This class is used to create the table that holds the RRFS data which has been
+    downloaded from the NCEP server
+    """
+
+    __tablename__ = "rrfs_ncep"
+    index = Column("id", Integer, primary_key=True)
+    forecastcycle = Column(DateTime)
+    forecasttime = Column(DateTime)
+    tau = Column(Integer)
+    filepath = Column(String)
+    url = Column(String)
+    accessed = Column(DateTime)
+
+
+class RefsTable(TableBase):
+    """
+    This class is used to create the table that holds the REFS data which has been
+    downloaded from the NCEP server
+    """
+
+    __tablename__ = "refs_ncep"
+    index = Column("id", Integer, primary_key=True)
+    forecastcycle = Column(DateTime)
+    ensemble_member = Column(String)
+    forecasttime = Column(DateTime)
+    tau = Column(Integer)
+    filepath = Column(String)
+    url = Column(String)
+    accessed = Column(DateTime)

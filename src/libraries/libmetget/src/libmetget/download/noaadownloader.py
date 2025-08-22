@@ -59,7 +59,7 @@ class NoaaDownloader:
         self,
         met_type: str,
         met_string: str,
-        address: str,
+        address: Optional[str],
         begin: datetime,
         end: datetime,
         use_aws_big_data: bool = False,
@@ -342,7 +342,7 @@ class NoaaDownloader:
 
         while True:
             try:
-                if byte_range:
+                if byte_range is not None:
                     return self.__client.get_object(
                         Bucket=bucket, Key=key, Range=byte_range
                     )
@@ -424,7 +424,7 @@ class NoaaDownloader:
                 for r in byte_list:
                     if r:
                         return_range = "bytes=" + r["start"] + "-" + r["end"]
-                        grb_obj = NoaaDownloader.__try_get_object(
+                        grb_obj = self.__try_get_object(
                             self.__big_data_bucket, grb_key, return_range
                         )
                         fid.write(grb_obj["Body"].read())

@@ -41,6 +41,8 @@ from ..sources.metfiletype import (
     NCEP_HAFS_B,
     NCEP_HWRF,
     NCEP_NAM,
+    NCEP_REFS,
+    NCEP_RRFS,
     NCEP_WPC,
 )
 from .files.filelist_base import FilelistBase
@@ -52,9 +54,16 @@ class Filelist:
     requested forcing data.
     """
 
-    GENERIC_TYPES: ClassVar = [HRRR_ALASKA, HRRR_CONUS, NCEP_GFS, NCEP_NAM, NCEP_WPC]
+    GENERIC_TYPES: ClassVar = [
+        NCEP_RRFS,
+        HRRR_ALASKA,
+        HRRR_CONUS,
+        NCEP_GFS,
+        NCEP_NAM,
+        NCEP_WPC,
+    ]
     STORM_TYPES: ClassVar = [NCEP_HAFS_A, NCEP_HAFS_B, COAMPS_TC, NCEP_HWRF]
-    ENSEMBLE_TYPES: ClassVar = [NCEP_GEFS]
+    ENSEMBLE_TYPES: ClassVar = [NCEP_GEFS, NCEP_REFS]
     STORM_ENSEMBLE_TYPES: ClassVar = [COAMPS_CTCX]
 
     def __init__(self, **kwargs):

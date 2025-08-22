@@ -440,6 +440,7 @@ class Metdb:
             HrrrAlaskaTable,
             HrrrTable,
             NamTable,
+            RrfsTable,
             WpcTable,
         )
 
@@ -453,6 +454,8 @@ class Metdb:
             table = HrrrTable
         elif datatype == "hrrr_alaska_ncep":
             table = HrrrAlaskaTable
+        elif datatype == "rrfs_ncep":
+            table = RrfsTable
         else:
             raise ValueError("Invalid datatype: " + datatype)
 
@@ -520,6 +523,7 @@ class Metdb:
             HrrrAlaskaTable,
             HrrrTable,
             NamTable,
+            RrfsTable,
             WpcTable,
         )
 
@@ -536,6 +540,8 @@ class Metdb:
                 table = HrrrTable
             elif datatype == "hrrr_alaska_ncep":
                 table = HrrrAlaskaTable
+            elif datatype == "rrfs_ncep":
+                table = RrfsTable
             else:
                 raise ValueError("Invalid datatype: " + datatype)
 
