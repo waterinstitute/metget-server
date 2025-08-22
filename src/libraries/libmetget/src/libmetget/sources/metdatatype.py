@@ -182,7 +182,8 @@ class MetDataType(Enum):
         else:
             return 0.0
 
-    def fill_value(self) -> float:
+    @staticmethod
+    def fill_value() -> float:
         """
         Get the fill value for the variable.
         """
