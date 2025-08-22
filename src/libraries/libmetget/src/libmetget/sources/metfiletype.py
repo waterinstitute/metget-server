@@ -26,6 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from typing import Dict
 
 from ..database.tables import (
     CoampsTable,
@@ -38,6 +39,8 @@ from ..database.tables import (
     HrrrTable,
     HwrfTable,
     NamTable,
+    RefsTable,
+    RrfsTable,
     WpcTable,
 )
 from .metdatatype import MetDataType
@@ -243,6 +246,157 @@ NCEP_GEFS = MetFileAttributes(
     #   c00 => control
     #   pXX => perturbation XX (1-30)
     ensemble_members=["avg", "c00", *[f"p{i:02d}" for i in range(1, 31)]],
+)
+
+NCEP_RRFS = MetFileAttributes(
+    name="RRFS-NCEP",
+    table="rrfs_ncep",
+    table_obj=RrfsTable,
+    file_format=MetFileFormat.GRIB,
+    bucket="noaa-rrfs-pds",
+    variables={
+        MetDataType.WIND_U: {
+            "type": MetDataType.WIND_U,
+            "name": "uvel",
+            "long_name": "UGRD:10 m above ground",
+            "var_name": "u10",
+            "grib_name": "10u",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.WIND_V: {
+            "type": MetDataType.WIND_V,
+            "name": "vvel",
+            "long_name": "VGRD:10 m above ground",
+            "var_name": "v10",
+            "grib_name": "10v",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.PRESSURE: {
+            "type": MetDataType.PRESSURE,
+            "name": "press",
+            "long_name": "PRES:surface",
+            "var_name": "mslma",
+            "grib_name": "mslma",
+            "scale": 0.01,
+            "is_accumulated": False,
+        },
+        MetDataType.ICE: {
+            "type": MetDataType.ICE,
+            "name": "ice",
+            "long_name": "ICEC:surface",
+            "var_name": "icec",
+            "grib_name": "icec",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.PRECIPITATION: {
+            "type": MetDataType.PRECIPITATION,
+            "name": "precip_rate",
+            "long_name": "PRATE",
+            "var_name": "prate",
+            "grib_name": "prate",
+            "scale": 3600.0,
+            "is_accumulated": False,
+            "skip_0": True,
+        },
+        MetDataType.HUMIDITY: {
+            "type": MetDataType.HUMIDITY,
+            "name": "humidity",
+            "long_name": "RH:2 m above ground",
+            "var_name": "rh",
+            "grib_name": "2r",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.TEMPERATURE: {
+            "type": MetDataType.TEMPERATURE,
+            "name": "temperature",
+            "long_name": "TMP:2 m above ground",
+            "var_name": "tmp",
+            "grib_name": "2t",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+    },
+    cycles=list(range(24)),
+)
+
+NCEP_REFS = MetFileAttributes(
+    name="REFS-NCEP",
+    table="refs_ncep",
+    table_obj=RefsTable,
+    file_format=MetFileFormat.GRIB,
+    bucket="noaa-rrfs-pds",
+    variables={
+        MetDataType.WIND_U: {
+            "type": MetDataType.WIND_U,
+            "name": "uvel",
+            "long_name": "UGRD:10 m above ground",
+            "var_name": "u10",
+            "grib_name": "10u",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.WIND_V: {
+            "type": MetDataType.WIND_V,
+            "name": "vvel",
+            "long_name": "VGRD:10 m above ground",
+            "var_name": "v10",
+            "grib_name": "10v",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.PRESSURE: {
+            "type": MetDataType.PRESSURE,
+            "name": "press",
+            "long_name": "PRES:surface",
+            "var_name": "mslma",
+            "grib_name": "mslma",
+            "scale": 0.01,
+            "is_accumulated": False,
+        },
+        MetDataType.ICE: {
+            "type": MetDataType.ICE,
+            "name": "ice",
+            "long_name": "ICEC:surface",
+            "var_name": "icec",
+            "grib_name": "icec",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.PRECIPITATION: {
+            "type": MetDataType.PRECIPITATION,
+            "name": "precip_rate",
+            "long_name": "PRATE",
+            "var_name": "prate",
+            "grib_name": "prate",
+            "scale": 3600.0,
+            "is_accumulated": False,
+            "skip_0": True,
+        },
+        MetDataType.HUMIDITY: {
+            "type": MetDataType.HUMIDITY,
+            "name": "humidity",
+            "long_name": "RH:2 m above ground",
+            "var_name": "rh",
+            "grib_name": "2r",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+        MetDataType.TEMPERATURE: {
+            "type": MetDataType.TEMPERATURE,
+            "name": "temperature",
+            "long_name": "TMP:2 m above ground",
+            "var_name": "tmp",
+            "grib_name": "2t",
+            "scale": 1.0,
+            "is_accumulated": False,
+        },
+    },
+    cycles=[0, 6, 12, 18],
+    ensemble_members=["m001", "m002", "m003", "m004", "m005"],
 )
 
 HRRR_CONUS = MetFileAttributes(
@@ -660,30 +814,24 @@ def attributes_from_service(service: str) -> MetFileAttributes:
         MetFileAttributes: The service type
     """
 
-    if service == "gfs-ncep":
-        service_metadata = NCEP_GFS
-    elif service == "nam-ncep":
-        service_metadata = NCEP_NAM
-    elif service == "hrrr-conus":
-        service_metadata = HRRR_CONUS
-    elif service == "hrrr-alaska":
-        service_metadata = HRRR_ALASKA
-    elif service == "gefs-ncep":
-        service_metadata = NCEP_GEFS
-    elif service == "wpc-ncep":
-        service_metadata = NCEP_WPC
-    elif service == "ncep-hafs-a":
-        service_metadata = NCEP_HAFS_A
-    elif service == "ncep-hafs-b":
-        service_metadata = NCEP_HAFS_B
-    elif service == "coamps-tc":
-        service_metadata = COAMPS_TC
-    elif service == "coamps-ctcx":
-        service_metadata = COAMPS_CTCX
-    elif service == "hwrf":
-        service_metadata = NCEP_HWRF
-    else:
+    service_map: Dict[str, MetFileAttributes] = {
+        "gfs-ncep": NCEP_GFS,
+        "nam-ncep": NCEP_NAM,
+        "hrrr-conus": HRRR_CONUS,
+        "hrrr-alaska": HRRR_ALASKA,
+        "gefs-ncep": NCEP_GEFS,
+        "wpc-ncep": NCEP_WPC,
+        "ncep-hafs-a": NCEP_HAFS_A,
+        "ncep-hafs-b": NCEP_HAFS_B,
+        "coamps-tc": COAMPS_TC,
+        "coamps-ctcx": COAMPS_CTCX,
+        "hwrf": NCEP_HWRF,
+        "rrfs-conus": NCEP_RRFS,
+        "refs-conus": NCEP_REFS,
+    }
+
+    if service not in service_map:
         msg = f"Invalid service: '{service:s}'"
         raise ValueError(msg)
 
-    return service_metadata
+    return service_map[service]

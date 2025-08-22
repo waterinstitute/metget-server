@@ -144,7 +144,25 @@ CREATE TABLE nhc_adeck(
   duration INTEGER NOT NULL,
   geometry_Data JSON NOT NULL
 );
-
+CREATE TABLE rrfs_ncep(
+  id SERIAL PRIMARY KEY,
+  forecastcycle TIMESTAMP NOT NULL,
+  forecasttime TIMESTAMP NOT NULL,
+  tau INTEGER NOT NULL,
+  filepath VARCHAR(256) NOT NULL,
+  url VARCHAR(256) NOT NULL,
+  accessed TIMESTAMP NOT NULL
+);
+CREATE TABLE refs_ncep(
+  id SERIAL PRIMARY KEY,
+  forecastcycle TIMESTAMP NOT NULL,
+  forecasttime TIMESTAMP NOT NULL,
+  ensemble_member VARCHAR(32) NOT NULL,
+  tau INTEGER NOT NULL,
+  filepath VARCHAR(256) NOT NULL,
+  url VARCHAR(256) NOT NULL,
+  accessed TIMESTAMP NOT NULL
+);
 --
 --Creates tables for the storage of metget's API access
 --
@@ -190,15 +208,13 @@ CREATE INDEX coamps_tc_forecastcycle_idx ON coamps_tc USING brin (forecastcycle)
 CREATE INDEX ctcx_forecastcycle_idx ON ctcx USING brin (forecastcycle);
 CREATE INDEX hrrr_ncep_forecastcycle_idx ON hrrr_ncep USING brin (forecastcycle);
 CREATE INDEX hrrr_alaska_ncep_forecastcycle_idx ON hrrr_alaska_ncep USING brin (forecastcycle);
+CREATE INDEX rrfs_ncep_forecastcycle_idx ON rrfs_ncep USING brin (forecastcycle);
+CREATE INDEX refs_fcst_forecastcycle_idx ON refs_fcst USING brin (forecastcycle);
 CREATE INDEX wpc_ncep_forecastcycle_idx ON wpc_ncep USING brin (forecastcycle);
 CREATE INDEX nhc_adeck_model_idx ON nhc_adeck USING brin (model);
 CREATE INDEX nhc_adeck_forecastcycle_idx ON nhc_adeck USING brin (forecastcycle);
 --
---Create Brin Index on basin for nhc_fcst and nhc_btk
+-- Create Brin Index on basin for nhc_fcst and nhc_btk
 --
 CREATE INDEX nhc_fcst_basin_idx ON nhc_fcst USING brin (basin);
 CREATE INDEX nhc_btk_basin_idx ON nhc_btk USING brin (basin);
---
---Create Brin Index on the api_key for the requests
---
-CREATE INDEX request_apikey_idx ON requests USING brin (api_key);

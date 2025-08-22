@@ -1,0 +1,16 @@
+name: Development Deployment
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build_pull_request:
+    name: Build Containers
+    uses: ./.github/workflows/all_containers_build_push.yaml
+    with:
+      tag: develop
+    secrets: inherit
+  pre_commit:
+    name: Pre-commit checks
+    uses: ./.github/workflows/precommit.yaml
