@@ -255,7 +255,7 @@ class OwiNetcdfDomain(OutputDomain):
         self.__time_var = self.__group_ds.createVariable("time", "f8", ("time",))
         self.__time_var.units = "minutes since 1990-01-01T00:00:00"
         self.__time_var.calendar = "proleptic_gregorian"
-        self.__group_ds.rank = self.__group_rank
+        self.__group_ds.rank = np.int32(self.__group_rank)
 
         var_map = self.__variable_metadata_map()
         if self.__variable_type in var_map:

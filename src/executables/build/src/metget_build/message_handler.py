@@ -432,7 +432,10 @@ class MessageHandler:
 
         log.info(f"Adding domain {index + 1:d} to output object")
         met_object.add_domain(
-            grid=d.grid(), filename=fns, variable=input_data.data_type()
+            grid=d.grid(),
+            filename=fns,
+            variable=input_data.data_type(),
+            name=d.name(),
         )
 
     @staticmethod
@@ -609,6 +612,10 @@ class MessageHandler:
                 output_file_list = [
                     item for sublist in output_file_list for item in sublist
                 ]
+
+            if len(list(set(output_file_list))) != len(output_file_list):
+                output_file_list = list(set(output_file_list))
+
             log.info("Generated output files: {:s}".format(", ".join(output_file_list)))
         else:
             log.info(f"Generated output file: {output_file_list:s}")

@@ -55,6 +55,7 @@ class OwiNetcdfOutput(OutputFile):
         """
         self.__filename = None
         self.__dataset = None
+        self.__group_names = []
         super().__init__(start_time, end_time, time_step)
 
     def add_domain(
@@ -83,13 +84,19 @@ class OwiNetcdfOutput(OutputFile):
             msg = "variable must be specified"
             raise ValueError(msg)
 
+        if "name" not in kwargs:
+            name = f"domain_{len(self.domains()) + 1}"
+        else:
+            name = kwargs["name"]
+        self.__group_names.append(name)
+
         domain = OwiNetcdfDomain(
             grid_obj=grid,
             start_date=self.start_time(),
             end_date=self.end_time(),
             nc_dataset=self.__dataset,
             group_rank=len(self.domains()),
-            group_name=f"domain_{len(self.domains()) + 1}",
+            group_name=name,
             variable_type=variable,
         )
         self._add_domain(domain, filename)
@@ -132,6 +139,5 @@ class OwiNetcdfOutput(OutputFile):
         for d in self.domains():
             d["domain"].close()
 
-        group_names = [f"domain_{i + 1}" for i in range(len(self.domains()))]
-        self.__dataset.group_order = " ".join(group_names)
+        self.__dataset.group_order = " ".join(self.__group_names)
         self.__dataset.close()
