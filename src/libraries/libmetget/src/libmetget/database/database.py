@@ -114,12 +114,12 @@ class Database:
             msg = "Database environment variables not set"
             raise RuntimeError(msg)
 
-        db_host = os.environ.get("METGET_DATABASE_HOST", "db-pgb-metget")
+        db_host = os.environ.get("METGET_DATABASE_HOST", "database")
 
         if "METGET_DATABASE_PORT" in os.environ:
             db_port = int(os.environ["METGET_DATABASE_PORT"])
         else:
-            db_port = 6432
+            db_port = 5432
 
         db_password = os.environ["METGET_DATABASE_PASSWORD"]
         db_username = os.environ["METGET_DATABASE_USER"]
