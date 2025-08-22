@@ -1,7 +1,7 @@
 FROM condaforge/miniforge3 AS conda
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.13
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
