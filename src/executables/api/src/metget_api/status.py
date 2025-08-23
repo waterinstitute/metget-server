@@ -45,6 +45,7 @@ AVAILABLE_MET_MODELS = [
     "coamps",
     "ctcx",
     "wpc",
+    "rrfs",
 ]
 
 MET_MODEL_FORECAST_DURATION = {
@@ -58,6 +59,7 @@ MET_MODEL_FORECAST_DURATION = {
     "hrrr-alaska": 48,
     "coamps": 126,
     "wpc": 162,
+    "rrfs": 84,
 }
 
 
@@ -105,6 +107,7 @@ class Status:
             - wpc
             - nhc
             - coamps
+            - rrfs
 
         Args:
             request: A flask request object
@@ -185,6 +188,10 @@ class Status:
                 start_dt,
                 end_dt,
             )
+        elif status_type == "rrfs":
+            s = Status.__get_status_rrfs(
+                MET_MODEL_FORECAST_DURATION["rrfs"], time_limit, start_dt, end_dt
+            )
         elif status_type == "wpc":
             s = Status.__get_status_wpc(
                 MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
@@ -238,6 +245,9 @@ class Status:
                 start_dt,
                 end_dt,
             )
+            rrfs, _ = Status.__get_status_rrfs(
+                MET_MODEL_FORECAST_DURATION["rrfs"], time_limit, start_dt, end_dt
+            )
             nhc, _ = Status.__get_status_nhc(time_limit, start_dt, end_dt, basin, storm)
             wpc, _ = Status.__get_status_wpc(
                 MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
@@ -268,6 +278,7 @@ class Status:
                 "wpc": wpc,
                 "coamps": coamps,
                 "ctcx": ctcx,
+                "rrfs": rrfs,
             }
 
         return s, 200
@@ -714,6 +725,28 @@ class Status:
 
         return Status.__get_status_generic(
             "hrrr", HrrrTable, cycle_length, limit, start, end
+        )
+
+    @staticmethod
+    def __get_status_rrfs(
+        cycle_length: int, limit: timedelta, start: datetime, end: datetime
+    ) -> dict:
+        """
+        This method is used to generate the status for the HRRR model
+
+        Args:
+            cycle_length: The duration of the cycle in hours
+            limit: The limit in days to use when generating the status
+            start: The start date to use when generating the status
+            end: The end date to use when generating the status
+
+        Returns:
+            Dictionary containing the status information and the HTTP status code
+        """
+        from libmetget.database.tables import RrfsTable
+
+        return Status.__get_status_generic(
+            "rrfs", RrfsTable, cycle_length, limit, start, end
         )
 
     @staticmethod
