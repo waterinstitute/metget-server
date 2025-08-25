@@ -46,6 +46,7 @@ VALID_SERVICES = [
     "ncep-hafs-a",
     "ncep-hafs-b",
     "hwrf",
+    "rrfs",
 ]
 
 
