@@ -5,7 +5,7 @@ metadata:
   name: ingress
   annotations:
     alb.ingress.kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/load-balancer-name: {{ .Release.Name }}-ingress
+    alb.ingress.kubernetes.io/load-balancer-name: {{ .Release.Namespace }}-{{ .Release.Name }}-ingress
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/tags: PROJECT_ID={{ .Values.http.project_tag }}
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
