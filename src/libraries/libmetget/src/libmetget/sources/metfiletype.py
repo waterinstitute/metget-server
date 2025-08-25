@@ -826,8 +826,8 @@ def attributes_from_service(service: str) -> MetFileAttributes:
         "coamps-tc": COAMPS_TC,
         "coamps-ctcx": COAMPS_CTCX,
         "hwrf": NCEP_HWRF,
-        "rrfs-conus": NCEP_RRFS,
-        "refs-conus": NCEP_REFS,
+        "rrfs": NCEP_RRFS,
+        "refs": NCEP_REFS,
     }
 
     if service not in service_map:
