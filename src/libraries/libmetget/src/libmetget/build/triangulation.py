@@ -29,30 +29,83 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import numpy as np
-from numba import njit
-from scipy.spatial import cKDTree
+from libtri import PyTriangulation
+from pyproj import CRS, Transformer
+
+log = logging.getLogger(__name__)
 
 
 class Triangulation:
-    def __init__(self, points: np.array, edges: np.array):
+    def __init__(self, points: np.ndarray, boundary: np.ndarray):
         """
         Constructor for the Triangulation class.
 
         Args:
             points (np.array): The points to triangulate.
-            edges (np.array): The edges to triangulate.
+            boundary (np.array): The boundary points forming a polygon.
         """
-
-        self.__t_input = {"vertices": points, "segments": edges}
-        self.__triangulation = self.__generate_triangulation()
-        self.__centroids = self.__compute_centroids(points, self.__triangulation)
+        self.__t_input = {"vertices": points, "segments": boundary}
+        self.__transformer = self.__generate_pj_transformer()
+        self.__triangulation = self.__generate_triangulation(points, boundary)
         self.__interpolation_indexes = None
         self.__interpolation_weights = None
 
     @staticmethod
-    def matches(tri: Triangulation, points: np.array) -> bool:
+    def __generate_pj_transformer():
+        """
+        Generates a pyproj transformer from WGS84 to a stereographic projection.
+
+        Returns:
+            Transformer: The pyproj transformer.
+        """
+        crs_wgs84 = CRS.from_epsg(4326)
+        crs_stereo = CRS.from_proj4(
+            "+proj=stere +lat_0=90 "
+            "+lat_ts=60 +lon_0=-105 "
+            "+k=1 +x_0=0 +y_0=0 "
+            "+a=6378137 +b=6356752.314245 "
+            "+units=m +no_defs"
+        )
+        return Transformer.from_crs(crs_wgs84, crs_stereo, always_xy=True)
+
+    def __generate_triangulation(
+        self, points: np.ndarray, boundary: np.ndarray
+    ) -> PyTriangulation:
+        """
+        Generates a triangulation using the provided points and boundary.
+
+        Args:
+            points (np.array): The points to triangulate.
+            boundary (np.array): The boundary points forming a polygon.
+
+        Returns:
+            PyTriangulation: The generated triangulation.
+        """
+        log.info("Begin generating triangulation")
+
+        tick = time.time()
+        points_stereo = np.array(
+            self.__transformer.transform(points[:, 0], points[:, 1])
+        ).T
+        boundary_stereo = np.array(
+            self.__transformer.transform(boundary[:, 0], boundary[:, 1])
+        ).T
+
+        self.__triangulation = PyTriangulation(points_stereo[:, 0], points_stereo[:, 1])
+        self.__triangulation.apply_constraint_polygon(
+            boundary_stereo[:, 0], boundary_stereo[:, 1]
+        )
+
+        tock = time.time()
+        log.info(f"Triangulation created in {tock - tick:.2f} seconds")
+
+        return self.__triangulation
+
+    @staticmethod
+    def matches(tri: Triangulation, points: np.ndarray) -> bool:
         """
         Determines if the points match the triangulation.
 
@@ -65,7 +118,7 @@ class Triangulation:
         """
         return np.array_equal(tri.points(), points)
 
-    def points(self) -> np.array:
+    def points(self) -> np.ndarray:
         """
         Returns the points.
 
@@ -74,68 +127,9 @@ class Triangulation:
         """
         return self.__t_input["vertices"]
 
-    def edges(self) -> np.array:
-        """
-        Returns the edges.
-
-        Returns:
-            np.array: The edges.
-        """
-        return self.__t_input["segments"]
-
-    def centroids(self) -> np.array:
-        """
-        Returns the centroids.
-
-        Returns:
-            np.array: The centroids.
-        """
-        return self.__centroids
-
-    def __generate_triangulation(self) -> np.array:
-        """
-        Generates a triangulation from the points and edges.
-
-        Returns:
-            np.array: The triangulation.
-        """
-        from triangle import tri
-
-        log = logging.getLogger(__name__)
-
-        log.info("Generating triangulation")
-
-        return tri.triangulate(self.__t_input, "p")["triangles"]
-
-    @staticmethod
-    @njit
-    def __compute_centroids(
-        points: np.ndarray, triangulation: np.ndarray
-    ) -> np.ndarray:
-        """
-        Returns the centroids of the triangles.
-        """
-        num_triangles = triangulation.shape[0]
-        result = np.empty((num_triangles, 2), dtype=np.float64)
-
-        for i in range(num_triangles):
-            result[i, 0] = (
-                points[triangulation[i, 0], 0]
-                + points[triangulation[i, 1], 0]
-                + points[triangulation[i, 2], 0]
-            ) / 3.0
-
-            result[i, 1] = (
-                points[triangulation[i, 0], 1]
-                + points[triangulation[i, 1], 1]
-                + points[triangulation[i, 2], 1]
-            ) / 3.0
-
-        return result
-
     def interpolate(
-        self, x_points: np.array, y_points: np.array, z_points: np.array
-    ) -> np.array:
+        self, x_points: np.ndarray, y_points: np.ndarray, z_points: np.ndarray
+    ) -> np.ndarray:
         """
         Interpolates the points.
 
@@ -147,9 +141,6 @@ class Triangulation:
         Returns:
             np.array: The interpolated values.
         """
-
-        log = logging.getLogger(__name__)
-
         if self.__interpolation_indexes is None or self.__interpolation_weights is None:
             log.info("No interpolation weights found")
             self.__compute_interpolation_weights(x_points, y_points)
@@ -168,120 +159,22 @@ class Triangulation:
         """
 
         interpolated_values = np.full(
-            self.__interpolation_indexes.shape, np.nan, dtype=np.float64
+            self.__interpolation_indexes.shape[:-1], np.nan, dtype=np.float64
         )
 
         interpolated_values[self.__interpolation_mask] = (
             self.__interpolation_weights[self.__interpolation_mask, 0]
-            * z_points[
-                self.__triangulation[
-                    self.__interpolation_indexes[self.__interpolation_mask], 0
-                ]
-            ]
+            * z_points[self.__interpolation_indexes[self.__interpolation_mask, 0]]
             + self.__interpolation_weights[self.__interpolation_mask, 1]
-            * z_points[
-                self.__triangulation[
-                    self.__interpolation_indexes[self.__interpolation_mask], 1
-                ]
-            ]
+            * z_points[self.__interpolation_indexes[self.__interpolation_mask, 1]]
             + self.__interpolation_weights[self.__interpolation_mask, 2]
-            * z_points[
-                self.__triangulation[
-                    self.__interpolation_indexes[self.__interpolation_mask], 2
-                ]
-            ]
+            * z_points[self.__interpolation_indexes[self.__interpolation_mask, 2]]
         )
 
         return interpolated_values
 
-    def __generate_kdtree(self) -> cKDTree:
-        """
-        Generates a KDTree from the triangle centroids.
-
-        Returns:
-            cKDTree: The KDTree.
-        """
-        log = logging.getLogger(__name__)
-
-        log.info("Generating cKDTree")
-        return cKDTree(self.centroids())
-
-    @staticmethod
-    @njit
-    def __is_inside(  # noqa: PLR0913
-        x_p: float,
-        y_p: float,
-        x0: float,
-        y0: float,
-        x1: float,
-        y1: float,
-        x2: float,
-        y2: float,
-    ) -> tuple[bool, np.ndarray | None]:
-        """
-        Determines if the point is inside the triangle using the sub-area method
-
-        Args:
-            x_p (float): The x-coordinate of the point.
-            y_p (float): The y-coordinate of the point.
-            x0 (float): The x-coordinate of the first triangle point.
-            y0 (float): The y-coordinate of the first triangle point.
-            x1 (float): The x-coordinate of the second triangle point.
-            y1 (float): The y-coordinate of the second triangle point.
-            x2 (float): The x-coordinate of the third triangle point.
-            y2 (float): The y-coordinate of the third triangle point.
-
-        Returns:
-            Tuple[bool, np.ndarray]: True if the point is inside the triangle, False otherwise. The second element is the interpolation weights.
-        """
-        sub_area_1 = abs(
-            (x1 * y2 - x2 * y1) - (x_p * y2 - x2 * y_p) + (x_p * y1 - x1 * y_p)
-        )
-        sub_area_2 = abs(
-            (x_p * y2 - x2 * y_p) - (x0 * y2 - x2 * y0) + (x0 * y_p - x_p * y0)
-        )
-        sub_area_3 = abs(
-            (x1 * y_p - x_p * y1) - (x0 * y_p - x_p * y0) + (x0 * y1 - x1 * y0)
-        )
-        triangle_area = abs(
-            (x1 * y2 - x2 * y1) - (x0 * y2 - x2 * y0) + (x0 * y1 - x1 * y0)
-        )
-        if sub_area_1 + sub_area_2 + sub_area_3 <= triangle_area * 1.001:
-            return True, np.array([sub_area_1, sub_area_2, sub_area_3]) / triangle_area
-        else:
-            return False, None
-
-    def __find_triangle(
-        self, x_p: float, y_p: float, candidate_list: np.array
-    ) -> tuple[int, None | np.ndarray]:
-        """
-        Finds the triangle that contains the point.
-
-        Args:
-            x_p (float): The x-coordinate of the point.
-            y_p (float): The y-coordinate of the point.
-            candidate_list (np.array): The candidate triangles.
-
-        Returns:
-            int: The index of the triangle or -1 if no triangle contains the point.
-        """
-        for idx in candidate_list:
-            is_inside, weight = self.__is_inside(
-                x_p,
-                y_p,
-                self.points()[self.__triangulation[idx, 0], 0],
-                self.points()[self.__triangulation[idx, 0], 1],
-                self.points()[self.__triangulation[idx, 1], 0],
-                self.points()[self.__triangulation[idx, 1], 1],
-                self.points()[self.__triangulation[idx, 2], 0],
-                self.points()[self.__triangulation[idx, 2], 1],
-            )
-            if is_inside:
-                return idx, weight
-        return -1, None
-
     def __compute_interpolation_weights(
-        self, x_points: np.array, y_points: np.array
+        self, x_points: np.ndarray, y_points: np.ndarray
     ) -> None:
         """
         Computes the interpolation weights for the points.
@@ -293,36 +186,30 @@ class Triangulation:
         Returns:
             np.array: The interpolation weights.
         """
-
-        log = logging.getLogger(__name__)
-
         log.info("Computing interpolation weights")
+        tick = time.time()
 
-        search_depth = 6
+        if x_points.shape != y_points.shape:
+            msg = "x_points and y_points must have the same shape"
+            raise ValueError(msg)
 
-        indexes = np.zeros(x_points.shape, dtype=np.int32)
+        indexes = np.full((x_points.shape[0], x_points.shape[1], 3), -1, dtype=np.int32)
         weights = np.zeros((x_points.shape[0], x_points.shape[1], 3), dtype=np.float64)
 
-        # ...Compute the candidates
-        search_tree = self.__generate_kdtree()
-        candidates = search_tree.query(
-            np.array([x_points.flatten(), y_points.flatten()]).T, k=search_depth
-        )[1]
+        x_stereo, y_stereo = self.__transformer.transform(x_points, y_points)
 
-        # ...Un-flatten the candidates array
-        candidates = candidates.reshape(
-            x_points.shape[0], x_points.shape[1], search_depth
+        weights_vec = self.__triangulation.get_interpolation_weights(
+            x_stereo.flatten(), y_stereo.flatten()
         )
-
-        for i in range(x_points.shape[0]):
-            for j in range(x_points.shape[1]):
-                triangle_index, interpolation_weight = self.__find_triangle(
-                    x_points[i, j], y_points[i, j], candidates[i, j]
-                )
-                indexes[i, j] = triangle_index
-                if triangle_index >= 0:
-                    weights[i, j, :] = interpolation_weight[:]
+        valid_indices = np.where(weights_vec["valid"])[0]
+        i = valid_indices // x_points.shape[1]
+        j = valid_indices % x_points.shape[1]
+        indexes[i, j, :] = weights_vec["vertices"][valid_indices]
+        weights[i, j, :] = weights_vec["weights"][valid_indices]
 
         self.__interpolation_indexes = indexes
         self.__interpolation_weights = weights
-        self.__interpolation_mask = self.__interpolation_indexes >= 0
+        self.__interpolation_mask = np.all(self.__interpolation_indexes >= 0, axis=2)
+
+        tock = time.time()
+        log.info(f"Interpolation weights computed in {tock - tick:.2f} seconds")

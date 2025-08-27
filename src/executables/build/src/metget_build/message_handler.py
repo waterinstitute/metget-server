@@ -530,6 +530,8 @@ class MessageHandler:
             NCEP_HAFS_B,
             NCEP_HWRF,
             NCEP_NAM,
+            NCEP_REFS,
+            NCEP_RRFS,
             NCEP_WPC,
         )
 
@@ -553,6 +555,10 @@ class MessageHandler:
             file_type = NCEP_HAFS_B
         elif service == "hwrf":
             file_type = NCEP_HWRF
+        elif service == "rrfs":
+            file_type = NCEP_RRFS
+        elif service == "refs":
+            file_type = NCEP_REFS
         else:
             raise RuntimeError("Invalid service selected: " + service)
 

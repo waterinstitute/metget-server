@@ -3,19 +3,19 @@ FROM condaforge/miniforge3 AS conda
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PYTHON_VERSION=3.12
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libboost-dev libgmp-dev libmpfr-dev libcgal-dev
 
 RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib feedparser geojson \
                                      geopandas h5py netCDF4 numba numpy psycopg2 \
                                      python-dateutil requests schema scipy shapely sqlalchemy \
                                      xarray
 
-COPY src/libraries/triangle/src /tmp/triangle/.
+COPY src/libraries/libtri/ /tmp/libtri/.
 COPY src/libraries/libmetget/ /tmp/libmetget/.
 COPY src/executables/rebuild /tmp/metbuild_rebuild/.
 COPY src/executables/keymanager /tmp/keymanager/.
 
-RUN CFLAGS="-O3" /env/bin/pip install /tmp/triangle/.
+RUN /env/bin/pip install /tmp/libtri/.
 RUN /env/bin/pip install /tmp/libmetget/.
 RUN /env/bin/pip install /tmp/metbuild_rebuild/.
 RUN /env/bin/pip install /tmp/keymanager/.
