@@ -3,7 +3,7 @@ FROM condaforge/miniforge3 AS conda
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PYTHON_VERSION=3.13
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libboost-dev libgmp-dev libmpfr-dev libcgal-dev
 
 RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib feedparser geojson \
                                      geopandas h5py netCDF4 numba numpy psycopg2 \
@@ -16,11 +16,11 @@ RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib fe
     find /env -follow -type f -name '*.pyc' -delete && \
     find /env -follow -type f -name '*.js.map' -delete
 
-COPY src/libraries/triangle/src /tmp/triangle/.
+COPY src/libraries/libtri /tmp/libtri/.
 COPY src/libraries/libmetget/ /tmp/libmetget/.
 COPY src/executables/api /tmp/api/.
 
-RUN /env/bin/pip install /tmp/triangle/.
+RUN /env/bin/pip install /tmp/libtri/.
 RUN /env/bin/pip install /tmp/libmetget/.
 RUN /env/bin/pip install /tmp/api/.
 

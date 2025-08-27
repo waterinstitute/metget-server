@@ -41,6 +41,8 @@ class MeteorologicalSource(Enum):
     WPC = 7
     COAMPS = 8
     HAFS = 9
+    RRFS = 10
+    REFS = 11
 
     @staticmethod
     def from_string(data_type: str):
@@ -71,6 +73,10 @@ class MeteorologicalSource(Enum):
             result = MeteorologicalSource.COAMPS
         elif data_type in ("ncep-hafs-a", "ncep-hafs-b"):
             result = MeteorologicalSource.HAFS
+        elif data_type == "rrfs":
+            result = MeteorologicalSource.RRFS
+        elif data_type == "refs":
+            result = MeteorologicalSource.REFS
         else:
             msg = f"Invalid meteorological source: {data_type:s}"
             raise ValueError(msg)
@@ -101,6 +107,10 @@ class MeteorologicalSource(Enum):
             result = "coamps-tc"
         elif self == MeteorologicalSource.HAFS:
             result = "ncep-hafs-a"
+        elif self == MeteorologicalSource.RRFS:
+            result = "rrfs"
+        elif self == MeteorologicalSource.REFS:
+            result = "refs"
         else:
             msg = f"Invalid meteorological source: {self:s}"
             raise ValueError(msg)

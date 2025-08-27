@@ -243,12 +243,12 @@ class DataInterpolator:
         """
         from .triangulation import Triangulation
 
-        constraints, points = self.__get_dataset_points_and_edges(data_item)
+        boundary, points = self.__get_dataset_points_and_edges(data_item)
 
         if self.__triangulation is None or not Triangulation.matches(
             self.__triangulation, points
         ):
-            self.__triangulation = Triangulation(points, constraints)
+            self.__triangulation = Triangulation(points, boundary)
 
         interp_data = xr.Dataset(
             {
@@ -279,13 +279,13 @@ class DataInterpolator:
         data_item: InterpData,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Get the points and edges from the dataset.
+        Get the points and boundary from the dataset.
 
         Args:
             data_item (InterpData): The data item to interpolate.
 
         Returns:
-            tuple: The points and edges.
+            tuple: The points and boundary points.
         """
         points = np.array(
             [
@@ -293,20 +293,10 @@ class DataInterpolator:
                 data_item.dataset().latitude.to_numpy(),
             ]
         ).T
-        # ... Generate the constraints from the edge indexes where
-        # The array is [[edge_1, edge_2], [edge_2, edge_3], ... [edge_n, edge_1]]
-        # where edge_indexes is a 1d array of the indexes of the points
+        # Get the boundary points directly (not repeated)
         edge_indexes = data_item.edge_index()[0]
-        constraints = np.array(
-            [
-                [edge_indexes[i], edge_indexes[i + 1]]
-                for i in range(len(edge_indexes) - 1)
-            ]
-        )
-        constraints = np.append(
-            constraints, [[edge_indexes[-1], edge_indexes[0]]], axis=0
-        )
-        return constraints, points
+        boundary_points = points[edge_indexes]
+        return boundary_points, points
 
     def __merge_data(
         self, data: List[InterpData], variable_type: VariableType, apply_filter: bool
