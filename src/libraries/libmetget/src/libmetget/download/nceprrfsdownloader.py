@@ -34,7 +34,7 @@ from ..sources.metfiletype import NCEP_RRFS
 from .noaadownloader import NoaaDownloader
 
 
-class NcepRrfsdownloader(NoaaDownloader):
+class NcepRrfsDownloader(NoaaDownloader):
     def __init__(self, begin: datetime, end: datetime):
         address = None
         NoaaDownloader.__init__(

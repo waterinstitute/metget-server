@@ -37,9 +37,11 @@ from .domain import VALID_SERVICES, Domain
 VALID_DATA_TYPES = [
     "wind_pressure",
     "rain",
+    "precipitation",
     "ice",
     "humidity",
     "temperature",
+    "precipitation_type",
     "all_variables",
 ]
 

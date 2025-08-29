@@ -168,6 +168,10 @@ class DataInterpolator:
         apply_filter = kwargs.get("apply_filter", False)
         variable_type = kwargs.get("variable_type", VariableType.ALL_VARIABLES)
 
+        is_binary_variable = []
+        for var in variable_type.select():
+            is_binary_variable.append(var.is_binary_value())
+
         # Read the datasets from the various files into a list of InterpData objects
         data = self.__read_datasets(file_list, variable_type)
 
@@ -178,7 +182,7 @@ class DataInterpolator:
         data.sort(key=lambda gb: gb.resolution(), reverse=False)
 
         # Interpolate the data to the user-specified grid
-        self.__interpolate_fields(data)
+        self.__interpolate_fields(data, is_binary_variable)
 
         # ...Merge the data from the various files into a single xarray dataset
         merged_data = self.__merge_data(data, variable_type, apply_filter)
@@ -213,21 +217,30 @@ class DataInterpolator:
                 )
         return data
 
-    def __interpolate_fields(self, data: List[InterpData]) -> None:
+    def __interpolate_fields(
+        self, data: List[InterpData], is_binary: List[bool]
+    ) -> None:
         """
         Interpolate the data to the user specified grid.
 
         Args:
-            data (list): The list of dictionaries containing the filename,
-            variable_name, scale, dataset, and resolution.
+            data (list): The list of dictionaries containing the filename, variable_name, scale, dataset, and resolution.
+            is_binary (list): The list of boolean values indicating if the variable is binary.
 
         """
-        for data_item in data:
+        for data_item, binary in zip(data, is_binary):
             if "points" in data_item.dataset().dims:
                 interp_data = self.__interpolate_with_triangulation(data_item)
             else:
                 interp_data = data_item.dataset().interp(
                     latitude=self.y(), longitude=self.x(), method="linear"
+                )
+            if binary:
+                interp_data = interp_data.where(
+                    (interp_data >= 0.5) | np.isnan(interp_data), 0.0
+                )
+                interp_data = interp_data.where(
+                    (interp_data < 0.5) | np.isnan(interp_data), 1.0
                 )
             data_item.set_interp_dataset(interp_data)
 

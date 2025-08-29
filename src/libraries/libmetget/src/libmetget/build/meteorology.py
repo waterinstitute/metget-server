@@ -29,9 +29,10 @@
 import copy
 import logging
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
+import xarray as xr
 
 from ..sources.meteorologicalsource import MeteorologicalSource
 from ..sources.variabletype import VariableType
@@ -56,9 +57,6 @@ class Meteorology:
             domain_level (int): The domain level
             epsg (int): The EPSG code of the output grid
         """
-
-        import xarray as xr
-
         # Check for missing keys
         required_keys = [
             "grid",
@@ -272,7 +270,9 @@ class Meteorology:
                 self.__file_2.time() - self.__file_1.time()
             )
 
-    def __compute_accumulated_rate_two_files(self, time: datetime) -> np.array:
+    def __compute_accumulated_rate_two_files(
+        self, time: datetime
+    ) -> Union[xr.Dataset, np.ndarray]:
         """
         Compute the accumulated rate using two file interpolation
         """
@@ -289,7 +289,9 @@ class Meteorology:
 
             return dv / dt
 
-    def __compute_accumulated_rate(self, time: datetime) -> np.array:
+    def __compute_accumulated_rate(
+        self, time: datetime
+    ) -> Union[np.ndarray, xr.Dataset]:
         """
         Compute the accumulated rate when the accumulation time is known
 
@@ -307,7 +309,9 @@ class Meteorology:
                 + self.__interpolation_result_2 * weight
             ) / self.__accumulation_time
 
-    def __compute_time_interpolated_quantity(self, time: datetime) -> np.array:
+    def __compute_time_interpolated_quantity(
+        self, time: datetime
+    ) -> Union[np.ndarray, xr.Dataset]:
         """
         Compute the time interpolated quantity
 
@@ -330,7 +334,7 @@ class Meteorology:
 
     def __compute_time_interpolated_accumulated_quantity(
         self, time: datetime
-    ) -> np.array:
+    ) -> np.ndarray:
         """
         Compute the accumulated quantity based on the type of accumulation
 
@@ -345,7 +349,7 @@ class Meteorology:
         else:
             return self.__compute_accumulated_rate_two_files(time)
 
-    def get(self, time: datetime) -> np.array:
+    def get(self, time: datetime) -> Union[np.ndarray, xr.Dataset]:
         """
         Get the meteorological field at the specified time
 

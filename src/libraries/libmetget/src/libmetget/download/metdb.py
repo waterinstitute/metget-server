@@ -201,6 +201,8 @@ class Metdb:
             return self.__has_nhc_btk(metadata)
         elif datatype == "gefs_ncep":
             return self.__has_gefs(metadata)
+        elif datatype == "refs_ncep":
+            return self.__has_refs(metadata)
         else:
             return self.__has_generic(datatype, metadata)
 
@@ -424,6 +426,34 @@ class Metdb:
 
         return v is not None
 
+    def __has_refs(self, metadata: dict) -> bool:
+        """
+        Check if a refs file exists in the database
+
+        Args:
+            metadata (dict): The pair to check for
+
+        Returns:
+            bool: True if the file exists in the database, False otherwise
+        """
+        from ..database.tables import RefsTable
+
+        cdate = metadata["cycledate"]
+        fdate = metadata["forecastdate"]
+        member = str(metadata["ensemble_member"])
+
+        v = (
+            self.__session.query(RefsTable.index)
+            .filter(
+                RefsTable.forecastcycle == cdate,
+                RefsTable.forecasttime == fdate,
+                RefsTable.ensemble_member == member,
+            )
+            .first()
+        )
+
+        return v is not None
+
     def __has_generic(self, datatype: str, metadata: dict) -> bool:
         """
         Check if a generic file exists in the database
@@ -499,6 +529,8 @@ class Metdb:
             n_files = self.__add_record_nhc_btk(filepath, metadata)
         elif datatype == "gefs_ncep":
             n_files = self.__add_record_gefs_ncep(filepath, metadata)
+        elif datatype == "refs_ncep":
+            n_files = self.__add_record_refs_ncep(filepath, metadata)
         else:
             n_files = self.__add_record_generic(datatype, filepath, metadata)
 
@@ -597,6 +629,48 @@ class Metdb:
             )
 
             record = GefsTable(
+                forecastcycle=cdate,
+                forecasttime=fdate,
+                ensemble_member=member,
+                tau=tau,
+                filepath=filepath,
+                url=url,
+                accessed=datetime.now(),
+            )
+            self.__add_delayed_object(record)
+
+            return 1
+
+    def __add_record_refs_ncep(self, filepath: str, metadata: dict) -> int:
+        """
+        Adds a REFS file listing to the database
+
+        Args:
+            filepath (str): File location
+            metadata (dict): dict containing the metadata for the file
+
+        Returns:
+            1 if the record was added, 0 otherwise
+        """
+        import math
+
+        from ..database.tables import RefsTable
+
+        if self.__has_refs(metadata):
+            return 0
+        else:
+            cdate = metadata["cycledate"]
+            fdate = metadata["forecastdate"]
+            member = str(metadata["ensemble_member"])
+            url = metadata["grb"]
+            tau = int(
+                math.floor(
+                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                    / 3600.0
+                )
+            )
+
+            record = RefsTable(
                 forecastcycle=cdate,
                 forecasttime=fdate,
                 ensemble_member=member,

@@ -41,7 +41,8 @@ from libmetget.download.ncepgfsdownloader import NcepGfsdownloader
 from libmetget.download.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
 from libmetget.download.ncephrrrdownloader import NcepHrrrdownloader
 from libmetget.download.ncepnamdownloader import NcepNamdownloader
-from libmetget.download.nceprrfsdownloader import NcepRrfsdownloader
+from libmetget.download.nceprefsdownloader import NcepRefsDownloader
+from libmetget.download.nceprrfsdownloader import NcepRrfsDownloader
 from libmetget.download.nhcdownloader import NhcDownloader
 from libmetget.download.wpcdownloader import WpcDownloader
 from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
@@ -170,10 +171,19 @@ def hrrr_alaska_download():
 
 def rrfs_download():
     start, end = generate_default_date_range()
-    rrfs = NcepRrfsdownloader(start, end)
+    rrfs = NcepRrfsDownloader(start, end)
     logger.info("Beginning downloading RRFS data")
     n = rrfs.download()
     logger.info(f"RRFS complete. {n:d} files downloaded")
+    return n
+
+
+def refs_download():
+    start, end = generate_default_date_range()
+    refs = NcepRefsDownloader(start, end)
+    logger.info("Beginning downloading REFS data")
+    n = refs.download()
+    logger.info(f"REFS complete. {n:d} files downloaded")
     return n
 
 
@@ -205,7 +215,7 @@ def metget_download():
         "--service",
         type=str,
         required=True,
-        help="Service to download from (nam, gfs, gefs, hwrf, nhc, coamps, hrrr, hrrr-alaska, wpc, rrfs, adeck)",
+        help="Service to download from (nam, gfs, gefs, hwrf, nhc, coamps, hrrr, hrrr-alaska, wpc, rrfs, refs, adeck)",
     )
     args = p.parse_args()
 
@@ -227,6 +237,7 @@ def metget_download():
         "wpc": wpc_download,
         "adeck": adeck_download,
         "rrfs": rrfs_download,
+        "refs": refs_download,
     }
 
     if args.service in download_functions:
