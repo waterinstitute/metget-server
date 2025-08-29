@@ -209,7 +209,7 @@ CREATE INDEX ctcx_forecastcycle_idx ON ctcx USING brin (forecastcycle);
 CREATE INDEX hrrr_ncep_forecastcycle_idx ON hrrr_ncep USING brin (forecastcycle);
 CREATE INDEX hrrr_alaska_ncep_forecastcycle_idx ON hrrr_alaska_ncep USING brin (forecastcycle);
 CREATE INDEX rrfs_ncep_forecastcycle_idx ON rrfs_ncep USING brin (forecastcycle);
-CREATE INDEX refs_fcst_forecastcycle_idx ON refs_fcst USING brin (forecastcycle);
+CREATE INDEX refs_ncep_forecastcycle_idx ON refs_ncep USING brin (forecastcycle);
 CREATE INDEX wpc_ncep_forecastcycle_idx ON wpc_ncep USING brin (forecastcycle);
 CREATE INDEX nhc_adeck_model_idx ON nhc_adeck USING brin (model);
 CREATE INDEX nhc_adeck_forecastcycle_idx ON nhc_adeck USING brin (forecastcycle);

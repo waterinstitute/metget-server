@@ -45,6 +45,10 @@ class MetDataType(Enum):
     SURFACE_LONGWAVE_FLUX = 12
     SURFACE_SOLAR_FLUX = 13
     SURFACE_NET_RADIATION_FLUX = 14
+    CATEGORICAL_RAIN = 15
+    CATEGORICAL_SNOW = 16
+    CATEGORICAL_ICE = 17
+    CATEGORICAL_FREEZING_RAIN = 18
 
     def __str__(self):
         return self.name.lower()
@@ -78,6 +82,14 @@ class MetDataType(Enum):
             return "surface solar radiation flux"
         elif self == MetDataType.SURFACE_NET_RADIATION_FLUX:
             return "surface net radiation flux"
+        elif self == MetDataType.CATEGORICAL_RAIN:
+            return "categorical rain"
+        elif self == MetDataType.CATEGORICAL_SNOW:
+            return "categorical snow"
+        elif self == MetDataType.CATEGORICAL_ICE:
+            return "categorical ice"
+        elif self == MetDataType.CATEGORICAL_FREEZING_RAIN:
+            return "categorical freezing rain"
         else:
             return "unknown"
 
@@ -104,6 +116,13 @@ class MetDataType(Enum):
             MetDataType.SURFACE_NET_RADIATION_FLUX,
         ):
             return "W/m^2"
+        elif self in (
+            MetDataType.CATEGORICAL_RAIN,
+            MetDataType.CATEGORICAL_SNOW,
+            MetDataType.CATEGORICAL_ICE,
+            MetDataType.CATEGORICAL_FREEZING_RAIN,
+        ):
+            return "n/a"
         else:
             return "unknown"
 
@@ -136,6 +155,14 @@ class MetDataType(Enum):
             return "surface_solar_radiation_flux"
         elif self == MetDataType.SURFACE_NET_RADIATION_FLUX:
             return "surface_net_radiation_flux"
+        elif self == MetDataType.CATEGORICAL_RAIN:
+            return "categorical_rain"
+        elif self == MetDataType.CATEGORICAL_SNOW:
+            return "categorical_snow"
+        elif self == MetDataType.CATEGORICAL_ICE:
+            return "categorical_ice"
+        elif self == MetDataType.CATEGORICAL_FREEZING_RAIN:
+            return "categorical_freezing_rain"
         else:
             return "unknown"
 
@@ -168,6 +195,14 @@ class MetDataType(Enum):
             return "surface_solar_flux"
         elif self == MetDataType.SURFACE_NET_RADIATION_FLUX:
             return "surface_net_radiation_flux"
+        elif self == MetDataType.CATEGORICAL_RAIN:
+            return "categorical_rain"
+        elif self == MetDataType.CATEGORICAL_SNOW:
+            return "categorical_snow"
+        elif self == MetDataType.CATEGORICAL_ICE:
+            return "categorical_ice"
+        elif self == MetDataType.CATEGORICAL_FREEZING_RAIN:
+            return "categorical_freezing_rain"
         else:
             return "unknown"
 
@@ -181,6 +216,17 @@ class MetDataType(Enum):
             return 20.0
         else:
             return 0.0
+
+    def is_binary_value(self) -> bool:
+        """
+        Check if the variable is a binary categorical variable.
+        """
+        return self in {
+            MetDataType.CATEGORICAL_RAIN,
+            MetDataType.CATEGORICAL_SNOW,
+            MetDataType.CATEGORICAL_ICE,
+            MetDataType.CATEGORICAL_FREEZING_RAIN,
+        }
 
     @staticmethod
     def fill_value() -> float:

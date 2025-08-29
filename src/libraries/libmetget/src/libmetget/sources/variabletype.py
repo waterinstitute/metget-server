@@ -44,6 +44,7 @@ class VariableType(Enum):
     TEMPERATURE = 6
     HUMIDITY = 7
     ICE = 8
+    PRECIPITATION_TYPE = 9
 
     @staticmethod
     def from_string(data_type: str):
@@ -72,6 +73,8 @@ class VariableType(Enum):
             ret_value = VariableType.ICE
         elif data_type == "all_variables":
             ret_value = VariableType.ALL_VARIABLES
+        elif data_type == "precipitation_type":
+            ret_value = VariableType.PRECIPITATION_TYPE
         else:
             msg = f"Invalid data type: {data_type:s}"
             raise ValueError(msg)
@@ -102,6 +105,13 @@ class VariableType(Enum):
             v = list(MetDataType)
             v.remove(MetDataType.UNKNOWN)
             selection = v
+        elif self == VariableType.PRECIPITATION_TYPE:
+            selection = [
+                MetDataType.CATEGORICAL_RAIN,
+                MetDataType.CATEGORICAL_SNOW,
+                MetDataType.CATEGORICAL_ICE,
+                MetDataType.CATEGORICAL_FREEZING_RAIN,
+            ]
         else:
             msg = f"Invalid data type: {self:s}"
             raise ValueError(msg)
