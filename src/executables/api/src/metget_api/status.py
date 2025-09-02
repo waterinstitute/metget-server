@@ -46,6 +46,7 @@ AVAILABLE_MET_MODELS = [
     "ctcx",
     "wpc",
     "rrfs",
+    "refs",
 ]
 
 MET_MODEL_FORECAST_DURATION = {
@@ -60,6 +61,7 @@ MET_MODEL_FORECAST_DURATION = {
     "coamps": 126,
     "wpc": 162,
     "rrfs": 84,
+    "refs": 84,
 }
 
 
@@ -92,7 +94,7 @@ class Status:
             return dt.strftime("%Y-%m-%d %H:%M:%S")
 
     @staticmethod
-    def get_status(request) -> Tuple[dict, int]:  # noqa: PLR0912
+    def get_status(request) -> Tuple[dict, int]:
         """
         This method is used to generate the status from the various sources
 
@@ -108,6 +110,7 @@ class Status:
             - nhc
             - coamps
             - rrfs
+            - refs
 
         Args:
             request: A flask request object
@@ -129,157 +132,127 @@ class Status:
                 "body": {"message": "ERROR: Invalid start/end specified"},
             }, 400
 
-        s = None
+        status_map = {
+            "gfs": (
+                Status.__get_status_gfs,
+                [MET_MODEL_FORECAST_DURATION["gfs"], time_limit, start_dt, end_dt],
+            ),
+            "gefs": (
+                Status.__get_status_gefs,
+                [
+                    MET_MODEL_FORECAST_DURATION["gefs"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    member,
+                ],
+            ),
+            "refs": (
+                Status.__get_status_refs,
+                [
+                    MET_MODEL_FORECAST_DURATION["refs"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    member,
+                ],
+            ),
+            "nam": (
+                Status.__get_status_nam,
+                [MET_MODEL_FORECAST_DURATION["nam"], time_limit, start_dt, end_dt],
+            ),
+            "hwrf": (
+                Status.__get_status_hwrf,
+                [
+                    MET_MODEL_FORECAST_DURATION["hwrf"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                ],
+            ),
+            "hafsa": (
+                Status.__get_status_hafs,
+                [
+                    MET_MODEL_FORECAST_DURATION["hafsa"],
+                    "a",
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                ],
+            ),
+            "hafsb": (
+                Status.__get_status_hafs,
+                [
+                    MET_MODEL_FORECAST_DURATION["hafsb"],
+                    "b",
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                ],
+            ),
+            "hrrr": (
+                Status.__get_status_hrrr,
+                [MET_MODEL_FORECAST_DURATION["hrrr"], time_limit, start_dt, end_dt],
+            ),
+            "hrrr-alaska": (
+                Status.__get_status_hrrr_alaska,
+                [
+                    MET_MODEL_FORECAST_DURATION["hrrr-alaska"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                ],
+            ),
+            "rrfs": (
+                Status.__get_status_rrfs,
+                [MET_MODEL_FORECAST_DURATION["rrfs"], time_limit, start_dt, end_dt],
+            ),
+            "wpc": (
+                Status.__get_status_wpc,
+                [MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt],
+            ),
+            "nhc": (
+                Status.__get_status_nhc,
+                [time_limit, start_dt, end_dt, basin, storm],
+            ),
+            "coamps": (
+                Status.__get_status_coamps,
+                [
+                    MET_MODEL_FORECAST_DURATION["coamps"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                ],
+            ),
+            "ctcx": (
+                Status.__get_status_ctcx,
+                [
+                    MET_MODEL_FORECAST_DURATION["coamps"],
+                    time_limit,
+                    start_dt,
+                    end_dt,
+                    storm,
+                    member,
+                ],
+            ),
+        }
 
         if status_type not in AVAILABLE_MET_MODELS and status_type != "all":
             return {
                 "message": f"ERROR: Unknown model requested: '{status_type:s}'"
             }, 400
-        elif status_type == "gfs":
-            s = Status.__get_status_gfs(
-                MET_MODEL_FORECAST_DURATION["gfs"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "gefs":
-            s = Status.__get_status_gefs(
-                MET_MODEL_FORECAST_DURATION["gefs"],
-                time_limit,
-                start_dt,
-                end_dt,
-                member,
-            )
-        elif status_type == "nam":
-            s = Status.__get_status_nam(
-                MET_MODEL_FORECAST_DURATION["nam"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "hwrf":
-            s = Status.__get_status_hwrf(
-                MET_MODEL_FORECAST_DURATION["hwrf"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-        elif status_type == "hafsa":
-            s = Status.__get_status_hafs(
-                MET_MODEL_FORECAST_DURATION["hafsa"],
-                "a",
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-        elif status_type == "hafsb":
-            s = Status.__get_status_hafs(
-                MET_MODEL_FORECAST_DURATION["hafsb"],
-                "b",
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-        elif status_type == "hrrr":
-            s = Status.__get_status_hrrr(
-                MET_MODEL_FORECAST_DURATION["hrrr"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "hrrr-alaska":
-            s = Status.__get_status_hrrr_alaska(
-                MET_MODEL_FORECAST_DURATION["hrrr-alaska"],
-                time_limit,
-                start_dt,
-                end_dt,
-            )
-        elif status_type == "rrfs":
-            s = Status.__get_status_rrfs(
-                MET_MODEL_FORECAST_DURATION["rrfs"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "wpc":
-            s = Status.__get_status_wpc(
-                MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
-            )
-        elif status_type == "nhc":
-            s = Status.__get_status_nhc(time_limit, start_dt, end_dt, basin, storm)
-        elif status_type == "coamps":
-            s = Status.__get_status_coamps(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-        elif status_type == "ctcx":
-            s = Status.__get_status_ctcx(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-                member,
-            )
         elif status_type == "all":
-            gfs, _ = Status.__get_status_gfs(
-                MET_MODEL_FORECAST_DURATION["gfs"], time_limit, start_dt, end_dt
-            )
-            gefs, _ = Status.__get_status_gefs(
-                MET_MODEL_FORECAST_DURATION["gefs"],
-                time_limit,
-                start_dt,
-                end_dt,
-                member,
-            )
-            nam, _ = Status.__get_status_nam(
-                MET_MODEL_FORECAST_DURATION["nam"], time_limit, start_dt, end_dt
-            )
-            hwrf, _ = Status.__get_status_hwrf(
-                MET_MODEL_FORECAST_DURATION["hwrf"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-            hrrr, _ = Status.__get_status_hrrr(
-                MET_MODEL_FORECAST_DURATION["hrrr"], time_limit, start_dt, end_dt
-            )
-            hrrr_alaska, _ = Status.__get_status_hrrr_alaska(
-                MET_MODEL_FORECAST_DURATION["hrrr-alaska"],
-                time_limit,
-                start_dt,
-                end_dt,
-            )
-            rrfs, _ = Status.__get_status_rrfs(
-                MET_MODEL_FORECAST_DURATION["rrfs"], time_limit, start_dt, end_dt
-            )
-            nhc, _ = Status.__get_status_nhc(time_limit, start_dt, end_dt, basin, storm)
-            wpc, _ = Status.__get_status_wpc(
-                MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt
-            )
-            coamps, _ = Status.__get_status_coamps(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-            )
-            ctcx, _ = Status.__get_status_ctcx(
-                MET_MODEL_FORECAST_DURATION["coamps"],
-                time_limit,
-                start_dt,
-                end_dt,
-                storm,
-                member,
-            )
-            s = {
-                "gfs": gfs,
-                "gefs": gefs,
-                "nam": nam,
-                "hwrf": hwrf,
-                "hrrr": hrrr,
-                "hrrr-alaska": hrrr_alaska,
-                "nhc": nhc,
-                "wpc": wpc,
-                "coamps": coamps,
-                "ctcx": ctcx,
-                "rrfs": rrfs,
-            }
+            s = {}
+            for key, (func, args) in status_map.items():
+                result = func(*args)
+                s[key] = result[0] if isinstance(result, tuple) else result
+        else:
+            func, args = status_map[status_type]
+            s = func(*args)
 
         return s, 200
 
@@ -675,6 +648,35 @@ class Status:
 
         return Status.__get_status_generic_ensemble(
             GefsTable,
+            cycle_length,
+            limit,
+            start,
+            end,
+            member,
+        )
+
+    @staticmethod
+    def __get_status_refs(
+        cycle_length: int,
+        limit: timedelta,
+        start: datetime,
+        end: datetime,
+        member: str,
+    ) -> dict:
+        """
+        This method is used to generate the status for the GEFS model
+
+        Args:
+            cycle_length: The duration of the cycle in hours
+            limit: The limit in days to use when generating the status
+            start: The start date to use when generating the status
+            end: The end date to use when generating the status
+            member: The ensemble member to use when generating the status
+        """
+        from libmetget.database.tables import RefsTable
+
+        return Status.__get_status_generic_ensemble(
+            RefsTable,
             cycle_length,
             limit,
             start,
