@@ -50,6 +50,7 @@ class OwiNetcdfDomain(OutputDomain):
     VARIABLE_NAME_MAP: ClassVar[dict] = {
         VariableType.WIND_PRESSURE: None,
         VariableType.WIND: None,
+        VariableType.PRECIPITATION_TYPE: None,
         VariableType.PRESSURE: {
             "name": "PSFC",
             "met_type": MetDataType.PRESSURE,
@@ -183,6 +184,22 @@ class OwiNetcdfDomain(OutputDomain):
             "name": "V10",
             "met_type": MetDataType.WIND_V,
         }
+        c_rain_metadata = {
+            "name": "CRAIN",
+            "met_type": MetDataType.CATEGORICAL_RAIN,
+        }
+        c_snow_metadata = {
+            "name": "CSNOW",
+            "met_type": MetDataType.CATEGORICAL_SNOW,
+        }
+        c_ice_metadata = {
+            "name": "CICE",
+            "met_type": MetDataType.CATEGORICAL_ICE,
+        }
+        c_frzr_metadata = {
+            "name": "CFRZR",
+            "met_type": MetDataType.CATEGORICAL_FREEZING_RAIN,
+        }
 
         return {
             VariableType.WIND_PRESSURE: [
@@ -196,6 +213,16 @@ class OwiNetcdfDomain(OutputDomain):
             VariableType.WIND: [
                 (MetDataType.WIND_U, u_var_metadata),
                 (MetDataType.WIND_V, v_var_metadata),
+            ],
+            VariableType.PRECIPITATION_TYPE: [
+                (
+                    MetDataType.PRECIPITATION,
+                    OwiNetcdfDomain.VARIABLE_NAME_MAP[VariableType.PRECIPITATION],
+                ),
+                (MetDataType.CATEGORICAL_RAIN, c_rain_metadata),
+                (MetDataType.CATEGORICAL_SNOW, c_snow_metadata),
+                (MetDataType.CATEGORICAL_ICE, c_ice_metadata),
+                (MetDataType.CATEGORICAL_FREEZING_RAIN, c_frzr_metadata),
             ],
             VariableType.PRESSURE: [
                 (

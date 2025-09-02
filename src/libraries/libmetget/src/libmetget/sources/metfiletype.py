@@ -331,7 +331,7 @@ NCEP_RRFS = MetFileAttributes(
         MetDataType.CATEGORICAL_ICE: {
             "type": MetDataType.CATEGORICAL_ICE,
             "name": "cat_ice",
-            "long_name": "CICE:surface",
+            "long_name": "CICEP:surface",
             "var_name": "cice",
             "grib_name": "cice",
             "scale": 1.0,

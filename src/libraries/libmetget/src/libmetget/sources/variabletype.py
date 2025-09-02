@@ -107,6 +107,7 @@ class VariableType(Enum):
             selection = v
         elif self == VariableType.PRECIPITATION_TYPE:
             selection = [
+                MetDataType.PRECIPITATION,
                 MetDataType.CATEGORICAL_RAIN,
                 MetDataType.CATEGORICAL_SNOW,
                 MetDataType.CATEGORICAL_ICE,
