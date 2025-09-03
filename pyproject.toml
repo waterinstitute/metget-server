@@ -52,6 +52,9 @@ push = false
 "src/executables/keymanager/pyproject.toml" = [
     'version = "{version}"',
 ]
+"src/libraries/fasttri/pyproject.toml" = [
+    'version = "{version}"',
+]
 "src/executables/rebuild/pyproject.toml" = [
     'version = "{version}"',
 ]
@@ -126,7 +129,6 @@ ignore = [
   "D404",   # First word of the docstring should not be this
   "ISC001", # Implicit string concatenation
   "ANN401", # Dynamic typing
-#  "ANN205",  "ANN003", "ANN201", "ANN001", "ANN202", "ANN204", # Eventually we will enable these
   "D107",  "D400",  "D417", "D102", "D101", "D103", "D105", # Eventually we will enable these
 ]
 
