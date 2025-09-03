@@ -31,7 +31,8 @@ from __future__ import annotations
 import time
 
 import numpy as np
-from libtri import PyTriangulation
+from fasttri import InterpolationWeights
+from fasttri import Triangulation as PyTriangulation
 from loguru import logger
 from pyproj import CRS, Transformer
 
@@ -48,8 +49,7 @@ class Triangulation:
         self.__t_input = {"vertices": points, "segments": boundary}
         self.__transformer = self.__generate_pj_transformer()
         self.__triangulation = self.__generate_triangulation(points, boundary)
-        self.__interpolation_indexes = None
-        self.__interpolation_weights = None
+        self.__interpolation_info = None
 
     @staticmethod
     def __generate_pj_transformer():
@@ -139,11 +139,10 @@ class Triangulation:
         Returns:
             np.array: The interpolated values.
         """
-        if self.__interpolation_indexes is None or self.__interpolation_weights is None:
+        if self.__interpolation_info is None:
             logger.info("No interpolation weights found")
             self.__compute_interpolation_weights(x_points, y_points)
-
-        return self.__interpolate_values(z_points)
+        return self.__interpolate_values(z_points).reshape(x_points.shape)
 
     def __interpolate_values(self, z_points: np.ndarray) -> np.ndarray:
         """
@@ -155,21 +154,7 @@ class Triangulation:
         Returns:
             np.ndarray: The interpolated values.
         """
-
-        interpolated_values = np.full(
-            self.__interpolation_indexes.shape[:-1], np.nan, dtype=np.float64
-        )
-
-        interpolated_values[self.__interpolation_mask] = (
-            self.__interpolation_weights[self.__interpolation_mask, 0]
-            * z_points[self.__interpolation_indexes[self.__interpolation_mask, 0]]
-            + self.__interpolation_weights[self.__interpolation_mask, 1]
-            * z_points[self.__interpolation_indexes[self.__interpolation_mask, 1]]
-            + self.__interpolation_weights[self.__interpolation_mask, 2]
-            * z_points[self.__interpolation_indexes[self.__interpolation_mask, 2]]
-        )
-
-        return interpolated_values
+        return InterpolationWeights.interpolate(self.__interpolation_info, z_points)
 
     def __compute_interpolation_weights(
         self, x_points: np.ndarray, y_points: np.ndarray
@@ -191,23 +176,10 @@ class Triangulation:
             msg = "x_points and y_points must have the same shape"
             raise ValueError(msg)
 
-        indexes = np.full((x_points.shape[0], x_points.shape[1], 3), -1, dtype=np.int32)
-        weights = np.zeros((x_points.shape[0], x_points.shape[1], 3), dtype=np.float64)
-
         x_stereo, y_stereo = self.__transformer.transform(x_points, y_points)
-
-        weights_vec = self.__triangulation.get_interpolation_weights(
+        self.__interpolation_info = self.__triangulation.get_interpolation_weights(
             x_stereo.flatten(), y_stereo.flatten()
         )
-        valid_indices = np.where(weights_vec["valid"])[0]
-        i = valid_indices // x_points.shape[1]
-        j = valid_indices % x_points.shape[1]
-        indexes[i, j, :] = weights_vec["vertices"][valid_indices]
-        weights[i, j, :] = weights_vec["weights"][valid_indices]
-
-        self.__interpolation_indexes = indexes
-        self.__interpolation_weights = weights
-        self.__interpolation_mask = np.all(self.__interpolation_indexes >= 0, axis=2)
 
         tock = time.time()
         logger.info(f"Interpolation weights computed in {tock - tick:.2f} seconds")

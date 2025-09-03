@@ -2,13 +2,13 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <catch2/matchers/catch_matchers_vector.hpp>
-#include <numeric>
 #include <random>
 #include <vector>
 
 #include "../src/Triangulation.h"
+#include "../src/InterpolationWeight.h"
 
-using namespace CxxTri;
+using namespace Tri;
 using Catch::Matchers::WithinAbs;
 using Catch::Matchers::WithinRel;
 
@@ -227,10 +227,10 @@ TEST_CASE("Point location and interpolation", "[triangulation][interpolation]") 
 
     // Test at first vertex
     auto result = tri.get_interpolation_weight(0.0, 0.0);
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
     // One weight should be close to 1, others close to 0
-    auto& weights = result.weights;
+    const auto weights = result.weights();
     REQUIRE(std::any_of(weights.begin(), weights.end(),
                        [](double w) { return std::abs(w - 1.0) < 1e-10; }));
     REQUIRE(std::count_if(weights.begin(), weights.end(),
@@ -249,10 +249,10 @@ TEST_CASE("Point location and interpolation", "[triangulation][interpolation]") 
     const double cy = (0.0 + 0.0 + 1.0) / 3.0;
 
     auto result = tri.get_interpolation_weight(cx, cy);
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
     // All weights should be approximately equal (1/3)
-    auto& weights = result.weights;
+    const auto weights = result.weights();
     for (double w : weights) {
       REQUIRE_THAT(w, WithinAbs(1.0 / 3.0, 1e-10));
     }
@@ -266,7 +266,7 @@ TEST_CASE("Point location and interpolation", "[triangulation][interpolation]") 
 
     // Point clearly outside
     auto result = tri.get_interpolation_weight(10.0, 10.0);
-    REQUIRE_FALSE(result.valid);
+    REQUIRE_FALSE(result.valid());
   }
 
   SECTION("Regular grid - interpolation consistency") {
@@ -281,10 +281,10 @@ TEST_CASE("Point location and interpolation", "[triangulation][interpolation]") 
 
     // Test point in the middle
     auto result = tri.get_interpolation_weight(0.5, 0.5);
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
     // Weights should sum to 1
-    auto& weights = result.weights;
+    const auto weights = result.weights();
     double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
     REQUIRE_THAT(sum, WithinAbs(1.0, 1e-10));
 
@@ -310,10 +310,10 @@ TEST_CASE("Point location and interpolation", "[triangulation][interpolation]") 
 
     for (const auto& [x, y] : test_points) {
       auto result = tri.get_interpolation_weight(x, y);
-      REQUIRE(result.valid);
+      REQUIRE(result.valid());
 
       // Verify weights sum to 1
-      auto& weights = result.weights;
+      const auto weights = result.weights();
       double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
       REQUIRE_THAT(sum, WithinAbs(1.0, 1e-10));
 
@@ -334,9 +334,9 @@ TEST_CASE("Interpolation weight properties", "[triangulation][interpolation]") {
 
     // Test along an edge
     auto result = tri.get_interpolation_weight(1.0, 0.0);  // Midpoint of bottom edge
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
-    auto& weights = result.weights;
+    const auto weights = result.weights();
     // One weight should be zero (for the opposite vertex)
     REQUIRE(std::any_of(weights.begin(), weights.end(),
                        [](double w) { return std::abs(w) < 1e-10; }));
@@ -369,12 +369,12 @@ TEST_CASE("Interpolation weight properties", "[triangulation][interpolation]") {
     const double expected = 2.0 * test_x + 3.0 * test_y;
 
     auto result = tri.get_interpolation_weight(test_x, test_y);
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
     // Compute interpolated value
     double interpolated = 0.0;
     for (size_t i = 0; i < 3; ++i) {
-      interpolated += result.weights[i] * function_values[result.vertices[i]];
+      interpolated += result.weights()[i] * function_values[result.vertices()[i]];
     }
 
     REQUIRE_THAT(interpolated, WithinAbs(expected, 1e-10));
@@ -404,10 +404,10 @@ TEST_CASE("Boundary and edge cases", "[triangulation][edge-cases]") {
 
     for (const auto& [x, y] : boundary_points) {
       auto result = tri.get_interpolation_weight(x, y);
-      REQUIRE(result.valid);
+      REQUIRE(result.valid());
 
       // Weights should still sum to 1
-      auto& weights = result.weights;
+      const auto weights = result.weights();
       double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
       REQUIRE_THAT(sum, WithinAbs(1.0, 1e-10));
     }
@@ -430,7 +430,7 @@ TEST_CASE("Boundary and edge cases", "[triangulation][edge-cases]") {
 
     // Test interpolation at a valid point
     auto result = tri.get_interpolation_weight(0.5, 0.25);
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
   }
 
   SECTION("Dense point cloud") {
@@ -456,10 +456,10 @@ TEST_CASE("Boundary and edge cases", "[triangulation][edge-cases]") {
 
     for (size_t i = 0; i < test_x.size(); ++i) {
       auto result = tri.get_interpolation_weight(test_x[i], test_y[i]);
-      REQUIRE(result.valid);
+      REQUIRE(result.valid());
 
       // Verify basic properties
-      auto& weights = result.weights;
+      const auto weights = result.weights();
       double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
       REQUIRE_THAT(sum, WithinAbs(1.0, 1e-9));
       REQUIRE(std::all_of(weights.begin(), weights.end(),
@@ -496,10 +496,10 @@ TEST_CASE("Complex boundary shapes", "[triangulation][boundary]") {
 
     // Test points inside the star
     auto result = tri.get_interpolation_weight(0.0, 0.0);  // Center
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
     result = tri.get_interpolation_weight(0.3, 0.0);  // Inside
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
   }
 
   SECTION("Concave boundary") {
@@ -522,11 +522,11 @@ TEST_CASE("Complex boundary shapes", "[triangulation][boundary]") {
 
     // Test point in the left arm of the C
     auto result = tri.get_interpolation_weight(0.1, 0.2);
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
     // Test point in the top arm of the C
     result = tri.get_interpolation_weight(0.1, 0.8);
-    REQUIRE(result.valid);
+    REQUIRE(result.valid());
 
     // Note: With constrained Delaunay triangulation, points inside the convex hull
     // but outside the constrained boundary may still return interpolation weights
@@ -536,6 +536,6 @@ TEST_CASE("Complex boundary shapes", "[triangulation][boundary]") {
 
     // Test a point clearly outside the convex hull
     result = tri.get_interpolation_weight(2.0, 0.5);
-    REQUIRE_FALSE(result.valid);
+    REQUIRE_FALSE(result.valid());
   }
 }

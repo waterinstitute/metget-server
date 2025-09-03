@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(cxxtri)
+project(fasttri)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,17 +22,17 @@ endif()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PreventInSourceBuilds.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ProjectOptions.cmake)
-cxxtri_setup_options()
-cxxtri_global_options()
-cxxtri_local_options()
-add_library(cxxtri::cxxtri_options ALIAS cxxtri_options)
-add_library(cxxtri::cxxtri_warnings ALIAS cxxtri_warnings)
+fasttri_setup_options()
+fasttri_global_options()
+fasttri_local_options()
+add_library(fasttri::fasttri_options ALIAS fasttri_options)
+add_library(fasttri::fasttri_warnings ALIAS fasttri_warnings)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Dependencies.cmake)
-cxxtri_setup_dependencies()
+fasttri_setup_dependencies()
 
 # Enable testing if tests are being built
-if(cxxtri_ENABLE_TESTS)
+if(fasttri_ENABLE_TESTS)
     enable_testing()
 endif()
 

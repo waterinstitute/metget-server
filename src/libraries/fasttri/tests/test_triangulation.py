@@ -1,5 +1,5 @@
 """
-Test script for libtri triangulation library.
+Test script for FastTri triangulation library.
 Generates points, triangulates with a boundary constraint, and visualizes the result.
 """
 
@@ -8,7 +8,7 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 import numpy as np
-from libtri import PyTriangulation
+from fasttri import InterpolationWeights, Triangulation
 
 
 def point_in_polygon(x, y, poly_x, poly_y):
@@ -119,7 +119,9 @@ def test_interpolation(triangulation, points_x, points_y):
     print("-" * 40)
 
     for x, y in test_points:
-        result = triangulation.interpolate(x, y, values)
+        # Get weights for single point
+        weights = triangulation.get_interpolation_weights([x], [y])
+        result = InterpolationWeights.interpolate(weights, values)[0]
         expected = x**2 + y**2
         if not np.isnan(result):
             error = abs(result - expected)
@@ -147,29 +149,21 @@ def test_vector_interpolation(triangulation, points_x, points_y):
     test_x = np.array([0.0, 0.3, -0.2, 0.5, 10.0])  # Last point is outside
     test_y = np.array([0.0, 0.3, 0.4, -0.1, 10.0])  # Last point is outside
 
-    weights_result = triangulation.get_interpolation_weights(test_x, test_y)
+    weights_obj = triangulation.get_interpolation_weights(test_x, test_y)
 
     print(f"  Query points: {len(test_x)}")
-    print(f"  Valid points: {np.sum(weights_result['valid'])}")
-    print(f"  Invalid points: {np.sum(~weights_result['valid'])}")
+    print(f"  Weights object size: {weights_obj.size}")
 
-    # Verify weights sum to 1 for valid points
-    for i in range(len(test_x)):
-        if weights_result["valid"][i]:
-            weight_sum = np.sum(weights_result["weights"][i])
-            print(
-                f"  Point ({test_x[i]:5.2f}, {test_y[i]:5.2f}): weight sum = {weight_sum:.6f}"
-            )
+    # Note: With native weights, we can't easily inspect individual weights
+    # but the interpolation will handle invalid points by returning NaN
 
     # Test 2: Vector-based interpolation
-    print("\nTest 2: Vector-based interpolation (interpolate_many)")
-    interpolated = triangulation.interpolate_many(test_x, test_y, values)
+    print("\nTest 2: Vector-based interpolation (interpolate)")
+    interpolated = InterpolationWeights.interpolate(weights_obj, values)
 
     print("  Results:")
     for i in range(len(test_x)):
-        expected = (
-            test_x[i] ** 2 + test_y[i] ** 2 if weights_result["valid"][i] else np.nan
-        )
+        expected = test_x[i] ** 2 + test_y[i] ** 2
         if not np.isnan(interpolated[i]):
             error = abs(interpolated[i] - expected)
             print(
@@ -191,12 +185,14 @@ def test_vector_interpolation(triangulation, points_x, points_y):
     sample_size = 100
     start = time.time()
     for i in range(sample_size):
-        _ = triangulation.interpolate(rand_x[i], rand_y[i], values)
+        weights = triangulation.get_interpolation_weights([rand_x[i]], [rand_y[i]])
+        _ = InterpolationWeights.interpolate(weights, values)[0]
     single_time = (time.time() - start) * (n_test / sample_size)
 
     # Time vector method
     start = time.time()
-    _ = triangulation.interpolate_many(rand_x, rand_y, values)
+    rand_weights = triangulation.get_interpolation_weights(rand_x, rand_y)
+    _ = InterpolationWeights.interpolate(rand_weights, values)
     vector_time = time.time() - start
 
     print(f"  Single-point method (estimated): {single_time:.3f} seconds")
@@ -209,13 +205,15 @@ def test_vector_interpolation(triangulation, points_x, points_y):
     # Test with Python lists
     list_x = [0.1, 0.2, 0.3]
     list_y = [0.1, 0.2, 0.3]
-    result_list = triangulation.interpolate_many(list_x, list_y, values)
+    list_weights = triangulation.get_interpolation_weights(list_x, list_y)
+    result_list = InterpolationWeights.interpolate(list_weights, values)
     print(f"  From lists: shape={result_list.shape}, first value={result_list[0]:.4f}")
 
     # Test with 2D arrays (should be flattened)
     arr_2d_x = np.array([[0.1, 0.2], [0.3, 0.4]])
     arr_2d_y = np.array([[0.1, 0.2], [0.3, 0.4]])
-    result_2d = triangulation.interpolate_many(arr_2d_x, arr_2d_y, values)
+    arr_weights = triangulation.get_interpolation_weights(arr_2d_x, arr_2d_y)
+    result_2d = InterpolationWeights.interpolate(arr_weights, values)
     print(f"  From 2D arrays: shape={result_2d.shape}, values={result_2d}")
 
     print("\nVector tests completed successfully!")
@@ -292,7 +290,7 @@ def main():
     """Main test function."""
 
     print("=" * 50)
-    print("LibTri Triangulation Test")
+    print("FastTri Triangulation Test")
     print("=" * 50)
 
     # Generate test data
@@ -303,7 +301,7 @@ def main():
 
     # Create triangulation
     print("\nCreating triangulation...")
-    triangulation = PyTriangulation(points_x, points_y)
+    triangulation = Triangulation(points_x, points_y)
     print("  Triangulation created successfully!")
 
     # Apply boundary constraint
