@@ -14,7 +14,7 @@ RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib fe
                                      python-dateutil requests schema scipy shapely sqlalchemy \
                                      xarray eccodes
 
-COPY src/libraries/libtri /tmp/libtri/.
+COPY src/libraries/fasttri /tmp/fasttri/.
 COPY src/libraries/libmetget/ /tmp/libmetget/.
 COPY src/executables/build /tmp/metbuild_run/.
 
@@ -25,7 +25,7 @@ RUN if [[ "x${TARGETARCH}" == "xamd64" ]] ; then \
       # Provide a generic set of ARM optimization flags for Graviton
       COPT="-mcpu=neoverse-v1"; \
     fi; \
-    CFLAGS="-DNDEBUG -O3 -funroll-loops $COPT" /env/bin/pip install -v /tmp/libtri/.
+    CFLAGS="-DNDEBUG -O3 -funroll-loops $COPT" /env/bin/pip install -v /tmp/fasttri/.
 RUN /env/bin/pip install /tmp/libmetget/.
 RUN /env/bin/pip install /tmp/metbuild_run/.
 

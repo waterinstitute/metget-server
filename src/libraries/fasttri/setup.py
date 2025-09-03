@@ -10,7 +10,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 # Define the extension
 extensions = [
     Extension(
-        "libtri.triangulation",
+        "fasttri.triangulation",
         sources=[
             "python/triangulation.pyx",
             "src/Triangulation.cpp",
@@ -29,12 +29,12 @@ extensions = [
 ]
 
 setup(
-    name="libtri",
+    name="fasttri",
     ext_modules=cythonize(
         extensions,
         compiler_directives={"language_level": "3"},
     ),
-    packages=["libtri"],
-    package_dir={"libtri": "python"},
+    packages=["fasttri"],
+    package_dir={"fasttri": "python"},
     zip_safe=False,
 )

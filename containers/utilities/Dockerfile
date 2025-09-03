@@ -10,12 +10,12 @@ RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib fe
                                      python-dateutil requests schema scipy shapely sqlalchemy \
                                      xarray
 
-COPY src/libraries/libtri/ /tmp/libtri/.
+COPY src/libraries/fasttri /tmp/fasttri/.
 COPY src/libraries/libmetget/ /tmp/libmetget/.
 COPY src/executables/rebuild /tmp/metbuild_rebuild/.
 COPY src/executables/keymanager /tmp/keymanager/.
 
-RUN /env/bin/pip install /tmp/libtri/.
+RUN /env/bin/pip install /tmp/fasttri/.
 RUN /env/bin/pip install /tmp/libmetget/.
 RUN /env/bin/pip install /tmp/metbuild_rebuild/.
 RUN /env/bin/pip install /tmp/keymanager/.

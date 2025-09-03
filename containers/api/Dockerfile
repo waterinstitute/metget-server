@@ -16,11 +16,11 @@ RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib fe
     find /env -follow -type f -name '*.pyc' -delete && \
     find /env -follow -type f -name '*.js.map' -delete
 
-COPY src/libraries/libtri /tmp/libtri/.
+COPY src/libraries/fasttri /tmp/fasttri/.
 COPY src/libraries/libmetget/ /tmp/libmetget/.
 COPY src/executables/api /tmp/api/.
 
-RUN /env/bin/pip install /tmp/libtri/.
+RUN /env/bin/pip install /tmp/fasttri/.
 RUN /env/bin/pip install /tmp/libmetget/.
 RUN /env/bin/pip install /tmp/api/.
 

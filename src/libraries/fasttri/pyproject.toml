@@ -8,7 +8,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "libtri"
+name = "fasttri"
 version = "0.1.0"
 description = "Python bindings for triangulation library using CGAL"
 authors = [
@@ -35,11 +35,11 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["libtri"]
-package-dir = {"libtri" = "python"}
+packages = ["fasttri"]
+package-dir = {"fasttri" = "python"}
 
 [tool.setuptools.package-data]
-libtri = ["*.pxd", "*.pyx"]
+fasttri = ["*.pyx"]
 
 [tool.cython]
 language_level = "3"

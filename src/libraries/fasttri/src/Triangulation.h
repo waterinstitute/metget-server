@@ -11,11 +11,10 @@
 #include <memory>
 #include <vector>
 
-/**
- * @namespace CxxTri
- * @brief Contains triangulation functionality using CGAL
- */
-namespace CxxTri {
+#include "FaceInfo2.h"
+#include "InterpolationWeight.h"
+
+namespace FastTri {
 
 /**
  * @class Triangulation
@@ -35,33 +34,6 @@ class Triangulation {
   struct t_Triangle {
     std::array<unsigned, 3>
         vertices;  ///< Indices of the three triangle vertices
-  };
-
-  /**
-   * @struct FaceInfo2
-   * @brief Information associated with triangulation faces
-   *
-   * Used to track whether a face is inside or outside the constrained domain.
-   */
-  struct FaceInfo2 {
-    constexpr FaceInfo2() noexcept : m_in_domain(false) {}
-    bool m_in_domain;  ///< Flag indicating if face is inside the domain
-
-    /**
-     * @brief Checks if the face is inside the domain
-     * @return True if inside domain, false otherwise
-     */
-    [[nodiscard]] constexpr auto is_in_domain() const noexcept -> bool {
-      return m_in_domain;
-    }
-
-    /**
-     * @brief Sets the domain status of the face
-     * @param in_domain True to mark as inside domain, false otherwise
-     */
-    constexpr void set_in_domain(const bool in_domain) noexcept {
-      m_in_domain = in_domain;
-    }
   };
 
   using t_Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -85,34 +57,6 @@ class Triangulation {
    */
   Triangulation(const std::vector<double> &points_x,
                 const std::vector<double> &points_y);
-
-  /**
-   * @struct t_InterpolationWeight
-   * @brief Barycentric interpolation weights for a point in a triangle
-   *
-   * Contains the vertex indices and corresponding barycentric weights
-   * for interpolation at a query point.
-   */
-  struct t_InterpolationWeight {
-    std::array<unsigned, 3> vertices;  ///< Indices of the three vertices
-    std::array<double, 3> weights;     ///< Barycentric weights (sum to 1.0)
-    bool valid;  ///< True if point is inside triangulation
-
-    /**
-     * @brief Default constructor creates an invalid weight
-     */
-    constexpr t_InterpolationWeight()
-        : vertices{0, 0, 0}, weights{0.0, 0.0, 0.0}, valid(false) {}
-
-    /**
-     * @brief Constructs a valid interpolation weight
-     * @param vertices_ Triangle vertex indices
-     * @param weights_ Barycentric weights (must sum to 1.0)
-     */
-    constexpr t_InterpolationWeight(const std::array<unsigned, 3> &vertices_,
-                                    const std::array<double, 3> &weights_)
-        : vertices(vertices_), weights(weights_), valid(true) {}
-  };
 
   /**
    * @brief Applies a constraint polygon using coordinate vectors
@@ -141,13 +85,31 @@ class Triangulation {
 
   /**
    * @brief Computes interpolation weights for a single query point
+   * @param point Query point as a CGAL point
+   * @return Interpolation weight structure (invalid if point outside
+   * triangulation)
+   */
+  [[nodiscard]] auto get_interpolation_weight(t_Point point) const
+      -> InterpolationWeight;
+
+  /**
+   * @brief Computes interpolation weights for a single query point
    * @param pt_x X-coordinate of the query point
    * @param pt_y Y-coordinate of the query point
    * @return Interpolation weight structure (invalid if point outside
    * triangulation)
    */
   [[nodiscard]] auto get_interpolation_weight(double pt_x, double pt_y) const
-      -> t_InterpolationWeight;
+      -> InterpolationWeight;
+
+  /**
+   * @brief Computes interpolation weights for multiple query points
+   * @param points Vector of query points as CGAL points
+   * @return Vector of interpolation weights for each query point
+   */
+  [[nodiscard]] auto get_interpolation_weights(
+      const std::vector<t_Point> &points) const
+      -> std::vector<InterpolationWeight>;
 
   /**
    * @brief Computes interpolation weights for multiple query points
@@ -158,7 +120,7 @@ class Triangulation {
   [[nodiscard]] auto get_interpolation_weights(
       const std::vector<double> &points_x,
       const std::vector<double> &points_y) const
-      -> std::vector<t_InterpolationWeight>;
+      -> std::vector<InterpolationWeight>;
 
   /**
    * @brief Retrieves all triangles inside the domain
@@ -175,5 +137,21 @@ class Triangulation {
  private:
   std::unique_ptr<t_CDT>
       m_triangulation;  ///< CGAL triangulation data structure
+
+  struct t_LookupHint {
+    t_Face_handle face;
+    bool has_hint{false};
+  };
+
+  /**
+   * @brief Computes interpolation weights for a single query point
+   * @param point Query point as a CGAL point
+   * @param hint Lookup hint to optimize face search
+   * @return Interpolation weight structure (invalid if point outside
+   * triangulation)
+   */
+  [[nodiscard]] auto get_interpolation_weight(t_Point point,
+                                              t_LookupHint &hint) const
+      -> InterpolationWeight;
 };
-}  // namespace CxxTri
+}  // namespace FastTri
