@@ -27,12 +27,16 @@
 #
 ###################################################################################################
 
-import logging
+import argparse
+import json
 import os
+import time
+import traceback
 from datetime import datetime, timedelta
 
 import libmetget.version
 from libmetget.database.tables import RequestEnum, RequestTable
+from loguru import logger
 
 from .message_handler import MessageHandler
 
@@ -44,9 +48,6 @@ def run():
     """
     Main entry point for the script
     """
-    import argparse
-    import time
-    import traceback
 
     p = argparse.ArgumentParser(description="Process a metget request")
     p.add_argument(
@@ -55,25 +56,12 @@ def run():
         type=str,
         help="Override use of the METGET_REQUEST_JSON environment variable",
     )
-    p.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     args = p.parse_args()
 
-    log_level = logging.INFO
-    if args.verbose:
-        log_level = logging.DEBUG
-
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s :: %(levelname)s :: %(filename)s :: %(funcName)s :: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S%Z",
-    )
-
-    log = logging.getLogger(__name__)
-
-    log.info(
+    logger.info(
         f"Running MetGet-Server Version: {libmetget.version.get_metget_version():s}"
     )
-    log.info("Beginning execution")
+    logger.info("Beginning execution")
 
     credit_cost = 0
     json_data = None
@@ -110,9 +98,7 @@ def run():
             status = handler.process_message()
 
             if datetime.now() - start_time > MAX_REQUEST_TIME:
-                msg = "Job exceeded maximum run time of {:d} hours".format(
-                    int(MAX_REQUEST_TIME.total_seconds() / 3600)
-                )
+                msg = f"Job exceeded maximum run time of {int(MAX_REQUEST_TIME.total_seconds() / 3600):d} hours"
                 raise RuntimeError(msg)
 
             if status is False:
@@ -128,8 +114,8 @@ def run():
             credit=credit_cost,
         )
     except RuntimeError as e:
-        log.error("Encountered error during processing: " + str(e))
-        log.error(traceback.format_exc())
+        logger.error("Encountered error during processing: " + str(e))
+        logger.error(traceback.format_exc())
         RequestTable.update_request(
             request_id=json_data["request_id"],
             request_status=RequestEnum.error,
@@ -140,8 +126,8 @@ def run():
             credit=credit_cost,
         )
     except KeyError as e:
-        log.error("Encountered malformed json input: " + str(e))
-        log.error(traceback.format_exc())
+        logger.error("Encountered malformed json input: " + str(e))
+        logger.error(traceback.format_exc())
         RequestTable.update_request(
             request_id=json_data["request_id"],
             request_status=RequestEnum.error,
@@ -152,8 +138,8 @@ def run():
             credit=credit_cost,
         )
     except Exception as e:
-        log.error("Encountered unexpected error: " + str(e))
-        log.error(traceback.format_exc())
+        logger.error("Encountered unexpected error: " + str(e))
+        logger.error(traceback.format_exc())
         RequestTable.update_request(
             request_id=json_data["request_id"],
             request_status=RequestEnum.error,
@@ -165,12 +151,10 @@ def run():
         )
         raise
 
-    log.info("Exiting script with status 0")
+    logger.info("Exiting script with status 0")
 
 
 def get_request_data(args):
-    import json
-
     if args.request_json:
         with open(args.request_json) as f:
             message = f.read()

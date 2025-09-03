@@ -27,12 +27,14 @@
 #
 ###################################################################################################
 
+from datetime import datetime
+
 from ..sources.metfiletype import NCEP_NAM
 from .noaadownloader import NoaaDownloader
 
 
 class NcepNamdownloader(NoaaDownloader):
-    def __init__(self, begin, end):
+    def __init__(self, begin: datetime, end: datetime) -> None:
         address = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/nam/prod/"
         NoaaDownloader.__init__(
             self,
@@ -52,9 +54,9 @@ class NcepNamdownloader(NoaaDownloader):
             )
 
     @staticmethod
-    def _generate_prefix(date, hour) -> str:
+    def _generate_prefix(date: datetime, hour: int) -> str:
         return "nam." + date.strftime("%Y%m%d") + f"/nam.t{hour:02d}z.awphys"
 
     @staticmethod
-    def _filename_to_hour(filename) -> int:
+    def _filename_to_hour(filename: str) -> int:
         return int(filename[28:30])

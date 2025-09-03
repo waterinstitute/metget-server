@@ -28,8 +28,7 @@
 #
 ###################################################################################################
 import argparse
-import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from libmetget.download.adeckdownloader import ADeckDownloader
 from libmetget.download.coampsdownloader import CoampsDownloader
@@ -47,13 +46,10 @@ from libmetget.download.nhcdownloader import NhcDownloader
 from libmetget.download.wpcdownloader import WpcDownloader
 from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
 from libmetget.version import get_metget_version
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def generate_default_date_range():
-    from datetime import datetime, timedelta, timezone
-
     start = datetime.now(timezone.utc)
     start = datetime(start.year, start.month, start.day, 0, 0, 0) - timedelta(days=1)
     end = start + timedelta(days=2)
@@ -205,11 +201,6 @@ def adeck_download() -> int:
 
 
 def metget_download():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s :: %(levelname)s :: %(module)s :: %(message)s",
-    )
-
     p = argparse.ArgumentParser(description="MetGet Download Function")
     p.add_argument(
         "--service",

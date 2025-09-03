@@ -70,14 +70,14 @@ class MetFileAttributes:
             msg = f"Missing required arguments: {', '.join(missing_args)}"
             raise ValueError(msg)
 
-        self.__name = kwargs.get("name", None)
-        self.__table = kwargs.get("table", None)
-        self.__table_obj = kwargs.get("table_obj", None)
-        self.__file_format = kwargs.get("file_format", None)
-        self.__bucket = kwargs.get("bucket", None)
-        self.__variables = kwargs.get("variables", None)
-        self.__cycles = kwargs.get("cycles", None)
-        self.__ensemble_members = kwargs.get("ensemble_members", None)
+        self.__name = kwargs.get("name")
+        self.__table = kwargs.get("table")
+        self.__table_obj = kwargs.get("table_obj")
+        self.__file_format = kwargs.get("file_format")
+        self.__bucket = kwargs.get("bucket")
+        self.__variables = kwargs.get("variables")
+        self.__cycles = kwargs.get("cycles")
+        self.__ensemble_members = kwargs.get("ensemble_members")
 
         # Type checking
         if not isinstance(self.__file_format, MetFileFormat):
@@ -93,9 +93,7 @@ class MetFileAttributes:
             not isinstance(self.__ensemble_members, list)
             and self.__ensemble_members is not None
         ):
-            msg = "ensemble_members must be of type list and is of type {}".format(
-                type(self.__ensemble_members)
-            )
+            msg = f"ensemble_members must be of type list and is of type {type(self.__ensemble_members)}"
             raise TypeError(msg)
 
     def name(self) -> str:

@@ -26,14 +26,16 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
+import json
+import os
 from typing import Tuple, Union
 
+import pika
 from libmetget.build.domain import Domain
 from libmetget.build.input import Input
+from libmetget.database.filelist import Filelist, FilelistBase
 from libmetget.database.tables import RequestEnum, RequestTable
-
-log = logging.getLogger(__name__)
+from loguru import logger
 
 
 class BuildRequest:
@@ -42,7 +44,7 @@ class BuildRequest:
     and initiate the k8s process within argo
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         request_id: str,
         api_key: str,
@@ -108,11 +110,6 @@ class BuildRequest:
         Returns:
             None
         """
-        import json
-        import os
-
-        import pika
-
         if transmit:
             # Eventually we can remove this logic completely as we transition
             # away from environment variables and use the dns instead, which
@@ -130,7 +127,9 @@ class BuildRequest:
             )
             connection.close()
         else:
-            log.warning("Request was not transmitted. Will only be added to database.")
+            logger.warning(
+                "Request was not transmitted. Will only be added to database."
+            )
 
         RequestTable.add_request(
             request_id=self.__request_id,
@@ -337,8 +336,6 @@ class BuildRequest:
         Returns:
             int: The tau parameter
         """
-        from libmetget.database.filelist import FilelistBase
-
         if d.service() != "nhc":
             tau = FilelistBase.check_tau_parameter(
                 d.tau(), d.service(), self.__input_obj.data_type()
@@ -396,8 +393,6 @@ class BuildRequest:
         This method is used to generate a list of files that will be used
         to generate the requested data
         """
-        from libmetget.database.filelist import Filelist
-
         file_list = Filelist(
             service=service,
             param=param,

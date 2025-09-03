@@ -1,16 +1,11 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: "23.10.0"
-    hooks:
-      - id: black
-        name: Black
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.1.1"
+    rev: "v0.12.11"
     hooks:
       - id: ruff
         name: Ruff
@@ -20,3 +15,5 @@ repos:
                 "--ignore", "E501,PT004,RET505,RET506,RET507,RET508,SIM108,PLR2004",
                 "--unsafe-fixes"
         ]
+      - id: ruff-format
+        name: Ruff Format

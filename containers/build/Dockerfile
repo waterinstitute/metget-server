@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential libboost-dev libgmp-dev libmpfr-dev libcgal-dev
 
 RUN conda create -y -p /env python=${PYTHON_VERSION} boto3 bs4 certifi cfgrib feedparser geojson \
-                                     geopandas h5py netCDF4 numba numpy psycopg2 \
+                                     geopandas h5py loguru netCDF4 numba numpy psycopg2 \
                                      python-dateutil requests schema scipy shapely sqlalchemy \
                                      xarray eccodes
 

@@ -27,6 +27,7 @@
 #
 ###################################################################################################
 
+import os
 from datetime import datetime
 from typing import List, Optional, Union
 
@@ -176,8 +177,6 @@ class OutputFile:
         Returns:
             None
         """
-        import os
-
         for filename in self.__filenames:
             if isinstance(filename, list):
                 for f in filename:

@@ -27,11 +27,12 @@
 #
 ###################################################################################################
 
-import logging
+from datetime import datetime
 
+from loguru import logger
+
+from .output.gridfactory import grid_factory
 from .output.outputgrid import OutputGrid
-
-log = logging.getLogger(__name__)
 
 VALID_SERVICES = [
     "gfs-ncep",
@@ -66,8 +67,6 @@ class Domain:
             domain_level: The domain level
             json: The json object containing the domain information
         """
-        from .output.gridfactory import grid_factory
-
         self.__valid = True
         self.__name = name
         self.__service = service
@@ -78,7 +77,7 @@ class Domain:
         self.__domain_level = domain_level
 
         if self.__service not in VALID_SERVICES:
-            log.error(
+            logger.error(
                 f"Domain {domain_level} invalid because {self.__service:s} is not a valid service"
             )
             self.__valid = False
@@ -89,7 +88,7 @@ class Domain:
         try:
             self.__grid = grid_factory(self.__json)
         except Exception as e:
-            log.error(
+            logger.error(
                 f"Domain {domain_level} invalid because exception was thrown: {e!s:s}"
             )
             self.__valid = False
@@ -275,8 +274,6 @@ class Domain:
         Returns:
             None
         """
-        from datetime import datetime
-
         if self.service() == "nhc":
             if "storm_year" in self.__json:
                 self.__storm_year = self.__json["storm_year"]

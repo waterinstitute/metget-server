@@ -28,6 +28,9 @@
 ###################################################################################################
 from typing import Union
 
+from ..database import Database
+from ..tables import NhcBtkTable, NhcFcstTable
+
 
 class FilelistNHC:
     """
@@ -49,10 +52,10 @@ class FilelistNHC:
                 msg = f"Missing required argument: {arg}"
                 raise ValueError(msg)
 
-        self.__storm: Union[None, str] = kwargs.get("storm", None)
-        self.__basin: Union[None, str] = kwargs.get("basin", None)
-        self.__storm_year: Union[None, int] = kwargs.get("storm_year", None)
-        self.__advisory: Union[None, str] = kwargs.get("advisory", None)
+        self.__storm: Union[None, str] = kwargs.get("storm")
+        self.__basin: Union[None, str] = kwargs.get("basin")
+        self.__storm_year: Union[None, int] = kwargs.get("storm_year")
+        self.__advisory: Union[None, str] = kwargs.get("advisory")
 
         if not isinstance(self.__storm, int):
             msg = "Storm must be a integer"
@@ -79,9 +82,6 @@ class FilelistNHC:
         Returns:
             dict: A dictionary containing the best track and forecast track files
         """
-        from ..database import Database
-        from ..tables import NhcBtkTable, NhcFcstTable
-
         with Database() as db, db.session() as session:
             best_track_query = (
                 session.query(NhcBtkTable)

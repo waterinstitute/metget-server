@@ -27,12 +27,25 @@
 #
 ###################################################################################################
 
+import csv
 import ftplib
-import logging
+import hashlib
+import os
+import re
+import tempfile
+from datetime import datetime, timedelta
+from ftplib import FTP
+from typing import Any, Dict, List, Optional, Tuple
 
-from geojson import FeatureCollection
+import feedparser
+import requests
+from bs4 import BeautifulSoup
+from geojson import Feature, FeatureCollection, Point
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from .forecastdata import ForecastData
+from .metdb import Metdb
+from .s3file import S3file
 
 # ...Keys for the zippered dictionary from the NHC file
 ATCF_KEYS = [
@@ -75,19 +88,14 @@ ATCF_KEYS = [
 
 
 class NhcDownloader:
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
-        dblocation=".",
-        use_besttrack=True,
-        use_forecast=True,
-        pressure_method="knaffzehr",
-        use_aws=True,
-    ):
-        import tempfile
-        from datetime import datetime
-
-        from .metdb import Metdb
-
+        dblocation: str = ".",
+        use_besttrack: bool = True,
+        use_forecast: bool = True,
+        pressure_method: str = "knaffzehr",
+        use_aws: bool = True,
+    ) -> None:
         self.__mettype = "nhc"
         self.__metstring = "NHC"
         self.__use_forecast = use_besttrack
@@ -111,8 +119,6 @@ class NhcDownloader:
         }
 
         if self.__use_aws:
-            from .s3file import S3file
-
             self.__dblocation = tempfile.gettempdir()
             self.__downloadlocation = dblocation + "/nhc"
             self.__s3file = S3file()
@@ -120,13 +126,13 @@ class NhcDownloader:
             self.__dblocation = dblocation
             self.__downloadlocation = self.__dblocation + "/nhc"
 
-    def mettype(self):
+    def mettype(self) -> str:
         return self.__mettype
 
-    def metstring(self):
+    def metstring(self) -> str:
         return self.__metstring
 
-    def download(self):
+    def download(self) -> int:
         n = 0
         if self.__use_forecast:
             n += self.download_forecast()
@@ -134,17 +140,16 @@ class NhcDownloader:
             n += self.download_hindcast()
         return n
 
-    def download_forecast(self):
+    def download_forecast(self) -> int:
         return self.download_forecast_ftp()
 
     @staticmethod
-    def generate_advisory_number(string):
+    def generate_advisory_number(string: str) -> str:
         """
         Takes input for an advisory and reformats it using 3 places so it is ordered in the table
         :param string: advisory number, i.e. 2b or 2
         :return: advisory number padded with zeros, i.e. 002b or 002
         """
-        import re
 
         split = re.split("([0-9]{1,2})", string)
         if len(split) == 2:
@@ -155,8 +160,13 @@ class NhcDownloader:
 
     @staticmethod
     def print_forecast_data(  # noqa: PLR0913
-        year, basin, storm_name, storm_number, advisory_number, forecast_data
-    ):
+        year: int,
+        basin: str,
+        storm_name: str,
+        storm_number: str,
+        advisory_number: str,
+        forecast_data: List[Any],
+    ) -> None:
         print(
             "Basin: ",
             basin2string(basin),
@@ -173,9 +183,13 @@ class NhcDownloader:
         print("")
 
     @staticmethod
-    def write_atcf(filepath, basin, storm_name, storm_number, forecast_data):
-        import os
-
+    def write_atcf(  # noqa: PLR0912
+        filepath: str,
+        basin: str,
+        storm_name: str,
+        storm_number: str,
+        forecast_data: List[Any],
+    ) -> None:
         with open(filepath, "w") as f:
             for d in forecast_data:
                 line = "{:2s},{:3s},{:10s},".format(
@@ -186,8 +200,8 @@ class NhcDownloader:
                 line = line + f" 00, OFCL,{d.forecast_hour():4.0f},"
 
                 x, y = d.storm_center()
-                x = int(round(x * 10))
-                y = int(round(y * 10))
+                x = round(x * 10)
+                y = round(y * 10)
 
                 if x < 0:
                     x = f"{abs(x):5d}" + "W"
@@ -206,12 +220,9 @@ class NhcDownloader:
                 else:
                     windcode = "HU"
 
-                line = line + "{:5s},{:6s},{:4.0f},{:5.0f},{:3s},".format(
-                    y.strip().rjust(5),
-                    x.strip().rjust(6),
-                    d.max_wind(),
-                    d.pressure(),
-                    windcode.rjust(3),
+                line = (
+                    line
+                    + f"{y.strip().rjust(5):5s},{x.strip().rjust(6):6s},{d.max_wind():4.0f},{d.pressure():5.0f},{windcode.rjust(3):3s},"
                 )
 
                 if d.heading() > -900:
@@ -227,22 +238,14 @@ class NhcDownloader:
                 if len(d.isotach_levels()) > 0:
                     for it in sorted(d.isotach_levels()):
                         iso = d.isotach(it)
-                        itline = line + "{:4d}, NEQ,{:5d},{:5d},{:5d},{:5d},".format(
-                            it,
-                            iso.distance(0),
-                            iso.distance(1),
-                            iso.distance(2),
-                            iso.distance(3),
+                        itline = (
+                            line
+                            + f"{it:4d}, NEQ,{iso.distance(0):5d},{iso.distance(1):5d},{iso.distance(2):5d},{iso.distance(3):5d},"
                         )
                         itline = (
                             itline
-                            + " 1013,    0,   0,{:4.0f},   0,   0,    ,METG,{:4d},{:4d},"
-                            "{:11s},  ,  0, NEQ,    0,    0,    0,    0,            ,    ,".format(
-                                d.max_gust(),
-                                heading,
-                                fspd,
-                                storm_name.upper().rjust(11),
-                            )
+                            + f" 1013,    0,   0,{d.max_gust():4.0f},   0,   0,    ,METG,{heading:4d},{fspd:4d},"
+                            f"{storm_name.upper().rjust(11):11s},  ,  0, NEQ,    0,    0,    0,    0,            ,    ,"
                         )
                         f.write(itline)
                         f.write(os.linesep)
@@ -250,16 +253,14 @@ class NhcDownloader:
                     itline = line + f"{34:4d}, NEQ,{0:5d},{0:5d},{0:5d},{0:5d},"
                     itline = (
                         itline
-                        + " 1013,    0,   0,{:4.0f},   0,   0,    ,METG,{:4d},{:4d},"
-                        "{:11s},  ,  0, NEQ,    0,    0,    0,    0,            ,    ,".format(
-                            d.max_gust(), heading, fspd, storm_name.upper().rjust(11)
-                        )
+                        + f" 1013,    0,   0,{d.max_gust():4.0f},   0,   0,    ,METG,{heading:4d},{fspd:4d},"
+                        f"{storm_name.upper().rjust(11):11s},  ,  0, NEQ,    0,    0,    0,    0,            ,    ,"
                     )
                     f.write(itline)
                     f.write(os.linesep)
 
     @staticmethod
-    def get_storm_center(x, y):
+    def get_storm_center(x: str, y: str) -> Tuple[float, float]:
         if "W" in x:
             x = -float(x[:-1])
         else:
@@ -271,7 +272,7 @@ class NhcDownloader:
         return x, y
 
     @staticmethod
-    def parse_isotachs(line):
+    def parse_isotachs(line: str) -> Tuple[int, int, int, int, int]:
         data = line.replace(".", " ").split()
         iso = int(data[0])
         d1 = int(data[2][:-2])
@@ -281,12 +282,11 @@ class NhcDownloader:
         return iso, d1, d2, d3, d4
 
     @staticmethod
-    def read_nhc_data(filename: str) -> list:
+    def read_nhc_data(filename: str) -> List[Dict[str, Any]]:
         """
         Reads the specified ATCF file and puts the data into a dict with the keys specfied for each field
         :return:
         """
-        from datetime import datetime, timedelta
 
         data = []
         with open(filename) as f:
@@ -301,7 +301,7 @@ class NhcDownloader:
         return data
 
     @staticmethod
-    def sanitize_keys(line, key, value):
+    def sanitize_keys(line: Dict[str, Any], key: str, value: Any) -> None:
         if key not in line or line[key] == "":
             line[key] = value
 
@@ -371,15 +371,13 @@ class NhcDownloader:
         )
 
     @staticmethod
-    def write_nhc_data(data: list, filepath: str):
+    def write_nhc_data(data: List[Dict[str, Any]], filepath: str) -> None:
         with open(filepath, "w") as of:
             for d in data:
                 of.write(NhcDownloader.atcf_dict_to_str(d["data"]) + "\n")
 
     def nhc_compute_pressure(self, filepath: str) -> None:
         nhc_data = self.read_nhc_data(filepath)
-        from .forecastdata import ForecastData
-
         last_vmax = None
         last_pressure = None
         vmax_global = None
@@ -408,11 +406,7 @@ class NhcDownloader:
 
         NhcDownloader.write_nhc_data(nhc_data, filepath)
 
-    def download_forecast_ftp(self):  # noqa: PLR0912, PLR0915
-        import os
-        import tempfile
-        from ftplib import FTP
-
+    def download_forecast_ftp(self) -> int:  # noqa: PLR0912, PLR0915
         logger.info("Connecting to NHC FTP server...")
         try:
             ftp = FTP("ftp.nhc.noaa.gov", timeout=30)
@@ -499,12 +493,7 @@ class NhcDownloader:
                         if not entry_found:
                             logger.info(
                                 "Processing NHC forecast for Basin: "
-                                "{:s}, Year: {:s}, Storm: {:s}, Advisory: {:s}".format(
-                                    basin2string(basin),
-                                    str(year),
-                                    str(storm),
-                                    advisory,
-                                )
+                                f"{basin2string(basin):s}, Year: {year!s:s}, Storm: {storm!s:s}, Advisory: {advisory:s}"
                             )
 
                             self.nhc_compute_pressure(temp_file_path)
@@ -540,9 +529,7 @@ class NhcDownloader:
                                 n += self.__database.add(data, "nhc_fcst", filepath)
                     else:
                         logger.warning(
-                            "No current advisory found for storm {:s} in basin {:s}".format(
-                                storm, basin
-                            )
+                            f"No current advisory found for storm {storm:s} in basin {basin:s}"
                         )
 
                     if self.__use_aws:
@@ -560,7 +547,7 @@ class NhcDownloader:
         return n
 
     @staticmethod
-    def __position_to_float(position: str):
+    def __position_to_float(position: str) -> float:
         direction = position[-1].upper()
         pos = float(position[:-1]) / 10.0
         if direction in ("W", "S"):
@@ -569,8 +556,6 @@ class NhcDownloader:
             return pos
 
     def __generate_track(self, path: str) -> FeatureCollection:
-        from geojson import Feature, Point
-
         knot_to_mph = 1.15078
 
         data = self.read_nhc_data(path)
@@ -602,14 +587,10 @@ class NhcDownloader:
             )
         return FeatureCollection(features=points)
 
-    def generate_geojson(self, filename: str):
+    def generate_geojson(self, filename: str) -> FeatureCollection:
         return self.__generate_track(filename)
 
-    def download_hindcast(self):  # noqa: PLR0912, PLR0915
-        import os.path
-        import tempfile
-        from ftplib import FTP
-
+    def download_hindcast(self) -> int:  # noqa: PLR0912, PLR0915
         logger.info("Connecting to NHC FTP site")
 
         n = 0
@@ -667,15 +648,11 @@ class NhcDownloader:
                     if md5_original != md5_updated:
                         if md5_original == 0:
                             logger.info(
-                                "Downloaded NHC best track for Basin: {:s}, Year: {:s}, Storm: {:s}".format(
-                                    basin2string(basin), str(year), str(storm)
-                                )
+                                f"Downloaded NHC best track for Basin: {basin2string(basin):s}, Year: {year!s:s}, Storm: {storm!s:s}"
                             )
                         else:
                             logger.info(
-                                "Downloaded updated NHC best track for Basin: {:s}, Year: {:s}, Storm: {:s}".format(
-                                    basin2string(basin), str(year), str(storm)
-                                )
+                                f"Downloaded updated NHC best track for Basin: {basin2string(basin):s}, Year: {year!s:s}, Storm: {storm!s:s}"
                             )
 
                         data = {
@@ -714,18 +691,13 @@ class NhcDownloader:
             return n
 
     @staticmethod
-    def compute_checksum(path):
-        import hashlib
-
+    def compute_checksum(path: str) -> str:
         with open(path, "rb") as file:
             data = file.read()
             return hashlib.md5(data).hexdigest()
 
     @staticmethod
-    def get_advisories(url):
-        import requests
-        from bs4 import BeautifulSoup
-
+    def get_advisories(url: str) -> List[int]:
         try:
             r = requests.get(url, timeout=30)
             if r.ok:
@@ -753,18 +725,14 @@ class NhcDownloader:
         return advisories
 
     @staticmethod
-    def get_nhc_atcf_metadata(filename: str, is_forecast: bool) -> dict:
-        import csv
-        from datetime import datetime, timedelta
-
+    def get_nhc_atcf_metadata(filename: str, is_forecast: bool) -> Dict[str, Any]:
         with open(filename) as csvfile:
             reader = csv.reader(csvfile)
             line = 0
-            for this_line in reader:
+            for line, this_line in enumerate(reader):
                 last_line = this_line
                 if line == 0:
                     first_line = this_line
-                line += 1
 
         start_date = datetime.strptime(str.strip(first_line[2]), "%Y%m%d%H")
         if is_forecast:
@@ -785,9 +753,7 @@ class NhcDownloader:
             "duration": duration,
         }
 
-    def get_current_advisory_from_rss(self, basin: str, storm: str):
-        import feedparser
-
+    def get_current_advisory_from_rss(self, basin: str, storm: str) -> Optional[str]:
         feed = feedparser.parse(self.__rss_feed_basins[basin.lower()])
         for e in feed.entries:
             if "forecast advisory" in e["title"].lower():
@@ -808,7 +774,7 @@ class NhcDownloader:
         return None
 
 
-def basin2string(basin_abbrev):
+def basin2string(basin_abbrev: str) -> str:
     basin_abbrev = basin_abbrev.lower()
 
     basin_dict = {

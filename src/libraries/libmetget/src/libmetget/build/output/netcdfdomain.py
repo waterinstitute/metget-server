@@ -26,13 +26,15 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
 from datetime import datetime
 
 import numpy as np
 import xarray as xr
+from loguru import logger
+from netCDF4 import Dataset
 
 from ...sources.variabletype import VariableType
+from ...version import get_metget_version
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
 
@@ -104,8 +106,6 @@ class NetcdfDomain(OutputDomain):
         """
         Open the netCDF file for writing
         """
-        from netCDF4 import Dataset
-
         self.__dataset = Dataset(self.__filename, "w", format="NETCDF4")
         self.__initialize_domain_output_metadata()
         self.__initialize_output_variables()
@@ -135,8 +135,6 @@ class NetcdfDomain(OutputDomain):
         """
         Initialize the domain output metadata in the netCDF file
         """
-        from ...version import get_metget_version
-
         self.__dataset.createDimension("lon", self.grid_obj().nj())
         self.__dataset.createDimension("lat", self.grid_obj().ni())
         self.__dataset.createDimension("time", None)
@@ -228,8 +226,6 @@ class NetcdfDomain(OutputDomain):
         Returns:
             None
         """
-        log = logging.getLogger(__name__)
-
         time = kwargs.get("time")
         if not isinstance(time, datetime):
             msg = "time must be of type datetime"
@@ -244,7 +240,7 @@ class NetcdfDomain(OutputDomain):
             time - self.start_date()
         ).total_seconds() / 60.0
 
-        log.info(
+        logger.info(
             "Writing to netCDF for time: {:s} at index: {:d}".format(
                 time.strftime("%Y-%m-%d %H:%M"), index
             )
@@ -256,6 +252,6 @@ class NetcdfDomain(OutputDomain):
                     str(v)
                 ].to_numpy()
             else:
-                self.__dataset.variables[v.netcdf_var_name()][
-                    index, :, :
-                ] = v.fill_value()
+                self.__dataset.variables[v.netcdf_var_name()][index, :, :] = (
+                    v.fill_value()
+                )

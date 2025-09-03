@@ -27,6 +27,7 @@ dependencies = [
     'geojson',
     'geopandas',
     'h5py',
+    'loguru',
     'netCDF4',
     'numba',
     'numpy',

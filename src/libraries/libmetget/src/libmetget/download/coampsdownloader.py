@@ -27,8 +27,19 @@
 #
 ###################################################################################################
 
+import glob
+import os
+import shutil
+import tarfile
+import tempfile
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+import boto3
+from loguru import logger
+
+from .metdb import Metdb
+from .s3file import S3file
 
 
 class CoampsDownloader:
@@ -39,18 +50,10 @@ class CoampsDownloader:
     STORM_MIN = 1
     STORM_MAX = 99
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the downloader
         """
-        import os
-        import tempfile
-
-        import boto3
-
-        from .metdb import Metdb
-        from .s3file import S3file
-
         self.__s3_download_bucket = os.environ["COAMPS_S3_BUCKET"]
         self.__s3_download_prefix = "deterministic/realtime"
         self.__aws_key_id = os.environ.get("COAMPS_AWS_KEY", None)
@@ -81,13 +84,8 @@ class CoampsDownloader:
         Returns:
             None
         """
-        import logging
-        import shutil
-        import tempfile
 
-        log = logging.getLogger(__name__)
-
-        log.info(f"Deleting temporary directory: {self.__temp_directory}")
+        logger.info(f"Deleting temporary directory: {self.__temp_directory}")
 
         shutil.rmtree(self.__temp_directory)
 
@@ -96,14 +94,14 @@ class CoampsDownloader:
         else:
             self.__temp_directory = None
 
-    def __del__(self):
+    def __del__(self) -> None:
         """
         Delete the temporary directory when the object is deleted
         """
         self.__reset_temp_directory(False)
 
     @staticmethod
-    def __date_from_filename(filename) -> Tuple[datetime, datetime]:
+    def __date_from_filename(filename: str) -> Tuple[datetime, datetime]:
         """
         Get the cycle and forecast date from the filename
 
@@ -129,10 +127,6 @@ class CoampsDownloader:
         Returns:
             Number of files downloaded
         """
-        import logging
-        import os
-
-        log = logging.getLogger(__name__)
 
         if year is not None:
             current_year = year
@@ -166,10 +160,8 @@ class CoampsDownloader:
                 )
 
                 if has_all_forecast_snaps:
-                    log.debug(
-                        "Skipping {:s} since all forecast data exists in database".format(
-                            filename
-                        )
+                    logger.debug(
+                        f"Skipping {filename:s} since all forecast data exists in database"
                     )
                     continue
 
@@ -188,7 +180,7 @@ class CoampsDownloader:
                     if self.__database.has("coamps", metadata):
                         continue
 
-                    log.info(
+                    logger.info(
                         "Adding Storm: {:s}, Cycle: {:s}, Forecast: {:s} to database".format(
                             storm_name,
                             datetime.strftime(
@@ -225,7 +217,9 @@ class CoampsDownloader:
         return file_count
 
     @staticmethod
-    def __generate_forecast_snap_list(files) -> dict:
+    def __generate_forecast_snap_list(
+        files: List[str],
+    ) -> Dict[datetime, List[Dict[str, Any]]]:
         """
         Generate a list of forecast snapshots from the list of files
 
@@ -235,8 +229,6 @@ class CoampsDownloader:
         Returns:
             Dictionary of forecast snapshots
         """
-
-        import os
 
         file_list = {}
         for f in files:
@@ -252,7 +244,7 @@ class CoampsDownloader:
 
         return file_list
 
-    def __download_and_unpack_forecast(self, filename, forecast):
+    def __download_and_unpack_forecast(self, filename: str, forecast: Any) -> List[str]:
         """
         Download and unpack the forecast file from the tar archive
 
@@ -263,20 +255,14 @@ class CoampsDownloader:
         Returns:
             List of netcdf files in the temporary directory
         """
-        import glob
-        import logging
-        import os
-        import tarfile
-
-        log = logging.getLogger(__name__)
 
         # ...Download the file
-        log.info(f"Downloading file: {filename}")
+        logger.info(f"Downloading file: {filename}")
         local_file = os.path.join(self.__temp_directory, filename)
         self.__bucket.download_file(forecast.key, local_file)
 
         # ...Unpack the file
-        log.info(f"Unpacking file: {filename}")
+        logger.info(f"Unpacking file: {filename}")
         with tarfile.open(local_file, "r") as tar:
 
             def is_within_directory(directory, target):

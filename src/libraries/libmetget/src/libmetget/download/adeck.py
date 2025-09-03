@@ -27,14 +27,16 @@
 #
 ###################################################################################################
 
-import logging
+import gzip
+import json
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import ClassVar, Dict, List
+from datetime import datetime, timedelta
+from typing import ClassVar, Dict, List, Optional
+
+import requests
+from geojson import Feature, FeatureCollection, Point
 
 KT_TO_MPH = 1.15078
-
-logger = logging.getLogger(__name__)
 
 
 class ADeckDownloaderException(Exception):
@@ -42,7 +44,7 @@ class ADeckDownloaderException(Exception):
     An exception to be raised when an error occurs during the A-Deck download.
     """
 
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         super().__init__(message)
 
 
@@ -51,7 +53,7 @@ class ADeckNames:
     A class to download and store the names of the A-Deck models from the NHC server.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Constructor
         """
@@ -72,7 +74,6 @@ class ADeckNames:
             A dictionary containing the abbreviation as the key
             and the long name as the value.
         """
-        import requests
 
         response = requests.get(self.__url)
         if response.status_code != 200:
@@ -87,7 +88,7 @@ class ADeckNames:
             model_names[name] = long_name
         return model_names
 
-    def names(self) -> dict:
+    def names(self) -> Dict[str, str]:
         """
         Returns the names of the A-Deck models as a dictionary.
 
@@ -104,7 +105,6 @@ class ADeckNames:
         Args:
             filename: The name of the JSON file.
         """
-        import json
 
         with open(filename, "w") as f:
             f.write(json.dumps(self.__names, indent=2))
@@ -116,20 +116,20 @@ class DeckSnapshot:
     A class to represent a snapshot of a tropical cyclone from an A-Deck file.
     """
 
-    basin: str | None = field(default=None)
-    cycle: datetime | None = field(default=None)
-    model: str | None = field(default=None)
-    forecast_hour: int | None = field(default=None)
-    forecast_time: datetime | None = field(default=None)
-    latitude: float | None = field(default=None)
-    longitude: float | None = field(default=None)
-    max_wind: int | None = field(default=None)
-    min_pressure: int | None = field(default=None)
-    radius_to_max_wind: int | None = field(default=None)
+    basin: Optional[str] = field(default=None)
+    cycle: Optional[datetime] = field(default=None)
+    model: Optional[str] = field(default=None)
+    forecast_hour: Optional[int] = field(default=None)
+    forecast_time: Optional[datetime] = field(default=None)
+    latitude: Optional[float] = field(default=None)
+    longitude: Optional[float] = field(default=None)
+    max_wind: Optional[int] = field(default=None)
+    min_pressure: Optional[int] = field(default=None)
+    radius_to_max_wind: Optional[int] = field(default=None)
 
 
 class Track:
-    def __init__(self, basin: str, model: str, storm: int, year: int):
+    def __init__(self, basin: str, model: str, storm: int, year: int) -> None:
         """
         Constructor
 
@@ -145,7 +145,7 @@ class Track:
         self.__year = year
         self.__snapshots: List[DeckSnapshot] = []
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Returns the number of snapshots in the track.
         """
@@ -163,7 +163,7 @@ class Track:
         """
         return self.__snapshots[-1].cycle
 
-    def add_snapshot(self, snapshot: DeckSnapshot):
+    def add_snapshot(self, snapshot: DeckSnapshot) -> None:
         """
         Adds a snapshot to the track.
 
@@ -200,11 +200,10 @@ class Track:
             f"end={self.__snapshots[-1].forecast_time})"
         )
 
-    def to_geojson(self) -> dict:
+    def to_geojson(self) -> Dict:
         """
         Returns the track as a GeoJSON FeatureCollection.
         """
-        from geojson import Feature, FeatureCollection, Point
 
         return FeatureCollection(
             [
@@ -228,7 +227,7 @@ class ModelDeck:
     A class to represent a deck of tracks from a single model.
     """
 
-    def __init__(self, model: str):
+    def __init__(self, model: str) -> None:
         """
         Constructor
 
@@ -236,7 +235,7 @@ class ModelDeck:
             model: The name of the model.
         """
         self.__model = model
-        self.__decks: Dict[datetime:Track] = {}
+        self.__decks: Dict[datetime, Track] = {}
 
     def add_snapshot(
         self, cycle: datetime, snapshot: DeckSnapshot, storm: int, year: int
@@ -328,7 +327,7 @@ class ADeckStorms:
         else:
             return f"{ADeckStorms.BASE_URL}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
 
-    def download_storm(self, basin: str, year: int, storm: int) -> dict:
+    def download_storm(self, basin: str, year: int, storm: int) -> Dict[str, ModelDeck]:
         """
         Downloads the A-Deck file for a given year and storm number.
 
@@ -340,10 +339,6 @@ class ADeckStorms:
         Returns:
             A dictionary containing the parsed data from the A-Deck.
         """
-        import gzip
-        from datetime import datetime, timedelta
-
-        import requests
 
         url = self.__generate_url(basin, year, storm)
         response = requests.get(url)

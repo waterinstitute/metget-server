@@ -27,13 +27,16 @@
 #
 ###################################################################################################
 
+from datetime import datetime
+from typing import Optional
+
 from ..sources.metfiletype import HRRR_CONUS
 from .noaadownloader import NoaaDownloader
 
 
 class NcepHrrrdownloader(NoaaDownloader):
-    def __init__(self, begin, end):
-        address = None
+    def __init__(self, begin: datetime, end: datetime) -> None:
+        address: Optional[str] = None
         NoaaDownloader.__init__(
             self,
             HRRR_CONUS.table(),
@@ -53,9 +56,9 @@ class NcepHrrrdownloader(NoaaDownloader):
             )
 
     @staticmethod
-    def _generate_prefix(date, hour) -> str:
+    def _generate_prefix(date: datetime, hour: int) -> str:
         return "hrrr." + date.strftime("%Y%m%d") + f"/conus/hrrr.t{hour:02d}z.wrfnatf"
 
     @staticmethod
-    def _filename_to_hour(filename) -> int:
+    def _filename_to_hour(filename: str) -> int:
         return int(filename[37:39])

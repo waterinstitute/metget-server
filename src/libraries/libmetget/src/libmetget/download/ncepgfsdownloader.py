@@ -27,12 +27,14 @@
 #
 ###################################################################################################
 
+from datetime import datetime
+
 from ..sources.metfiletype import NCEP_GFS
 from .noaadownloader import NoaaDownloader
 
 
 class NcepGfsdownloader(NoaaDownloader):
-    def __init__(self, begin, end):
+    def __init__(self, begin: datetime, end: datetime) -> None:
         address = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/"
         NoaaDownloader.__init__(
             self,
@@ -52,7 +54,7 @@ class NcepGfsdownloader(NoaaDownloader):
             )
 
     @staticmethod
-    def _generate_prefix(date, hour) -> str:
+    def _generate_prefix(date: datetime, hour: int) -> str:
         return (
             "gfs."
             + date.strftime("%Y%m%d")
@@ -60,5 +62,5 @@ class NcepGfsdownloader(NoaaDownloader):
         )
 
     @staticmethod
-    def _filename_to_hour(filename) -> int:
+    def _filename_to_hour(filename: str) -> int:
         return int(filename[-3:])

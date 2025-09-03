@@ -26,10 +26,19 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import os
+import shutil
+import tarfile
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Any, Dict
 
 import boto3
+from loguru import logger
+
+from .ctcxformatter import CtcxFormatter
+from .metdb import Metdb
+from .s3file import S3file
 
 
 class CtcxDownloader:
@@ -37,7 +46,7 @@ class CtcxDownloader:
     This class is responsible for downloading the CTCX data from S3.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the downloader using the environment variables.
 
@@ -46,11 +55,6 @@ class CtcxDownloader:
             COAMPS_AWS_KEY: The AWS key to use for authentication
             COAMPS_AWS_SECRET: The AWS secret to use for authentication
         """
-        import os
-
-        from .metdb import Metdb
-        from .s3file import S3file
-
         self.__s3_bucket = os.environ["COAMPS_S3_BUCKET"]
 
         self.__aws_key_id = os.environ.get("COAMPS_AWS_KEY", None)
@@ -70,13 +74,8 @@ class CtcxDownloader:
         self.__database = Metdb()
         self.__s3 = S3file()
 
-    def __del__(self):
-        import logging
-        import shutil
-
-        log = logging.getLogger(__name__)
-
-        log.info("Removing temporary directory")
+    def __del__(self) -> None:
+        logger.info("Removing temporary directory")
         shutil.rmtree(self.__temp_directory)
 
     def download(self) -> int:
@@ -86,11 +85,6 @@ class CtcxDownloader:
         Returns:
             The number of files downloaded
         """
-        import logging
-        import os
-        from datetime import datetime
-
-        log = logging.getLogger(__name__)
 
         current_year = datetime.utcnow().year - 1
 
@@ -107,7 +101,7 @@ class CtcxDownloader:
                 path = obj.key
 
                 if path.endswith(".tar.gz"):
-                    log.info(f"Begin processing file {path:s}")
+                    logger.info(f"Begin processing file {path:s}")
 
                     cycle_date = datetime.strptime(
                         os.path.basename(path),
@@ -121,7 +115,7 @@ class CtcxDownloader:
                     if has_missing_cycles:
                         file_count += self.__process_ctcx_ensemble(path, storm_name)
                     else:
-                        log.info(f"Skipping file {path:s}")
+                        logger.info(f"Skipping file {path:s}")
 
         return file_count
 
@@ -136,10 +130,6 @@ class CtcxDownloader:
         Returns:
             The number of files processed
         """
-        import logging
-        import os
-
-        log = logging.getLogger(__name__)
 
         file_count = 0
 
@@ -151,7 +141,7 @@ class CtcxDownloader:
         directory = os.path.join(self.__temp_directory, base_name)
 
         # ...Convert the hdf5 files to netCDF format
-        log.info(
+        logger.info(
             f"Begin converting hdf5 files to netCDF format in directory {directory:s}"
         )
 
@@ -169,7 +159,7 @@ class CtcxDownloader:
 
     def __check_database_for_ensemble_members(
         self, cycle_date: datetime, storm_name: str
-    ):
+    ) -> bool:
         """
         Check the database to see if we have all the ensemble members for a given cycle date.
 
@@ -181,9 +171,6 @@ class CtcxDownloader:
             True if we have all the ensemble members for the given cycle date, False otherwise
 
         """
-        import logging
-
-        log = logging.getLogger(__name__)
 
         ENSEMBLE_MEMBER_MIN = 0
         ENSEMBLE_MEMBER_MAX = 20
@@ -200,7 +187,7 @@ class CtcxDownloader:
             }
 
             if not self.__database.has("ctcx", metadata):
-                log.info(
+                logger.info(
                     "Could not find ensemble member {:d} in database for cycle {:s}, storm {:s}".format(
                         ensemble_member, cycle_date.strftime("%Y%m%d%H"), storm_name
                     )
@@ -211,8 +198,8 @@ class CtcxDownloader:
         return has_missing_cycles
 
     def __add_member_to_db_and_upload(
-        self, base_name: str, storm_name: str, ensemble_member: dict
-    ):
+        self, base_name: str, storm_name: str, ensemble_member: Dict[str, Any]
+    ) -> None:
         """
         Add the ensemble member to the database and upload the file to S3.
 
@@ -220,14 +207,9 @@ class CtcxDownloader:
             base_name: The base name of the file (without the extension)
             ensemble_member: The ensemble member metadata to add
         """
-        import logging
-        import os
-        from datetime import timedelta
-
-        log = logging.getLogger(__name__)
 
         # ...Add the ensemble member to the database
-        log.info(
+        logger.info(
             "Begin adding ensemble member {:s} to database".format(
                 ensemble_member["member"]
             )
@@ -249,7 +231,7 @@ class CtcxDownloader:
             }
 
             if self.__database.has("ctcx", metadata):
-                log.debug(
+                logger.debug(
                     "Skipping ensemble member {:s} for cycle {:s}, hour {:d}".format(
                         member_id,
                         snapshot["cycle"].strftime("%Y%m%d%H"),
@@ -283,7 +265,7 @@ class CtcxDownloader:
                     domain_files,
                 )
 
-    def __retrieve_files_from_s3(self, path: str, storm_name: str) -> dict:
+    def __retrieve_files_from_s3(self, path: str, storm_name: str) -> Dict[str, Any]:
         """
         Retrieve the files from S3 and return a dict with the metadata.
 
@@ -294,12 +276,6 @@ class CtcxDownloader:
         Returns:
             A dict with the metadata
         """
-        import logging
-        import os
-        import tarfile
-        from datetime import datetime
-
-        log = logging.getLogger(__name__)
 
         # ...Get the metadata from the filename
         filename = os.path.basename(path)
@@ -308,22 +284,21 @@ class CtcxDownloader:
         )
 
         # ...Retrieve file from S3
-        log.info(f"Begin downloading file {path:s} from s3")
+        logger.info(f"Begin downloading file {path:s} from s3")
         local_file = os.path.join(self.__temp_directory, filename)
         self.__bucket.download_file(path, local_file)
 
         # ...Unpack the tarball
-        log.info(f"Begin unpacking file {local_file:s}")
-        tar = tarfile.open(local_file)
-        tar.extractall(path=self.__temp_directory)
-        tar.close()
+        logger.info(f"Begin unpacking file {local_file:s}")
+        with tarfile.open(local_file) as tar:
+            tar.extractall(path=self.__temp_directory)
 
         return {
             "filename": filename,
             "cycle_date": cycle_date,
         }
 
-    def __process_hdf5_file(self, base_name: str, filename: str) -> dict:
+    def __process_hdf5_file(self, base_name: str, filename: str) -> Dict[str, Any]:
         """
         Process the hdf5 file and convert it to netCDF format and return a dict with the metadata.
 
@@ -334,13 +309,6 @@ class CtcxDownloader:
         Returns:
             A dict with the metadata
         """
-        import logging
-        import os
-
-        from .ctcxformatter import CtcxFormatter
-
-        log = logging.getLogger(__name__)
-
         ensemble_member = int(filename.split("_")[0][-3:])
         ensemble_member_str = f"{ensemble_member:03d}"
 
@@ -348,10 +316,8 @@ class CtcxDownloader:
             self.__temp_directory, base_name, ensemble_member_str
         )
         os.mkdir(member_directory)
-        log.info(
-            "Processing ensemble member {:03d} in folder {:s}".format(
-                ensemble_member, member_directory
-            )
+        logger.info(
+            f"Processing ensemble member {ensemble_member:03d} in folder {member_directory:s}"
         )
 
         formatter = CtcxFormatter(

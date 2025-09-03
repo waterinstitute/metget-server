@@ -26,9 +26,13 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 
+from flask import request
 from libmetget.database.database import Database
+from libmetget.database.tables import AuthTable, RequestTable
+from sqlalchemy import func, or_
 
 CREDIT_MULTIPLIER = 100000.0
 
@@ -49,8 +53,6 @@ class AccessControl:
         """
         This method is used to hash the access token before comparison
         """
-        from hashlib import sha256
-
         return sha256(token.encode()).hexdigest()
 
     @staticmethod
@@ -62,8 +64,6 @@ class AccessControl:
         Returns:
             bool: True if the request is coming from a whitelisted domain and False if not
         """
-        from flask import request
-
         referrer = request.headers.get("Referer")
         if referrer is None:
             return False
@@ -85,8 +85,6 @@ class AccessControl:
         Returns:
             bool: True if the user is authorized and False if not
         """
-        from libmetget.database.tables import AuthTable
-
         if with_whitelist:
             whitelist_authorized = AccessControl.check_whitelisted_domain()
             if whitelist_authorized:
@@ -151,12 +149,6 @@ class AccessControl:
         Returns:
             dict: A dictionary containing the credit limit, credits used, and credit balance
         """
-        from datetime import datetime, timedelta
-
-        from libmetget.database.database import Database
-        from libmetget.database.tables import AuthTable, RequestTable
-        from sqlalchemy import func, or_
-
         with Database() as db, db.session() as session:
             # ...Queries the database for the credit limit for the user
             credit_limit = (

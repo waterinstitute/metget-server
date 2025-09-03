@@ -26,25 +26,44 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
-from datetime import datetime
-from typing import Optional, Union
+import math
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from loguru import logger
+
+from ..database.database import Database
+from ..database.tables import (
+    CoampsTable,
+    CtcxTable,
+    GefsTable,
+    GfsTable,
+    HafsATable,
+    HafsBTable,
+    HrrrAlaskaTable,
+    HrrrTable,
+    HwrfTable,
+    NamTable,
+    NhcBtkTable,
+    NhcFcstTable,
+    RefsTable,
+    RrfsTable,
+    WpcTable,
+)
 
 
 class Metdb:
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializer for the metdb class. The Metdb class will
         generate a database of files
         """
-        from ..database.database import Database
+        self.__database: Database = Database()
+        self.__session: Any = self.__database.session()  # SQLAlchemy session
+        self.__session_objects: List[Any] = []
+        self.__max_uncommitted: int = 100000
 
-        self.__database = Database()
-        self.__session = self.__database.session()
-        self.__session_objects = []
-        self.__max_uncommitted = 100000
-
-    def __del__(self):
+    def __del__(self) -> None:
         """
         Destructor for the metdb class. The destructor will
         close the database connection
@@ -52,7 +71,7 @@ class Metdb:
         self.commit()
         del self.__database
 
-    def commit(self):
+    def commit(self) -> None:
         """
         Commit the database session
         """
@@ -60,24 +79,21 @@ class Metdb:
         self.__session.commit()
         self.__session_objects = []
 
-    def __add_delayed_object(self, orm_object) -> None:
+    def __add_delayed_object(self, orm_object: Any) -> None:
         """
         Add an object to the list of objects to be committed in bulk later
 
         Args:
             orm_object (object): The object to be added to the list of objects to be committed
         """
-        log = logging.getLogger(__name__)
         self.__session_objects.append(orm_object)
         if len(self.__session_objects) >= self.__max_uncommitted:
-            log.info(
-                "Committing {} objects since threshold was reached".format(
-                    len(self.__session_objects)
-                )
+            logger.info(
+                f"Committing {len(self.__session_objects)} objects since threshold was reached"
             )
             self.commit()
 
-    def get_nhc_md5(  # noqa: PLR0913
+    def get_nhc_md5(
         self, mettype: str, year: int, basin: str, storm: str, advisory: int = 0
     ) -> str:
         """
@@ -98,7 +114,8 @@ class Metdb:
         elif mettype == "nhc_fcst":
             return self.get_nhc_fcst_md5(year, basin, storm, advisory)
         else:
-            raise
+            msg = "Invalid NHC type"
+            raise ValueError(msg)
 
     def get_nhc_btk_md5(self, year: int, basin: str, storm: str) -> str:
         """
@@ -112,7 +129,6 @@ class Metdb:
         Returns:
             str: The md5 hash of the nhc btk file
         """
-        from ..database.tables import NhcBtkTable
 
         v = (
             self.__session.query(NhcBtkTable.md5)
@@ -131,7 +147,7 @@ class Metdb:
 
     def get_nhc_fcst_md5(
         self, year: int, basin: str, storm: str, advisory: Optional[int]
-    ) -> Union[str, list]:
+    ) -> Union[str, List[str]]:
         """
         Get the md5 hash for a nhc fcst file
 
@@ -144,7 +160,6 @@ class Metdb:
         Returns:
             str: The md5 hash of the nhc fcst file
         """
-        from ..database.tables import NhcFcstTable
 
         if advisory:
             v = (
@@ -172,14 +187,14 @@ class Metdb:
                 .all()
             )
             if v:
-                md5_list = []
+                md5_list: List[str] = []
                 for md5 in v:
                     md5_list.append(md5[0])
                 return md5_list
             else:
                 return []
 
-    def has(self, datatype: str, metadata: dict) -> bool:  # noqa: PLR0911
+    def has(self, datatype: str, metadata: Dict[str, Any]) -> bool:
         """
         Check if a file exists in the database
 
@@ -187,26 +202,28 @@ class Metdb:
             datatype (str): The type of file to check for
             metadata (dict): The metadata to check for
         """
-        if datatype == "hwrf":
-            return self.__has_hwrf(metadata)
-        elif "hafs" in datatype:
+        # Special case for hafs which can have multiple subtypes
+        if "hafs" in datatype:
             return self.__has_hafs(datatype, metadata)
-        elif datatype == "coamps":
-            return self.__has_coamps(metadata)
-        elif datatype == "ctcx":
-            return self.__has_ctcx(metadata)
-        elif datatype == "nhc_fcst":
-            return self.__has_nhc_fcst(metadata)
-        elif datatype == "nhc_btk":
-            return self.__has_nhc_btk(metadata)
-        elif datatype == "gefs_ncep":
-            return self.__has_gefs(metadata)
-        elif datatype == "refs_ncep":
-            return self.__has_refs(metadata)
+
+        # Mapping of datatype to handler method
+        handlers = {
+            "hwrf": self.__has_hwrf,
+            "coamps": self.__has_coamps,
+            "ctcx": self.__has_ctcx,
+            "nhc_fcst": self.__has_nhc_fcst,
+            "nhc_btk": self.__has_nhc_btk,
+            "gefs_ncep": self.__has_gefs,
+            "refs_ncep": self.__has_refs,
+        }
+
+        handler = handlers.get(datatype)
+        if handler:
+            return handler(metadata)
         else:
             return self.__has_generic(datatype, metadata)
 
-    def __has_hwrf(self, metadata: dict) -> bool:
+    def __has_hwrf(self, metadata: Dict[str, Any]) -> bool:
         """
         Check if a hwrf file exists in the database
 
@@ -216,7 +233,6 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import HwrfTable
 
         cdate = metadata["cycledate"]
         fdate = metadata["forecastdate"]
@@ -234,7 +250,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_hafs(self, datatype: str, metadata: dict):
+    def __has_hafs(self, datatype: str, metadata: Dict[str, Any]) -> bool:
         """
         Check if a hafs file exists in the database
 
@@ -245,7 +261,6 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import HafsATable, HafsBTable
 
         if datatype in ("ncep_hafs_a", "hafs"):
             table = HafsATable
@@ -270,7 +285,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_coamps(self, metadata: dict) -> bool:
+    def __has_coamps(self, metadata: Dict[str, Any]) -> bool:
         """
         Check if a coamps file exists in the database
 
@@ -280,7 +295,6 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import CoampsTable
 
         cdate = metadata["cycledate"]
         fdate = metadata["forecastdate"]
@@ -298,7 +312,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_ctcx(self, metadata: dict) -> bool:
+    def __has_ctcx(self, metadata: Dict[str, Any]) -> bool:
         """
         Check if a ctcx file exists in the database
 
@@ -308,7 +322,6 @@ class Metdb:
         Returns:
             bool: True if the forecast exists in the database, False otherwise
         """
-        from ..database.tables import CtcxTable
 
         cdate = metadata["cycledate"]
         fdate = metadata["forecastdate"]
@@ -328,7 +341,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_nhc_fcst(self, metadata: dict) -> bool:
+    def __has_nhc_fcst(self, metadata: Dict[str, Any]) -> bool:
         """
         Check if a nhc fcst file exists in the database
 
@@ -338,8 +351,6 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import NhcFcstTable
-
         (
             year,
             storm,
@@ -364,7 +375,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_nhc_btk(self, metadata: dict) -> bool:
+    def __has_nhc_btk(self, metadata: Dict[str, Any]) -> bool:
         """
         Check if a nhc btk file exists in the database
 
@@ -374,8 +385,6 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import NhcBtkTable
-
         (
             year,
             storm,
@@ -398,7 +407,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_gefs(self, metadata: dict) -> bool:
+    def __has_gefs(self, metadata: Dict[str, Any]) -> bool:
         """
         Check if a gefs file exists in the database
 
@@ -408,7 +417,6 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import GefsTable
 
         cdate = metadata["cycledate"]
         fdate = metadata["forecastdate"]
@@ -426,7 +434,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_refs(self, metadata: dict) -> bool:
+    def __has_refs(self, metadata: Dict[str, Any]) -> bool:
         """
         Check if a refs file exists in the database
 
@@ -436,7 +444,6 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import RefsTable
 
         cdate = metadata["cycledate"]
         fdate = metadata["forecastdate"]
@@ -454,7 +461,7 @@ class Metdb:
 
         return v is not None
 
-    def __has_generic(self, datatype: str, metadata: dict) -> bool:
+    def __has_generic(self, datatype: str, metadata: Dict[str, Any]) -> bool:
         """
         Check if a generic file exists in the database
 
@@ -465,28 +472,18 @@ class Metdb:
         Returns:
             bool: True if the file exists in the database, False otherwise
         """
-        from ..database.tables import (
-            GfsTable,
-            HrrrAlaskaTable,
-            HrrrTable,
-            NamTable,
-            RrfsTable,
-            WpcTable,
-        )
 
-        if datatype == "gfs_ncep":
-            table = GfsTable
-        elif datatype == "nam_ncep":
-            table = NamTable
-        elif datatype == "wpc_ncep":
-            table = WpcTable
-        elif datatype == "hrrr_ncep":
-            table = HrrrTable
-        elif datatype == "hrrr_alaska_ncep":
-            table = HrrrAlaskaTable
-        elif datatype == "rrfs_ncep":
-            table = RrfsTable
-        else:
+        table_mapping = {
+            "gfs_ncep": GfsTable,
+            "nam_ncep": NamTable,
+            "wpc_ncep": WpcTable,
+            "hrrr_ncep": HrrrTable,
+            "hrrr_alaska_ncep": HrrrAlaskaTable,
+            "rrfs_ncep": RrfsTable,
+        }
+
+        table = table_mapping.get(datatype)
+        if not table:
             raise ValueError("Invalid datatype: " + datatype)
 
         cdate = metadata["cycledate"]
@@ -503,7 +500,7 @@ class Metdb:
 
         return v is not None
 
-    def add(self, metadata: dict, datatype: str, filepath: str) -> int:
+    def add(self, metadata: Dict[str, Any], datatype: str, filepath: str) -> int:
         """
         Adds a file listing to the database
 
@@ -515,28 +512,32 @@ class Metdb:
         Returns:
             1 if the record was added, 0 otherwise
         """
-        if datatype == "hwrf":
-            n_files = self.__add_record_hwrf(filepath, metadata)
-        elif "hafs" in datatype:
-            n_files = self.__add_record_hafs(datatype, filepath, metadata)
-        elif datatype == "coamps":
-            n_files = self.__add_record_coamps(filepath, metadata)
-        elif datatype == "ctcx":
-            n_files = self.__add_record_ctcx(filepath, metadata)
-        elif datatype == "nhc_fcst":
-            n_files = self.__add_record_nhc_fcst(filepath, metadata)
-        elif datatype == "nhc_btk":
-            n_files = self.__add_record_nhc_btk(filepath, metadata)
-        elif datatype == "gefs_ncep":
-            n_files = self.__add_record_gefs_ncep(filepath, metadata)
-        elif datatype == "refs_ncep":
-            n_files = self.__add_record_refs_ncep(filepath, metadata)
+        # Special case for hafs which can have multiple subtypes
+        if "hafs" in datatype:
+            return self.__add_record_hafs(datatype, filepath, metadata)
+
+        # Mapping of datatype to handler method
+        handlers = {
+            "hwrf": lambda: self.__add_record_hwrf(filepath, metadata),
+            "coamps": lambda: self.__add_record_coamps(filepath, metadata),
+            "ctcx": lambda: self.__add_record_ctcx(filepath, metadata),
+            "nhc_fcst": lambda: self.__add_record_nhc_fcst(filepath, metadata),
+            "nhc_btk": lambda: self.__add_record_nhc_btk(filepath, metadata),
+            "gefs_ncep": lambda: self.__add_record_gefs_ncep(filepath, metadata),
+            "refs_ncep": lambda: self.__add_record_refs_ncep(filepath, metadata),
+        }
+
+        handler = handlers.get(datatype)
+        if handler:
+            n_files = handler()
         else:
             n_files = self.__add_record_generic(datatype, filepath, metadata)
 
         return n_files
 
-    def __add_record_generic(self, datatype: str, filepath: str, metadata: dict) -> int:
+    def __add_record_generic(
+        self, datatype: str, filepath: str, metadata: Dict[str, Any]
+    ) -> int:
         """
         Adds a generic file listing to the database (i.e. gfs_ncep)
 
@@ -548,42 +549,27 @@ class Metdb:
         Returns:
             1 if the record was added, 0 otherwise
         """
-        import math
-
-        from ..database.tables import (
-            GfsTable,
-            HrrrAlaskaTable,
-            HrrrTable,
-            NamTable,
-            RrfsTable,
-            WpcTable,
-        )
-
         if self.__has_generic(datatype, metadata):
             return 0
         else:
-            if datatype == "gfs_ncep":
-                table = GfsTable
-            elif datatype == "nam_ncep":
-                table = NamTable
-            elif datatype == "wpc_ncep":
-                table = WpcTable
-            elif datatype == "hrrr_ncep":
-                table = HrrrTable
-            elif datatype == "hrrr_alaska_ncep":
-                table = HrrrAlaskaTable
-            elif datatype == "rrfs_ncep":
-                table = RrfsTable
-            else:
+            table_mapping = {
+                "gfs_ncep": GfsTable,
+                "nam_ncep": NamTable,
+                "wpc_ncep": WpcTable,
+                "hrrr_ncep": HrrrTable,
+                "hrrr_alaska_ncep": HrrrAlaskaTable,
+                "rrfs_ncep": RrfsTable,
+            }
+
+            table = table_mapping.get(datatype)
+            if not table:
                 raise ValueError("Invalid datatype: " + datatype)
 
             cdate = metadata["cycledate"]
             fdate = metadata["forecastdate"]
-            tau = int(
-                math.floor(
-                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
-                    / 3600.0
-                )
+            tau = math.floor(
+                (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                / 3600.0
             )
             url = metadata["grb"]
 
@@ -599,7 +585,7 @@ class Metdb:
 
             return 1
 
-    def __add_record_gefs_ncep(self, filepath: str, metadata: dict) -> int:
+    def __add_record_gefs_ncep(self, filepath: str, metadata: Dict[str, Any]) -> int:
         """
         Adds a GEFS file listing to the database
 
@@ -610,10 +596,6 @@ class Metdb:
         Returns:
             1 if the record was added, 0 otherwise
         """
-        import math
-
-        from ..database.tables import GefsTable
-
         if self.__has_gefs(metadata):
             return 0
         else:
@@ -621,11 +603,9 @@ class Metdb:
             fdate = metadata["forecastdate"]
             member = str(metadata["ensemble_member"])
             url = metadata["grb"]
-            tau = int(
-                math.floor(
-                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
-                    / 3600.0
-                )
+            tau = math.floor(
+                (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                / 3600.0
             )
 
             record = GefsTable(
@@ -641,7 +621,7 @@ class Metdb:
 
             return 1
 
-    def __add_record_refs_ncep(self, filepath: str, metadata: dict) -> int:
+    def __add_record_refs_ncep(self, filepath: str, metadata: Dict[str, Any]) -> int:
         """
         Adds a REFS file listing to the database
 
@@ -652,10 +632,6 @@ class Metdb:
         Returns:
             1 if the record was added, 0 otherwise
         """
-        import math
-
-        from ..database.tables import RefsTable
-
         if self.__has_refs(metadata):
             return 0
         else:
@@ -663,11 +639,9 @@ class Metdb:
             fdate = metadata["forecastdate"]
             member = str(metadata["ensemble_member"])
             url = metadata["grb"]
-            tau = int(
-                math.floor(
-                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
-                    / 3600.0
-                )
+            tau = math.floor(
+                (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                / 3600.0
             )
 
             record = RefsTable(
@@ -683,7 +657,7 @@ class Metdb:
 
             return 1
 
-    def __add_record_nhc_btk(self, filepath: str, metadata: dict) -> int:
+    def __add_record_nhc_btk(self, filepath: str, metadata: Dict[str, Any]) -> int:
         """
         Adds a NHC BTK file listing to the database
 
@@ -694,10 +668,6 @@ class Metdb:
         Returns:
             Always returns 1 since the record is either added or updated
         """
-        from datetime import datetime, timezone
-
-        from ..database.tables import NhcBtkTable
-
         (
             year,
             storm,
@@ -746,7 +716,7 @@ class Metdb:
             self.__session.commit()
         return 1
 
-    def __add_record_nhc_fcst(self, filepath: str, metadata: dict) -> int:
+    def __add_record_nhc_fcst(self, filepath: str, metadata: Dict[str, Any]) -> int:
         """
         Adds a NHC forecast file listing to the database
 
@@ -757,10 +727,6 @@ class Metdb:
         Returns:
             Always returns 1 since the record is either added or updated
         """
-        from datetime import datetime, timezone
-
-        from ..database.tables import NhcFcstTable
-
         (
             year,
             storm,
@@ -810,7 +776,9 @@ class Metdb:
 
         return 1
 
-    def __add_record_hafs(self, datatype: str, filepath: str, metadata: dict) -> int:
+    def __add_record_hafs(
+        self, datatype: str, filepath: str, metadata: Dict[str, Any]
+    ) -> int:
         """
         Adds a HAFS file listing to the database
 
@@ -822,10 +790,6 @@ class Metdb:
         Returns:
             None
         """
-        import math
-
-        from ..database.tables import HafsATable, HafsBTable
-
         if self.__has_hafs(datatype, metadata):
             return 0
         else:
@@ -833,11 +797,9 @@ class Metdb:
             fdate = metadata["forecastdate"]
             url = ",".join(metadata["grb"])
             name = metadata["name"]
-            tau = int(
-                math.floor(
-                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
-                    / 3600.0
-                )
+            tau = math.floor(
+                (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                / 3600.0
             )
 
             if datatype == "ncep_hafs_a":
@@ -868,7 +830,7 @@ class Metdb:
 
             return 1
 
-    def __add_record_hwrf(self, filepath: str, metadata: dict) -> int:
+    def __add_record_hwrf(self, filepath: str, metadata: Dict[str, Any]) -> int:
         """
         Adds a HWRF file listing to the database
 
@@ -879,10 +841,6 @@ class Metdb:
         Returns:
             1 if the file was added, 0 if it was not
         """
-        import math
-
-        from ..database.tables import HwrfTable
-
         if self.__has_hwrf(metadata):
             return 0
         else:
@@ -890,11 +848,9 @@ class Metdb:
             fdate = metadata["forecastdate"]
             url = metadata["grb"]
             name = metadata["name"]
-            tau = int(
-                math.floor(
-                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
-                    / 3600.0
-                )
+            tau = math.floor(
+                (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                / 3600.0
             )
 
             record = HwrfTable(
@@ -911,7 +867,7 @@ class Metdb:
 
             return 1
 
-    def __add_record_coamps(self, filepath: str, metadata: dict) -> int:
+    def __add_record_coamps(self, filepath: str, metadata: Dict[str, Any]) -> int:
         """
         Adds a COAMPS file listing to the database
 
@@ -922,21 +878,15 @@ class Metdb:
         Returns:
             1 if the file was added, 0 if it was not
         """
-        import math
-
-        from ..database.tables import CoampsTable
-
         if self.__has_coamps(metadata):
             return 0
         else:
             cdate = metadata["cycledate"]
             fdate = metadata["forecastdate"]
             name = metadata["name"]
-            tau = int(
-                math.floor(
-                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
-                    / 3600.0
-                )
+            tau = math.floor(
+                (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                / 3600.0
             )
 
             record = CoampsTable(
@@ -951,7 +901,7 @@ class Metdb:
 
             return 1
 
-    def __add_record_ctcx(self, filepath: str, metadata: dict) -> int:
+    def __add_record_ctcx(self, filepath: str, metadata: Dict[str, Any]) -> int:
         """
         Adds a COAMPS CTCX file listing to the database
 
@@ -962,10 +912,6 @@ class Metdb:
         Returns:
             1 if the file was added, 0 if it was not
         """
-        import math
-
-        from ..database.tables import CtcxTable
-
         if self.__has_ctcx(metadata):
             return 0
         else:
@@ -973,11 +919,9 @@ class Metdb:
             fdate = metadata["forecastdate"]
             ensemble_member = metadata["ensemble_member"]
             name = metadata["name"]
-            tau = int(
-                math.floor(
-                    (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
-                    / 3600.0
-                )
+            tau = math.floor(
+                (metadata["forecastdate"] - metadata["cycledate"]).total_seconds()
+                / 3600.0
             )
 
             record = CtcxTable(
@@ -994,7 +938,9 @@ class Metdb:
             return 1
 
     @staticmethod
-    def __generate_nhc_vars_from_dict(metadata: dict) -> tuple:
+    def __generate_nhc_vars_from_dict(
+        metadata: Dict[str, Any],
+    ) -> Tuple[int, str, str, str, str, str, float]:
         """
         Generates the variables needed for the NHC tables from a pair
 

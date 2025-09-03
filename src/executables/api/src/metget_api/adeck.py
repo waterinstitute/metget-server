@@ -29,6 +29,9 @@
 from datetime import datetime
 from typing import Tuple, Union
 
+from libmetget.database.database import Database
+from libmetget.database.tables import NhcAdeck
+
 
 class ADeck:
     """
@@ -82,9 +85,6 @@ class ADeck:
         Returns:
             The response for the ADeck endpoint
         """
-        from libmetget.database.database import Database
-        from libmetget.database.tables import NhcAdeck
-
         with Database() as db, db.session() as session:
             query_results = (
                 session.query(NhcAdeck.model, NhcAdeck.geometry_data)
@@ -129,9 +129,6 @@ class ADeck:
         Returns:
             The response for the ADeck endpoint
         """
-        from libmetget.database.database import Database
-        from libmetget.database.tables import NhcAdeck
-
         with Database() as db, db.session() as session:
             query_results = (
                 session.query(NhcAdeck.geometry_data)
@@ -177,9 +174,6 @@ class ADeck:
         Returns:
             The response for the ADeck endpoint
         """
-        from libmetget.database.database import Database
-        from libmetget.database.tables import NhcAdeck
-
         with Database() as db, db.session() as session:
             query_results = (
                 session.query(NhcAdeck.storm, NhcAdeck.geometry_data)

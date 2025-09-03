@@ -26,13 +26,19 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
-from datetime import datetime
+import os
+import tempfile
+from datetime import datetime, timedelta
 from typing import Tuple, Union
+
+import boto3
+import requests
+from loguru import logger
 
 from ..sources.metfileattributes import MetFileAttributes
 from ..sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
 from .noaadownloader import NoaaDownloader
+from .spyder import Spyder
 
 
 class HafsDownloader(NoaaDownloader):
@@ -72,12 +78,6 @@ class HafsDownloader(NoaaDownloader):
             return self.__download_http()
 
     def __download_s3(self) -> int:
-        from datetime import timedelta
-
-        import boto3
-
-        log = logging.getLogger(__name__)
-
         s3 = boto3.resource("s3")
         client = boto3.client("s3")
         bucket = s3.Bucket(self.big_data_bucket())
@@ -91,7 +91,7 @@ class HafsDownloader(NoaaDownloader):
         n = 0
         for d in date_range:
             if self.verbose():
-                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+                logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
 
             for hr in self.cycles():
                 prefix = (
@@ -169,8 +169,6 @@ class HafsDownloader(NoaaDownloader):
         return True
 
     def __download_http(self) -> int:
-        from .spyder import Spyder
-
         num_download = 0
         s = Spyder(self.address())
         files = []
@@ -205,19 +203,12 @@ class HafsDownloader(NoaaDownloader):
 
         return num_download
 
-    def get_grib_files(  # noqa: PLR0915
+    def get_grib_files(
         self, info: dict, client=None
     ) -> Tuple[Union[list, None], int, int]:
-        import logging
-        import os
-        import tempfile
-
-        import requests
-        from requests.adapters import HTTPAdapter
-
-        logger = logging.getLogger(__name__)
-
-        adapter = HTTPAdapter(max_retries=NoaaDownloader.http_retry_strategy())
+        adapter = requests.adapters.HTTPAdapter(
+            max_retries=NoaaDownloader.http_retry_strategy()
+        )
 
         remote_file_list = []
         n = 0
@@ -298,8 +289,6 @@ class HafsDownloader(NoaaDownloader):
 
     @staticmethod
     def generate_grib_metadata(file_list: list) -> list:
-        from datetime import timedelta
-
         metadata = []
         for f in file_list:
             storm_file = f["storm"].split("/")[-1]

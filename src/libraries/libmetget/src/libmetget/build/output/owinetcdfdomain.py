@@ -26,7 +26,6 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
 from datetime import datetime
 from typing import Any, ClassVar, Dict
 
@@ -39,7 +38,7 @@ from ...sources.variabletype import VariableType
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
 
-logger = logging.getLogger(__name__)
+# Using loguru logger directly
 
 
 class OwiNetcdfDomain(OutputDomain):

@@ -44,8 +44,14 @@ from ..sources.metfiletype import (
     NCEP_REFS,
     NCEP_RRFS,
     NCEP_WPC,
+    attributes_from_service,
 )
 from .files.filelist_base import FilelistBase
+from .files.filelist_generic import FilelistGeneric
+from .files.filelist_generic_ensemble import FilelistGenericEnsemble
+from .files.filelist_nhc import FilelistNHC
+from .files.filelist_storm import FileListStorm
+from .files.filelist_storm_ensemble import FilelistStormEnsemble
 
 
 class Filelist:
@@ -138,17 +144,15 @@ class Filelist:
             msg = f"Missing required arguments: {', '.join(missing_args)}"
             raise ValueError(msg)
 
-        self.__service: Union[str, None] = kwargs.get("service", None)
-        self.__param: Union[str, None] = kwargs.get("param", None)
-        self.__start: Union[datetime, None] = kwargs.get("start", None)
-        self.__end: Union[datetime, None] = kwargs.get("end", None)
-        self.__tau: Union[int, None] = kwargs.get("tau", None)
-        self.__storm: Union[str, None] = kwargs.get("storm", None)
-        self.__nowcast: Union[bool, None] = kwargs.get("nowcast", None)
-        self.__multiple_forecasts: Union[bool, None] = kwargs.get(
-            "multiple_forecasts", None
-        )
-        self.__ensemble_member: Union[str, None] = kwargs.get("ensemble_member", None)
+        self.__service: Union[str, None] = kwargs.get("service")
+        self.__param: Union[str, None] = kwargs.get("param")
+        self.__start: Union[datetime, None] = kwargs.get("start")
+        self.__end: Union[datetime, None] = kwargs.get("end")
+        self.__tau: Union[int, None] = kwargs.get("tau")
+        self.__storm: Union[str, None] = kwargs.get("storm")
+        self.__nowcast: Union[bool, None] = kwargs.get("nowcast")
+        self.__multiple_forecasts: Union[bool, None] = kwargs.get("multiple_forecasts")
+        self.__ensemble_member: Union[str, None] = kwargs.get("ensemble_member")
 
         # Type checking
         if not isinstance(self.__start, datetime):
@@ -189,10 +193,10 @@ class Filelist:
             msg = f"Missing required arguments: {', '.join(missing_args)}"
             raise ValueError(msg)
 
-        self.__storm_year = kwargs.get("storm_year", None)
-        self.__storm = kwargs.get("storm", None)
-        self.__basin = kwargs.get("basin", None)
-        self.__advisory = kwargs.get("advisory", None)
+        self.__storm_year = kwargs.get("storm_year")
+        self.__storm = kwargs.get("storm")
+        self.__basin = kwargs.get("basin")
+        self.__advisory = kwargs.get("advisory")
 
         if not isinstance(self.__storm_year, int) and self.__storm_year is not None:
             msg = "storm_year must be of type int"
@@ -225,13 +229,6 @@ class Filelist:
             FilelistBase: The filelist object that will be used to generate the list of
             files
         """
-        from ..sources.metfiletype import attributes_from_service
-        from .files.filelist_generic import FilelistGeneric
-        from .files.filelist_generic_ensemble import FilelistGenericEnsemble
-        from .files.filelist_nhc import FilelistNHC
-        from .files.filelist_storm import FileListStorm
-        from .files.filelist_storm_ensemble import FilelistStormEnsemble
-
         filelist_obj = None
 
         if self.__service == "nhc":

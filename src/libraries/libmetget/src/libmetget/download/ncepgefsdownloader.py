@@ -27,13 +27,19 @@
 #
 ###################################################################################################
 
+from datetime import datetime, timedelta
+from typing import List, Optional
+
+from loguru import logger
+
 from ..sources.metfiletype import NCEP_GEFS
+from .metdb import Metdb
 from .noaadownloader import NoaaDownloader
 
 
 class NcepGefsdownloader(NoaaDownloader):
-    def __init__(self, begin, end):
-        address = None
+    def __init__(self, begin: datetime, end: datetime) -> None:
+        address: Optional[str] = None
         NoaaDownloader.__init__(
             self,
             NCEP_GEFS.table(),
@@ -52,26 +58,19 @@ class NcepGefsdownloader(NoaaDownloader):
         self.set_cycles(NCEP_GEFS.cycles())
         self.__members = NCEP_GEFS.ensemble_members()
 
-    def members(self) -> list:
+    def members(self) -> List[str]:
         return self.__members
 
     @staticmethod
-    def _generate_prefix(date, hour) -> str:
+    def _generate_prefix(date: datetime, hour: int) -> str:
         return "gefs." + date.strftime("%Y%m%d") + f"/{hour:02d}/atmos/pgrb2sp25/g"
 
     @staticmethod
-    def _filename_to_hour(filename) -> int:
+    def _filename_to_hour(filename: str) -> int:
         return int(filename[-3:])
 
     # ...In the case of GEFS, we need to reimplement this function because we have to deal with ensemble members
-    def _download_aws_big_data(self):
-        import logging
-        from datetime import datetime, timedelta
-
-        from .metdb import Metdb
-
-        log = logging.getLogger(__name__)
-
+    def _download_aws_big_data(self) -> int:
         begin = datetime(
             self.begin_date().year,
             self.begin_date().month,
@@ -88,7 +87,7 @@ class NcepGefsdownloader(NoaaDownloader):
         pairs = []
         for d in date_range:
             if self.verbose():
-                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+                logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
 
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)

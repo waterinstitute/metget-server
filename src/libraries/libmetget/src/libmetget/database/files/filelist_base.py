@@ -27,11 +27,13 @@
 #
 ###################################################################################################
 
-import logging
 from datetime import datetime
 from typing import List, NoReturn, Union
 
+from loguru import logger
+
 from ...sources.metdatatype import MetDataType
+from ...sources.metfiletype import attributes_from_service
 from ...sources.variabletype import VariableType
 from ..tables import TableBase
 
@@ -68,16 +70,14 @@ class FilelistBase:
             msg = f"Missing required arguments: {', '.join(missing_args)}"
             raise ValueError(msg)
 
-        self.__table: TableBase = kwargs.get("table", None)
-        self.__service: Union[str, None] = kwargs.get("service", None)
-        self.__param: Union[str, None] = kwargs.get("param", None)
-        self.__start: Union[datetime, None] = kwargs.get("start", None)
-        self.__end: Union[datetime, None] = kwargs.get("end", None)
-        self.__tau: Union[int, None] = kwargs.get("tau", None)
-        self.__nowcast: Union[bool, None] = kwargs.get("nowcast", None)
-        self.__multiple_forecasts: Union[bool, None] = kwargs.get(
-            "multiple_forecasts", None
-        )
+        self.__table: TableBase = kwargs.get("table")
+        self.__service: Union[str, None] = kwargs.get("service")
+        self.__param: Union[str, None] = kwargs.get("param")
+        self.__start: Union[datetime, None] = kwargs.get("start")
+        self.__end: Union[datetime, None] = kwargs.get("end")
+        self.__tau: Union[int, None] = kwargs.get("tau")
+        self.__nowcast: Union[bool, None] = kwargs.get("nowcast")
+        self.__multiple_forecasts: Union[bool, None] = kwargs.get("multiple_forecasts")
 
         self.__error = []
         self.__valid = False
@@ -152,10 +152,6 @@ class FilelistBase:
         Returns:
             int: The updated forecast skip time
         """
-        from ...sources.metfiletype import attributes_from_service
-
-        log = logging.getLogger(__name__)
-
         if service == "nhc":
             return tau
 
@@ -173,7 +169,7 @@ class FilelistBase:
         if (accumulated and tau == 0 and accumulation_time is None) or (
             skip_0 and tau == 0
         ):
-            log.warning("Accumulated parameter and tau is 0, setting tau to 1")
+            logger.warning("Accumulated parameter and tau is 0, setting tau to 1")
             tau = 1
 
         return tau

@@ -51,16 +51,19 @@ class OutputTypes(Enum):
         Returns:
             OutputTypes: The output type.
         """
-        if s in ("ascii", "owi-ascii", "adcirc-ascii"):
-            return OutputTypes.OWI_ASCII
-        elif s in ("owi-netcdf", "adcirc-netcdf"):
-            return OutputTypes.OWI_NETCDF
-        elif s in ("hec-netcdf", "cf-netcdf", "netcdf"):
-            return OutputTypes.CF_NETCDF
-        elif s == "delft3d":
-            return OutputTypes.DELFT_ASCII
-        elif s == "raw":
-            return OutputTypes.RAW
-        else:
+        mapping = {
+            "ascii": OutputTypes.OWI_ASCII,
+            "owi-ascii": OutputTypes.OWI_ASCII,
+            "adcirc-ascii": OutputTypes.OWI_ASCII,
+            "owi-netcdf": OutputTypes.OWI_NETCDF,
+            "adcirc-netcdf": OutputTypes.OWI_NETCDF,
+            "hec-netcdf": OutputTypes.CF_NETCDF,
+            "cf-netcdf": OutputTypes.CF_NETCDF,
+            "netcdf": OutputTypes.CF_NETCDF,
+            "delft3d": OutputTypes.DELFT_ASCII,
+            "raw": OutputTypes.RAW,
+        }
+        if s not in mapping:
             msg = f"Invalid output type: {s:s}"
             raise ValueError(msg)
+        return mapping[s]

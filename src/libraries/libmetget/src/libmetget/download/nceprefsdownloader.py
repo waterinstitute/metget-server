@@ -27,19 +27,20 @@
 #
 ###################################################################################################
 
-import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Optional
+
+from loguru import logger
 
 from ..sources.metfiletype import NCEP_REFS
+from .metdb import Metdb
 from .noaadownloader import NoaaDownloader
-
-log = logging.getLogger(__name__)
 
 
 class NcepRefsDownloader(NoaaDownloader):
-    def __init__(self, begin: datetime, end: datetime):
-        address = None
+    def __init__(self, begin: datetime, end: datetime) -> None:
+        address: Optional[str] = None
         NoaaDownloader.__init__(
             self,
             NCEP_REFS.table(),
@@ -76,11 +77,7 @@ class NcepRefsDownloader(NoaaDownloader):
         return int(filename[-12:-9])
 
     # ...In the case of REFS, we need to reimplement this function because we have to deal with ensemble members
-    def _download_aws_big_data(self):
-        from datetime import datetime, timedelta
-
-        from .metdb import Metdb
-
+    def _download_aws_big_data(self) -> int:
         begin = datetime(
             self.begin_date().year,
             self.begin_date().month,
@@ -97,7 +94,7 @@ class NcepRefsDownloader(NoaaDownloader):
         pairs = []
         for d in date_range:
             if self.verbose():
-                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+                logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
 
             for h in self.cycles():
                 for member in self.members():

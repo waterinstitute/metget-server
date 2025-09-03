@@ -27,7 +27,6 @@
 #
 ###################################################################################################
 import io
-import logging
 import os
 import subprocess
 from datetime import datetime
@@ -36,11 +35,10 @@ from typing import List, TextIO, Union
 import numpy as np
 import xarray as xr
 
+from ...sources.metdatatype import MetDataType
 from ...sources.variabletype import VariableType
 from .outputdomain import OutputDomain
 from .outputgrid import OutputGrid
-
-logger = logging.getLogger(__name__)
 
 
 class OwiAsciiDomain(OutputDomain):
@@ -181,16 +179,7 @@ class OwiAsciiDomain(OutputDomain):
 
         header = (
             "Oceanweather WIN/PRE Format                           "
-            " {:04d}{:02d}{:02d}{:02d}     {:04d}{:02d}{:02d}{:02d}\n".format(
-                self.start_date().year,
-                self.start_date().month,
-                self.start_date().day,
-                self.start_date().hour,
-                self.end_date().year,
-                self.end_date().month,
-                self.end_date().day,
-                self.end_date().hour,
-            )
+            f" {self.start_date().year:04d}{self.start_date().month:02d}{self.start_date().day:02d}{self.start_date().hour:02d}     {self.end_date().year:04d}{self.end_date().month:02d}{self.end_date().day:02d}{self.end_date().hour:02d}\n"
         )
         if isinstance(self.fid(), (TextIO, io.TextIOWrapper)):
             self.fid().write(header)
@@ -231,20 +220,8 @@ class OwiAsciiDomain(OutputDomain):
         lon_string = OwiAsciiDomain.__format_header_coordinates(grid.x_lower_left())
         lat_string = OwiAsciiDomain.__format_header_coordinates(grid.y_lower_left())
         return (
-            "iLat={:4d}iLong={:4d}DX={:6.4f}DY={:6.4f}SWLat={:8s}SWLon={:8s}DT="
-            "{:04d}{:02d}{:02d}{:02d}{:02d}\n"
-        ).format(
-            grid.ni(),
-            grid.nj(),
-            grid.y_resolution(),
-            grid.x_resolution(),
-            lat_string,
-            lon_string,
-            date.year,
-            date.month,
-            date.day,
-            date.hour,
-            date.minute,
+            f"iLat={grid.ni():4d}iLong={grid.nj():4d}DX={grid.y_resolution():6.4f}DY={grid.x_resolution():6.4f}SWLat={lat_string:8s}SWLon={lon_string:8s}DT="
+            f"{date.year:04d}{date.month:02d}{date.day:02d}{date.hour:02d}{date.minute:02d}\n"
         )
 
     def __write_record(self, fid: TextIO, values: np.ndarray):
@@ -313,8 +290,6 @@ class OwiAsciiDomain(OutputDomain):
         Returns:
             None
         """
-        from ...sources.metdatatype import MetDataType
-
         if not self.__is_open:
             msg = "The file must be open before writing the record"
             raise ValueError(msg)

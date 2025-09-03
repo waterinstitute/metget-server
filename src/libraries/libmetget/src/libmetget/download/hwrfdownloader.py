@@ -27,12 +27,17 @@
 #
 ###################################################################################################
 
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+
 from ..sources.metfiletype import NCEP_HWRF
+from .metdb import Metdb
 from .noaadownloader import NoaaDownloader
+from .spyder import Spyder
 
 
 class HwrfDownloader(NoaaDownloader):
-    def __init__(self, begin, end):
+    def __init__(self, begin: datetime, end: datetime) -> None:
         address = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hwrf/prod/"
         NoaaDownloader.__init__(
             self, NCEP_HWRF.table(), NCEP_HWRF.name(), address, begin, end
@@ -43,10 +48,7 @@ class HwrfDownloader(NoaaDownloader):
                 NCEP_HWRF.variables()[v]["long_name"], NCEP_HWRF.variables()[v]["name"]
             )
 
-    def download(self):
-        from .metdb import Metdb
-        from .spyder import Spyder
-
+    def download(self) -> int:
         num_download = 0
         s = Spyder(self.address())
         db = Metdb()
@@ -72,9 +74,7 @@ class HwrfDownloader(NoaaDownloader):
         return num_download
 
     @staticmethod
-    def generateGrbInvPairs(glist):
-        from datetime import datetime, timedelta
-
+    def generateGrbInvPairs(glist: List[str]) -> List[Dict[str, Any]]:
         pairs = []
         for i in range(len(glist)):
             v2 = glist[i].rsplit("/", 1)[-1]
