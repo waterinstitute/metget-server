@@ -3,6 +3,8 @@ Test script for libtri triangulation library.
 Generates points, triangulates with a boundary constraint, and visualizes the result.
 """
 
+import time
+
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 import numpy as np
@@ -178,7 +180,6 @@ def test_vector_interpolation(triangulation, points_x, points_y):
 
     # Test 3: Performance comparison
     print("\nTest 3: Performance comparison (1000 points)")
-    import time
 
     # Generate random test points
     n_test = 1000
@@ -200,7 +201,7 @@ def test_vector_interpolation(triangulation, points_x, points_y):
 
     print(f"  Single-point method (estimated): {single_time:.3f} seconds")
     print(f"  Vector method: {vector_time:.3f} seconds")
-    print(f"  Speedup: {single_time/vector_time:.1f}x")
+    print(f"  Speedup: {single_time / vector_time:.1f}x")
 
     # Test 4: Different input types
     print("\nTest 4: Different input types")

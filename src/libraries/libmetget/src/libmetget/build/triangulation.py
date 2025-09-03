@@ -28,14 +28,12 @@
 ###################################################################################################
 from __future__ import annotations
 
-import logging
 import time
 
 import numpy as np
 from libtri import PyTriangulation
+from loguru import logger
 from pyproj import CRS, Transformer
-
-log = logging.getLogger(__name__)
 
 
 class Triangulation:
@@ -84,7 +82,7 @@ class Triangulation:
         Returns:
             PyTriangulation: The generated triangulation.
         """
-        log.info("Begin generating triangulation")
+        logger.info("Begin generating triangulation")
 
         tick = time.time()
         points_stereo = np.array(
@@ -100,7 +98,7 @@ class Triangulation:
         )
 
         tock = time.time()
-        log.info(f"Triangulation created in {tock - tick:.2f} seconds")
+        logger.info(f"Triangulation created in {tock - tick:.2f} seconds")
 
         return self.__triangulation
 
@@ -142,7 +140,7 @@ class Triangulation:
             np.array: The interpolated values.
         """
         if self.__interpolation_indexes is None or self.__interpolation_weights is None:
-            log.info("No interpolation weights found")
+            logger.info("No interpolation weights found")
             self.__compute_interpolation_weights(x_points, y_points)
 
         return self.__interpolate_values(z_points)
@@ -186,7 +184,7 @@ class Triangulation:
         Returns:
             np.array: The interpolation weights.
         """
-        log.info("Computing interpolation weights")
+        logger.info("Computing interpolation weights")
         tick = time.time()
 
         if x_points.shape != y_points.shape:
@@ -212,4 +210,4 @@ class Triangulation:
         self.__interpolation_mask = np.all(self.__interpolation_indexes >= 0, axis=2)
 
         tock = time.time()
-        log.info(f"Interpolation weights computed in {tock - tick:.2f} seconds")
+        logger.info(f"Interpolation weights computed in {tock - tick:.2f} seconds")
