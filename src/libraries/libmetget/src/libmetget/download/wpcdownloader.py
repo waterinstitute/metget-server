@@ -40,7 +40,7 @@ from .s3file import S3file
 
 
 class WpcDownloader:
-    def __init__(self, start_time: datetime, end_time: datetime):
+    def __init__(self, start_time: datetime, end_time: datetime) -> None:
         self.__start_time = start_time
         self.__end_time = end_time
 
@@ -160,7 +160,7 @@ class WpcDownloader:
     @staticmethod
     def __initialize_ftp(ftp_address: str, ftp_folder: str) -> Optional[FTP]:
         """
-        Initialize an FTP connection to the WPC FTP server
+        Initialize an FTP connection to the WPC FTP server.
 
         Args:
             ftp_address (str): The address of the FTP server
@@ -168,6 +168,7 @@ class WpcDownloader:
 
         Returns:
             FTP: An FTP object connected to the server
+
         """
         try:
             ftp = FTP(ftp_address, timeout=10)

@@ -27,6 +27,8 @@
 #
 ###################################################################################################
 
+from typing import Any
+
 from ..database.tables import TableBase
 from .metdatatype import MetDataType
 from .metfileformat import MetFileFormat
@@ -39,7 +41,7 @@ class MetFileAttributes:
     grib, netcdf, etc.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
         Constructor for the MetFileAttributes class.
 
@@ -54,6 +56,7 @@ class MetFileAttributes:
 
         Returns:
             None
+
         """
         required_args = [
             "name",
@@ -102,25 +105,28 @@ class MetFileAttributes:
 
         Returns:
             str: The name of the meteorological file.
+
         """
         return self.__name
 
     def table(self) -> str:
         """
         Get the table name of the meteorological file for where it is
-        stored inside MetGet's database
+        stored inside MetGet's database.
 
         Returns:
             str: The table name of the meteorological file.
+
         """
         return self.__table
 
     def table_obj(self) -> TableBase:
         """
-        Returns the table object
+        Returns the table object.
 
         Returns:
             TableBase: The table object
+
         """
         return self.__table_obj
 
@@ -137,6 +143,7 @@ class MetFileAttributes:
 
         Returns:
             dict: The variables in the meteorological file.
+
         """
         return self.__variables
 
@@ -146,6 +153,7 @@ class MetFileAttributes:
 
         Returns:
             dict: The variable in the meteorological file.
+
         """
         if t not in self.__variables:
             raise ValueError("Invalid variable type for this format: " + str(t))
@@ -153,29 +161,32 @@ class MetFileAttributes:
 
     def selected_variables(self, data_type: VariableType) -> list:
         """
-        Get the list of variables selected for the type of meteorological data
+        Get the list of variables selected for the type of meteorological data.
 
         Returns:
             list: The list of variables selected for the type of meteorological data
+
         """
         candidates = data_type.select()
         return [v for v in candidates if v in self.__variables]
 
     def cycles(self) -> list:
         """
-        Get the list of cycles expected for the type of meteorological data
+        Get the list of cycles expected for the type of meteorological data.
 
         Returns:
             list: The list of cycles expected for the type of meteorological data
+
         """
         return self.__cycles
 
     def ensemble_members(self) -> list:
         """
-        Get the list of ensemble members expected for the type of meteorological data
+        Get the list of ensemble members expected for the type of meteorological data.
 
         Returns:
             list: The list of ensemble members expected for the type of meteorological data
+
         """
         return self.__ensemble_members
 
@@ -185,5 +196,6 @@ class MetFileAttributes:
 
         Returns:
             MetFileFormat: The type of meteorological file.
+
         """
         return self.__file_format

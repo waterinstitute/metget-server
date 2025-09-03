@@ -30,7 +30,7 @@ import io
 import os
 import subprocess
 from datetime import datetime
-from typing import List, TextIO, Union
+from typing import Any, List, TextIO, Union
 
 import numpy as np
 import xarray as xr
@@ -46,7 +46,7 @@ class OwiAsciiDomain(OutputDomain):
     A class to represent an OWI ASCII output domain and write it to a file.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
         Construct an OWI ASCII output domain.
 
@@ -60,6 +60,7 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             None
+
         """
         required_args = ["grid_obj", "start_date", "end_date", "time_step", "filename"]
         missing_args = [arg for arg in required_args if arg not in kwargs]
@@ -111,6 +112,7 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             None
+
         """
         if isinstance(self.__filename, str):
             fid = open(self.__filename, "w")  # noqa: SIM115
@@ -133,6 +135,7 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             None
+
         """
         if self.fid() is None:
             return
@@ -162,6 +165,7 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             str: The filename of the meteorological output domain.
+
         """
         return self.__filename
 
@@ -171,8 +175,8 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             None
-        """
 
+        """
         if not self.__is_open:
             msg = "The file must be open before writing the header"
             raise ValueError(msg)
@@ -197,18 +201,18 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             str: The formatted value.
+
         """
         if value <= -100.0:
             return f"{value:8.3f}"
-        elif value < 0.0 or value >= 100.0:
+        if value < 0.0 or value >= 100.0:
             return f"{value:8.4f}"
-        else:
-            return f"{value:8.5f}"
+        return f"{value:8.5f}"
 
     @staticmethod
     def __generate_record_header(date: datetime, grid: OutputGrid) -> str:
         """
-        Generate the record header
+        Generate the record header.
 
         Args:
             date (datetime): The date of the record.
@@ -216,6 +220,7 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             str: The record header.
+
         """
         lon_string = OwiAsciiDomain.__format_header_coordinates(grid.x_lower_left())
         lat_string = OwiAsciiDomain.__format_header_coordinates(grid.y_lower_left())
@@ -224,7 +229,7 @@ class OwiAsciiDomain(OutputDomain):
             f"{date.year:04d}{date.month:02d}{date.day:02d}{date.hour:02d}{date.minute:02d}\n"
         )
 
-    def __write_record(self, fid: TextIO, values: np.ndarray):
+    def __write_record(self, fid: TextIO, values: np.ndarray) -> None:
         """
         Write the record to the file in OWI ASCII format (4 decimal places and 8 records per line).
         The array is padded to ensure that each line has exactly 8 values, but only the original values
@@ -236,8 +241,8 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             None
-        """
 
+        """
         if not self.__is_open:
             msg = "The file must be open before writing the record"
             raise ValueError(msg)
@@ -278,7 +283,9 @@ class OwiAsciiDomain(OutputDomain):
                     fid.write(f"{value:10.4f}")
             fid.write("\n")
 
-    def write(self, data: xr.Dataset, variable_type: VariableType, **kwargs) -> None:
+    def write(
+        self, data: xr.Dataset, variable_type: VariableType, **kwargs: Any
+    ) -> None:
         """
         Write the meteorological output domain.
 
@@ -289,6 +296,7 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             None
+
         """
         if not self.__is_open:
             msg = "The file must be open before writing the record"
@@ -305,10 +313,7 @@ class OwiAsciiDomain(OutputDomain):
             raise TypeError(msg)
 
         if isinstance(self.fid(), (TextIO, io.TextIOWrapper)):
-            if isinstance(self.fid(), list):
-                fid = self.fid()[0]
-            else:
-                fid = self.fid()
+            fid = self.fid()[0] if isinstance(self.fid(), list) else self.fid()
 
             fid.write(OwiAsciiDomain.__generate_record_header(time, self.grid_obj()))
             self.__write_record(fid, data[str(keys[0])].to_numpy())
@@ -340,6 +345,7 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             bool: The compression flag of the meteorological output domain.
+
         """
         return self.__compression
 
@@ -366,14 +372,12 @@ class OwiAsciiDomain(OutputDomain):
 
         Returns:
             None
+
         """
         temp_filename = f"{filename}.uncompressed"
         os.rename(filename, temp_filename)
 
-        if filename.endswith(".gz"):
-            out_filename = filename
-        else:
-            out_filename = f"{filename}.gz"
+        out_filename = filename if filename.endswith(".gz") else f"{filename}.gz"
 
         subprocess.run(["gzip", temp_filename], check=True)
         os.rename(f"{temp_filename}.gz", out_filename)

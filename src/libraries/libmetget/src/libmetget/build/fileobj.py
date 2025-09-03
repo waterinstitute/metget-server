@@ -6,7 +6,7 @@ from ..sources.metfileattributes import MetFileAttributes
 
 class FileObj:
     """
-    Class representing a file object which is passed to the data interpolation engine
+    Class representing a file object which is passed to the data interpolation engine.
     """
 
     def __init__(
@@ -14,9 +14,9 @@ class FileObj:
         filename: Union[str, list[str]],
         file_type: Union[MetFileAttributes, list[MetFileAttributes]],
         time: datetime,
-    ):
+    ) -> None:
         """
-        Constructor
+        Constructor.
 
         Args:
             filename (str): The filename of the file
@@ -25,6 +25,7 @@ class FileObj:
 
         Returns:
             None
+
         """
         if isinstance(filename, list):
             self.__filename = filename
@@ -50,27 +51,30 @@ class FileObj:
 
     def file(self, index: int) -> Tuple[str, MetFileAttributes]:
         """
-        Get the filename of the file
+        Get the filename of the file.
 
         Returns:
             str: The filename of the file
+
         """
         return self.__filename[index], self.__file_type[index]
 
     def files(self) -> List[Tuple[str, MetFileAttributes]]:
         """
-        Get the filename of the file
+        Get the filename of the file.
 
         Returns:
             str: The filename of the file
+
         """
         return list(zip(self.__filename, self.__file_type))
 
     def time(self) -> datetime:
         """
-        Get the time of the file
+        Get the time of the file.
 
         Returns:
             datetime: The time of the file
+
         """
         return self.__time

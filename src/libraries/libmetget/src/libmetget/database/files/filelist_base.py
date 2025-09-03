@@ -28,7 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime
-from typing import List, NoReturn, Union
+from typing import Any, List, NoReturn, Union
 
 from loguru import logger
 
@@ -39,9 +39,9 @@ from ..tables import TableBase
 
 
 class FilelistBase:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
-        Constructor for the Filelist class
+        Constructor for the Filelist class.
 
         Args:
             table (TableBase): The table to query
@@ -53,6 +53,7 @@ class FilelistBase:
             nowcast (bool): Whether this is a nowcast
             multiple_forecasts (bool): Whether multiple forecasts are being requested
             ensemble_member (str): The ensemble member that is being requested
+
         """
         required_args = [
             "table",
@@ -108,31 +109,32 @@ class FilelistBase:
 
     def table(self) -> TableBase:
         """
-        Returns the table for the current forcing
+        Returns the table for the current forcing.
 
         Returns:
             TableBase: The current table
+
         """
         return self.__table
 
     def query_files(self) -> Union[list, dict, None]:
         """
-        Returns the list of selected files
+        Returns the list of selected files.
         """
         if self.__nowcast:
             return self._query_nowcast()
-        elif self.__multiple_forecasts:
+        if self.__multiple_forecasts:
             return self._query_multiple_forecasts()
-        else:
-            return self._query_single_forecast()
+        return self._query_single_forecast()
 
     def files(self) -> list:
         """
         This method is used to return the list of files that will be used to generate
-        the requested forcing data
+        the requested forcing data.
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
+
         """
         if self.__files is None:
             self.__files = self.query_files()
@@ -142,7 +144,7 @@ class FilelistBase:
     def check_tau_parameter(tau: int, service: str, param: str) -> int:
         """
         This method is used to check if the tau parameter needs to be updated
-        because the parameter is an accumulated parameter and tau is 0
+        because the parameter is an accumulated parameter and tau is 0.
 
         Args:
             tau (int): The forecast lead time
@@ -151,6 +153,7 @@ class FilelistBase:
 
         Returns:
             int: The updated forecast skip time
+
         """
         if service == "nhc":
             return tau
@@ -175,22 +178,23 @@ class FilelistBase:
         return tau
 
     @staticmethod
-    def __get_variable_type(parameter) -> List[MetDataType]:
+    def __get_variable_type(parameter: str) -> List[MetDataType]:
         """
-        This method is used to get the variable type of the parameter
+        This method is used to get the variable type of the parameter.
 
         Args:
             parameter (str): The parameter to get the variable type for
 
         Returns:
             VariableType: The variable type of the parameter
+
         """
         return VariableType.from_string(parameter).select()
 
     @staticmethod
     def _rows2dicts(data: list) -> list:
         """
-        This method is used to convert a list of rows to a list of dictionaries
+        This method is used to convert a list of rows to a list of dictionaries.
 
         Args:
             data (list): The rows to convert
@@ -205,7 +209,7 @@ class FilelistBase:
     def _result_contains_time(data: list, key: str, time: datetime) -> bool:
         """
         This method is used to check if a list of dictionaries contains a specific
-        time
+        time.
 
         Args:
             data (list): The list of dictionaries to check
@@ -214,6 +218,7 @@ class FilelistBase:
 
         Returns:
             bool: True if the time is found, False otherwise
+
         """
         return any(row[key] == time for row in data)
 
@@ -221,7 +226,7 @@ class FilelistBase:
     def _merge_tau_excluded_data(data_single: list, data_tau: list) -> list:
         """
         This method is used to merge the data from the single forecast time query
-        with the data from the tau excluded query
+        with the data from the tau excluded query.
 
         Args:
             data_single (list): The data from the single forecast time query
@@ -229,6 +234,7 @@ class FilelistBase:
 
         Returns:
             list: The merged data
+
         """
         for row in data_tau:
             if not FilelistBase._result_contains_time(
@@ -245,6 +251,7 @@ class FilelistBase:
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
+
         """
         msg = "Subclasses must implement _query_nowcast"
         raise NotImplementedError(msg)
@@ -256,6 +263,7 @@ class FilelistBase:
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
+
         """
         msg = "Subclasses must implement _query_multiple_forecasts"
         raise NotImplementedError(msg)
@@ -267,87 +275,97 @@ class FilelistBase:
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
+
         """
         msg = "Subclasses must implement _query_single_forecast"
         raise NotImplementedError(msg)
 
     def service(self) -> str:
         """
-        Returns the service used to generate the domain
+        Returns the service used to generate the domain.
 
         Returns:
             The service used to generate the domain
+
         """
         return self.__service
 
     def param(self) -> str:
         """
-        Returns the parameter used to generate the domain
+        Returns the parameter used to generate the domain.
 
         Returns:
             The parameter used to generate the domain
+
         """
         return self.__param
 
     def start(self) -> datetime:
         """
-        Returns the start time for the domain
+        Returns the start time for the domain.
 
         Returns:
             The start time for the domain
+
         """
         return self.__start
 
     def end(self) -> datetime:
         """
-        Returns the end time for the domain
+        Returns the end time for the domain.
 
         Returns:
             The end time for the domain
+
         """
         return self.__end
 
     def tau(self) -> int:
         """
-        Returns the forecast lead time
+        Returns the forecast lead time.
 
         Returns:
             The forecast lead time
+
         """
         return self.__tau
 
     def nowcast(self) -> bool:
         """
-        Returns whether this is a nowcast
+        Returns whether this is a nowcast.
 
         Returns:
             True if this is a nowcast, False otherwise
+
         """
         return self.__nowcast
 
     def multiple_forecasts(self) -> bool:
         """
-        Returns whether multiple forecasts are being requested
+        Returns whether multiple forecasts are being requested.
 
         Returns:
             True if multiple forecasts are being requested, False otherwise
+
         """
         return self.__multiple_forecasts
 
     def valid(self) -> bool:
         """
-        Returns whether the domain is valid
+        Returns whether the domain is valid.
 
         Returns:
             True if the domain is valid, False otherwise
+
         """
         return self.__valid
 
     def error(self) -> List[str]:
         """
-        Returns the error messages
+        Returns the error messages.
 
         Returns:
             The error messages
+
         """
         return self.__error

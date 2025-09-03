@@ -39,16 +39,17 @@ from loguru import logger
 class S3GribIO:
     """
     Class which handles the download of specific chunks
-    of grib data from s3 resources
+    of grib data from s3 resources.
     """
 
-    def __init__(self, s3_bucket: str, variable_dict: dict):
+    def __init__(self, s3_bucket: str, variable_dict: dict) -> None:
         """
-        Constructor
+        Constructor.
 
         Args:
             s3_bucket (str): The s3 bucket to download from
             variable_dict (dict): The list of variables to download
+
         """
         self.__s3_bucket = s3_bucket
         self.__variable_dict = variable_dict
@@ -58,19 +59,21 @@ class S3GribIO:
 
     def s3_bucket(self) -> str:
         """
-        Returns the s3 bucket
+        Returns the s3 bucket.
 
         Returns:
             str: The s3 bucket
+
         """
         return self.__s3_bucket
 
     def variable_dict(self) -> Dict:
         """
-        Returns the variable dictionary
+        Returns the variable dictionary.
 
         Returns:
             dict: The variable list
+
         """
         return self.__variable_dict
 
@@ -78,19 +81,20 @@ class S3GribIO:
     def __parse_path(path: str) -> Tuple[str, str]:
         """
         Parses the s3://bucket/path/to/file formatted
-        path into the name of the bucket and the file path
+        path into the name of the bucket and the file path.
 
         Args:
             path (str): The path to parse
 
         Returns:
             Tuple containing the bucket name and the file path
+
         """
         result = urlparse(path)
         return result.netloc, result.path.lstrip("/")
 
     def __try_get_object(
-        self, key: str, byte_range: Optional[str] = None, allow_fail=True
+        self, key: str, byte_range: Optional[str] = None, allow_fail: bool = True
     ) -> Union[None, dict]:
         """
         Try to get an object from a s3 bucket. If the object does not exist, wait 5 seconds and try again.
@@ -102,6 +106,7 @@ class S3GribIO:
 
         Returns:
             The object from the bucket
+
         """
         max_tries = 5
         sleep_interval = 5
@@ -113,20 +118,16 @@ class S3GribIO:
                     return self.__s3_client.get_object(
                         Bucket=self.__s3_bucket, Key=key, Range=byte_range
                     )
-                else:
-                    return self.__s3_client.get_object(Bucket=self.__s3_bucket, Key=key)
+                return self.__s3_client.get_object(Bucket=self.__s3_bucket, Key=key)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "NoSuchKey":
                     if allow_fail:
                         return None
-                    else:
-                        tries += 1
-                        sleep(sleep_interval)
-                        if tries > max_tries:
-                            msg = (
-                                f"Could not find key {key} in bucket {self.__s3_bucket}"
-                            )
-                            raise RuntimeError(msg) from e
+                    tries += 1
+                    sleep(sleep_interval)
+                    if tries > max_tries:
+                        msg = f"Could not find key {key} in bucket {self.__s3_bucket}"
+                        raise RuntimeError(msg) from e
                 else:
                     raise e
 
@@ -135,7 +136,7 @@ class S3GribIO:
         inventory_data: list, variable: dict
     ) -> Union[dict, None]:
         """
-        Gets the byte list for the variable from the inventory data
+        Gets the byte list for the variable from the inventory data.
 
         Args:
             inventory_data (list): The inventory data
@@ -143,6 +144,7 @@ class S3GribIO:
 
         Returns:
             dict: The byte list for the variable
+
         """
         for i in range(len(inventory_data)):
             if variable["long_name"] in inventory_data[i]:
@@ -156,15 +158,15 @@ class S3GribIO:
 
     def __get_grib_inventory(self, s3_file: str) -> Union[None, list]:
         """
-        Gets the inventory for the grib file
+        Gets the inventory for the grib file.
 
         Args:
             s3_file (str): The s3 file to get the inventory for
 
         Returns:
             list: The inventory for the grib file
-        """
 
+        """
         # Get the inventory object. Sometimes, the inventory object does not exist
         # so, we need to allow the function to fail gracefully. This alerts the
         # calling function, and it will instead download the full file without
@@ -173,37 +175,35 @@ class S3GribIO:
 
         if inv_obj is None:
             return None
-        else:
-            inv_data_tmp = str(inv_obj["Body"].read().decode("utf-8")).split("\n")
-            inv_data = []
-            for line in inv_data_tmp:
-                if line != "":
-                    inv_data.append(line)
-            byte_list = []
-            for v in self.__variable_dict:
-                byte_list.append(
-                    S3GribIO.__get_inventory_byte_list(
-                        inv_data, self.__variable_dict[v]
-                    )
-                )
+        inv_data_tmp = str(inv_obj["Body"].read().decode("utf-8")).split("\n")
+        inv_data = []
+        for line in inv_data_tmp:
+            if line != "":
+                inv_data.append(line)
+        byte_list = []
+        for v in self.__variable_dict:
+            byte_list.append(
+                S3GribIO.__get_inventory_byte_list(inv_data, self.__variable_dict[v])
+            )
 
-            return byte_list
+        return byte_list
 
     @staticmethod
     def __get_variable_candidates(variable_type: str) -> Union[dict, None]:
         """
-        Get the candidate variables for the variable type
+        Get the candidate variables for the variable type.
 
         Args:
             variable_type (str): The variable type to get the candidates for
 
         Returns:
             list: The candidate variables
+
         """
         length = 1
         if variable_type == "all":
             return None
-        elif variable_type == "wind_pressure":
+        if variable_type == "wind_pressure":
             candidate_variables = ["uvel", "vvel", "press"]
             length = 3
         elif variable_type == "rain":
@@ -222,7 +222,7 @@ class S3GribIO:
     @staticmethod
     def __variable_type_to_byte_range(variable_type: str, byte_range: list) -> list:
         """
-        Select the byte ranges that are actually required to be downloaded
+        Select the byte ranges that are actually required to be downloaded.
 
         Args:
             variable_type (str): The variable type to download
@@ -230,8 +230,8 @@ class S3GribIO:
 
         Returns:
             list: The byte range to download
-        """
 
+        """
         candidate_variables = S3GribIO.__get_variable_candidates(variable_type)
         if candidate_variables is None:
             return byte_range
@@ -247,7 +247,7 @@ class S3GribIO:
     ) -> Tuple[bool, bool]:
         """
         Downloads the grib file from s3 to the local file path
-        for the variables specified in the variable list
+        for the variables specified in the variable list.
 
         Args:
             s3_file (str): The s3 file to download
@@ -256,6 +256,7 @@ class S3GribIO:
 
         Returns:
             bool: True if the download was successful, False otherwise
+
         """
         bucket, path = self.__parse_path(s3_file)
         if bucket != self.__s3_bucket:
@@ -279,35 +280,32 @@ class S3GribIO:
 
             return True, False
 
+        # ...Select the byte ranges that are actually required to be downloaded
+        inventory_subset = self.__variable_type_to_byte_range(variable_type, inventory)
+
+        if len(inventory_subset) == 0:
+            logger.warning(f"No inventory found for file {path}")
+            download_subset = False
+        elif (
+            len(inventory_subset)
+            < S3GribIO.__get_variable_candidates(variable_type)["length"]
+        ):
+            logger.warning("Inventory length does not match variable list length")
+            download_subset = False
         else:
-            # ...Select the byte ranges that are actually required to be downloaded
-            inventory_subset = self.__variable_type_to_byte_range(
-                variable_type, inventory
-            )
+            download_subset = True
 
-            if len(inventory_subset) == 0:
-                logger.warning(f"No inventory found for file {path}")
-                download_subset = False
-            elif (
-                len(inventory_subset)
-                < S3GribIO.__get_variable_candidates(variable_type)["length"]
-            ):
-                logger.warning("Inventory length does not match variable list length")
-                download_subset = False
-            else:
-                download_subset = True
-
-            if download_subset:
-                logger.info(f"Downloading subset for {s3_file} to {local_file}")
-                for var in inventory_subset:
-                    byte_range = "bytes={}-{}".format(var["start"], var["end"])
-                    obj = self.__try_get_object(path, byte_range)
-                    with open(local_file, "ab") as f:
-                        f.write(obj["Body"].read())
-            else:
-                logger.warning(f"Downloading full file for {s3_file} to {local_file}")
-                obj = self.__try_get_object(path)
-                with open(local_file, "wb") as f:
+        if download_subset:
+            logger.info(f"Downloading subset for {s3_file} to {local_file}")
+            for var in inventory_subset:
+                byte_range = "bytes={}-{}".format(var["start"], var["end"])
+                obj = self.__try_get_object(path, byte_range)
+                with open(local_file, "ab") as f:
                     f.write(obj["Body"].read())
+        else:
+            logger.warning(f"Downloading full file for {s3_file} to {local_file}")
+            obj = self.__try_get_object(path)
+            with open(local_file, "wb") as f:
+                f.write(obj["Body"].read())
 
-            return True, False
+        return True, False

@@ -38,13 +38,14 @@ from pyproj import CRS, Transformer
 
 
 class Triangulation:
-    def __init__(self, points: np.ndarray, boundary: np.ndarray):
+    def __init__(self, points: np.ndarray, boundary: np.ndarray) -> None:
         """
         Constructor for the Triangulation class.
 
         Args:
             points (np.array): The points to triangulate.
             boundary (np.array): The boundary points forming a polygon.
+
         """
         self.__t_input = {"vertices": points, "segments": boundary}
         self.__transformer = self.__generate_pj_transformer()
@@ -52,12 +53,13 @@ class Triangulation:
         self.__interpolation_info = None
 
     @staticmethod
-    def __generate_pj_transformer():
+    def __generate_pj_transformer() -> Transformer:
         """
         Generates a pyproj transformer from WGS84 to a stereographic projection.
 
         Returns:
             Transformer: The pyproj transformer.
+
         """
         crs_wgs84 = CRS.from_epsg(4326)
         crs_stereo = CRS.from_proj4(
@@ -81,6 +83,7 @@ class Triangulation:
 
         Returns:
             PyTriangulation: The generated triangulation.
+
         """
         logger.info("Begin generating triangulation")
 
@@ -113,6 +116,7 @@ class Triangulation:
 
         Returns:
             bool: True if the points match the triangulation, False otherwise.
+
         """
         return np.array_equal(tri.points(), points)
 
@@ -122,6 +126,7 @@ class Triangulation:
 
         Returns:
             np.array: The points.
+
         """
         return self.__t_input["vertices"]
 
@@ -138,6 +143,7 @@ class Triangulation:
 
         Returns:
             np.array: The interpolated values.
+
         """
         if self.__interpolation_info is None:
             logger.info("No interpolation weights found")
@@ -153,6 +159,7 @@ class Triangulation:
 
         Returns:
             np.ndarray: The interpolated values.
+
         """
         return InterpolationWeights.interpolate(self.__interpolation_info, z_points)
 
@@ -168,6 +175,7 @@ class Triangulation:
 
         Returns:
             np.array: The interpolation weights.
+
         """
         logger.info("Computing interpolation weights")
         tick = time.time()

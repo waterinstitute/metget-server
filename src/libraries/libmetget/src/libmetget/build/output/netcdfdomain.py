@@ -27,6 +27,7 @@
 #
 ###################################################################################################
 from datetime import datetime
+from typing import Any
 
 import numpy as np
 import xarray as xr
@@ -44,7 +45,7 @@ class NetcdfDomain(OutputDomain):
     A class to represent an OWI ASCII output domain and write it to a file.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
         Construct an OWI ASCII output domain.
 
@@ -57,6 +58,7 @@ class NetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
         required_args = ["grid_obj", "start_date", "end_date", "time_step"]
         missing_args = [arg for arg in required_args if arg not in kwargs]
@@ -104,15 +106,15 @@ class NetcdfDomain(OutputDomain):
 
     def open(self) -> None:
         """
-        Open the netCDF file for writing
+        Open the netCDF file for writing.
         """
         self.__dataset = Dataset(self.__filename, "w", format="NETCDF4")
         self.__initialize_domain_output_metadata()
         self.__initialize_output_variables()
 
-    def __initialize_output_variables(self):
+    def __initialize_output_variables(self) -> None:
         """
-        Initialize the output variables in the netCDF file
+        Initialize the output variables in the netCDF file.
         """
         variables = VariableType.select(self.__variable_type)
         for v in variables:
@@ -131,9 +133,9 @@ class NetcdfDomain(OutputDomain):
             self.__dataset.variables[var_name].long_name = long_name
             self.__dataset.variables[var_name].grid_mapping = "crs"
 
-    def __initialize_domain_output_metadata(self):
+    def __initialize_domain_output_metadata(self) -> None:
         """
-        Initialize the domain output metadata in the netCDF file
+        Initialize the domain output metadata in the netCDF file.
         """
         self.__dataset.createDimension("lon", self.grid_obj().nj())
         self.__dataset.createDimension("lat", self.grid_obj().ni())
@@ -211,7 +213,7 @@ class NetcdfDomain(OutputDomain):
         self,
         dataset: xr.Dataset,
         variable_type: VariableType,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Write the OWI ASCII output file.
@@ -225,6 +227,7 @@ class NetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
         time = kwargs.get("time")
         if not isinstance(time, datetime):

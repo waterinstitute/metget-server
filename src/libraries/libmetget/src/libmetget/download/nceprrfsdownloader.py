@@ -66,5 +66,5 @@ class NcepRrfsDownloader(NoaaDownloader):
         )
 
     @staticmethod
-    def _filename_to_hour(filename) -> int:
+    def _filename_to_hour(filename: str) -> int:
         return int(filename[46:49])

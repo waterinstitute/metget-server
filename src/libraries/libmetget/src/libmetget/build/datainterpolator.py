@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import numpy as np
 import xarray as xr
@@ -56,7 +56,7 @@ class DataInterpolator:
         backfill_flag: bool,
         domain_level: int,
         triangulation: Union[Triangulation, None] = None,
-    ):
+    ) -> None:
         """
         Constructor for the GribDataInterpolator class.
 
@@ -68,6 +68,7 @@ class DataInterpolator:
 
         Returns:
             None
+
         """
         self.__grid = grid
         self.__x = self.__grid.x_column(convert_360=True)
@@ -82,6 +83,7 @@ class DataInterpolator:
 
         Returns:
             OutputGrid: The grid to interpolate to.
+
         """
         return self.__grid
 
@@ -91,6 +93,7 @@ class DataInterpolator:
 
         Returns:
             Triangulation: The triangulation to interpolate to.
+
         """
         return self.__triangulation
 
@@ -100,6 +103,7 @@ class DataInterpolator:
 
         Returns:
             None
+
         """
         self.__triangulation = t
 
@@ -109,6 +113,7 @@ class DataInterpolator:
 
         Returns:
             np.ndarray: The x column of the grid.
+
         """
         return self.__x
 
@@ -118,28 +123,31 @@ class DataInterpolator:
 
         Returns:
             np.ndarray: The y column of the grid.
+
         """
         return self.__y
 
     def x2d(self) -> np.ndarray:
         """
-        Returns the x-array as a 2D array for interpolation purposes
+        Returns the x-array as a 2D array for interpolation purposes.
 
         Returns:
             np.ndarray: The x column of the grid.
+
         """
         return np.tile(self.__x, (len(self.__y), 1))
 
     def y2d(self) -> np.ndarray:
         """
-        Returns the y-array as a 2D array for interpolation purposes
+        Returns the y-array as a 2D array for interpolation purposes.
 
         Returns:
             np.ndarray: The y column of the grid.
+
         """
         return np.tile(self.__y, (len(self.__x), 1)).T
 
-    def interpolate(self, **kwargs) -> xr.Dataset:
+    def interpolate(self, **kwargs: Any) -> xr.Dataset:
         """
         Interpolate the data from the grib file to the grid.
 
@@ -151,6 +159,7 @@ class DataInterpolator:
 
         Returns:
             xr.Dataset: The interpolated data.
+
         """
         # Check and retrieve the first three required arguments
         file_list = kwargs.get("f_obj")
@@ -205,6 +214,7 @@ class DataInterpolator:
 
         Returns:
             xr.Dataset: The dataset with the nan values removed.
+
         """
         variable_list = variable_type.select()
         for var in variable_list:
@@ -247,7 +257,7 @@ class DataInterpolator:
                 )
             data_item.set_interp_dataset(interp_data)
 
-    def __interpolate_with_triangulation(self, data_item: InterpData):
+    def __interpolate_with_triangulation(self, data_item: InterpData) -> None:
         """
         Interpolate the data to the user specified grid using triangulation.
 
@@ -256,6 +266,7 @@ class DataInterpolator:
 
         Returns:
             xr.Dataset: The interpolated data.
+
         """
         boundary, points = self.__get_dataset_points_and_edges(data_item)
         if self.__triangulation is None or not Triangulation.matches(
@@ -299,6 +310,7 @@ class DataInterpolator:
 
         Returns:
             tuple: The points and boundary points.
+
         """
         points = np.array(
             [
@@ -325,8 +337,8 @@ class DataInterpolator:
 
         Returns:
             np.ndarray: The merged data.
-        """
 
+        """
         out_data = data[0].interp_dataset().copy(deep=True)
         for var in out_data:
             out_data[var].where(False, np.nan)
@@ -357,6 +369,7 @@ class DataInterpolator:
             input_data (list): The list of dictionaries containing the filename,
                 variable_name, scale, dataset, and resolution.
             output_dataset (xr.Dataset): The output array to apply the Gaussian smoothing to.
+
         """
         check_outer_polygons = DataInterpolator.__check_polygons_to_be_used(input_data)
         # ...Generate buffering boundaries for the polygons
@@ -381,6 +394,7 @@ class DataInterpolator:
 
         Returns:
             np.ndarray: The list of polygons to use.
+
         """
         check_outer_polygons = np.full(len(data), dtype=bool, fill_value=False)
         for i, data_item_i in enumerate(data):
@@ -401,7 +415,7 @@ class DataInterpolator:
     def __compute_smoothing_points(self, data: list, use_polygon: np.ndarray) -> None:
         """
         Compute the smoothing points for each polygon. Computes the point in polygon
-        information and stores in the data items
+        information and stores in the data items.
 
         Args:
             data (list): The list of dictionaries containing the filename,
@@ -410,6 +424,7 @@ class DataInterpolator:
 
         Returns:
             None
+
         """
         for i, data_item in enumerate(data[:-1]):
             # ...If not using the polygon or the smoothing points have
@@ -447,6 +462,7 @@ class DataInterpolator:
 
         Returns:
             None
+
         """
         for i, data_item in enumerate(data[:-1]):
             if not use_polygon[i]:
@@ -479,6 +495,7 @@ class DataInterpolator:
 
         Returns:
             list: The ordered list of points.
+
         """
         ordered_points = np.zeros((len(point_list), 2))
         ordered_points[0] = point_list[0]
@@ -512,6 +529,7 @@ class DataInterpolator:
         Returns:
             list: The list of dictionaries containing the filename,
                 variable_name, scale, dataset, and resolution.
+
         """
         datasets = []
         for fn, ft in file_list.files():
@@ -536,6 +554,7 @@ class DataInterpolator:
 
         Returns:
             InterpData: The dataset and associated information
+
         """
         if file_type.file_format() == MetFileFormat.GRIB:
             interp_data = self.__xr_open_grib_format(
@@ -571,6 +590,7 @@ class DataInterpolator:
 
         Returns:
             xr.Dataset: The dataset.
+
         """
         # ...Some trickery is required for xarray to read the coamps-tc data
         # This is because of how xarray handles dimensions/coordinates/etc named
@@ -644,6 +664,7 @@ class DataInterpolator:
 
         Returns:
             InterpData: The dataset and associated information
+
         """
         dataset = None
         for var in file_type.selected_variables(variable_type):
@@ -699,15 +720,15 @@ class DataInterpolator:
     @staticmethod
     def __normalize_longitude(dataset: xr.Dataset) -> None:
         """
-        Normalize the longitude to -180 to 180
+        Normalize the longitude to -180 to 180.
 
         Args:
             dataset (xr.Dataset): The dataset to normalize
 
         Returns:
             None
-        """
 
+        """
         dataset["longitude"] = xr.where(
             dataset["longitude"] > 180.0,
             dataset["longitude"] - 360.0,
@@ -717,15 +738,15 @@ class DataInterpolator:
     @staticmethod
     def __flatten_dataset(dataset: xr.Dataset) -> xr.Dataset:
         """
-        Convert the coordinates from 2D to 1D
+        Convert the coordinates from 2D to 1D.
 
         Args:
             dataset (xr.Dataset): The dataset to convert
 
         Returns:
             xr.Dataset: The dataset with the coordinates converted
-        """
 
+        """
         ds = xr.Dataset(
             {
                 "longitude": (["points"], dataset.longitude.to_numpy().flatten()),
@@ -761,8 +782,8 @@ class DataInterpolator:
 
         Returns:
             Polygon: The polygon around the boundary of the data.
-        """
 
+        """
         # ...Get the resolution of the dataset
         dataset_resolution = InterpData.calculate_resolution(dataset)
 
@@ -851,5 +872,4 @@ class DataInterpolator:
 
         if edge_indexes_1d is not None:
             return polygon.simplify(dataset_resolution / 2.0), (edge_indexes_1d,)
-        else:
-            return polygon.simplify(dataset_resolution / 2.0), edge_points
+        return polygon.simplify(dataset_resolution / 2.0), edge_points

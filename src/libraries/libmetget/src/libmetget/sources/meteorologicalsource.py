@@ -30,7 +30,7 @@ from enum import Enum
 
 
 class MeteorologicalSource(Enum):
-    """Enum class for the source of meteorological data"""
+    """Enum class for the source of meteorological data."""
 
     GFS = 1
     GEFS = 2
@@ -45,15 +45,16 @@ class MeteorologicalSource(Enum):
     REFS = 11
 
     @staticmethod
-    def from_string(data_type: str):
+    def from_string(data_type: str) -> "MeteorologicalSource":
         """
-        Converts a string to a MeteorologicalSource
+        Converts a string to a MeteorologicalSource.
 
         Args:
             data_type: The string to convert to a MeteorologicalSource
 
         Returns:
             The MeteorologicalSource corresponding to the string
+
         """
         mapping = {
             "gfs-ncep": MeteorologicalSource.GFS,
@@ -75,12 +76,13 @@ class MeteorologicalSource(Enum):
             raise ValueError(msg)
         return mapping[data_type]
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
-        Returns the string representation of the MeteorologicalSource
+        Returns the string representation of the MeteorologicalSource.
 
         Returns:
             The string representation of the MeteorologicalSource
+
         """
         mapping = {
             MeteorologicalSource.GFS: "gfs-ncep",

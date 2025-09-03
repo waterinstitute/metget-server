@@ -50,10 +50,10 @@ class MetDataType(Enum):
     CATEGORICAL_ICE = 17
     CATEGORICAL_FREEZING_RAIN = 18
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name.lower()
 
-    def cf_long_name(self):
+    def cf_long_name(self) -> str:
         return {
             MetDataType.PRESSURE: "air pressure at sea level",
             MetDataType.WIND_U: "e/w wind velocity",
@@ -75,7 +75,7 @@ class MetDataType(Enum):
             MetDataType.CATEGORICAL_FREEZING_RAIN: "categorical freezing rain",
         }.get(self, "unknown")
 
-    def units(self):
+    def units(self) -> str:
         return {
             MetDataType.PRESSURE: "mb",
             MetDataType.WIND_U: "m/s",
@@ -97,7 +97,7 @@ class MetDataType(Enum):
             MetDataType.CATEGORICAL_FREEZING_RAIN: "n/a",
         }.get(self, "unknown")
 
-    def cf_standard_name(self):
+    def cf_standard_name(self) -> str:
         return {
             MetDataType.PRESSURE: "air_pressure_at_sea_level",
             MetDataType.WIND_U: "eastward_wind",
@@ -119,7 +119,7 @@ class MetDataType(Enum):
             MetDataType.CATEGORICAL_FREEZING_RAIN: "categorical_freezing_rain",
         }.get(self, "unknown")
 
-    def netcdf_var_name(self):
+    def netcdf_var_name(self) -> str:
         return {
             MetDataType.PRESSURE: "mslp",
             MetDataType.WIND_U: "wind_u",

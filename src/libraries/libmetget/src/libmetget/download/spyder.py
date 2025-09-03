@@ -37,7 +37,7 @@ class Spyder:
     def __init__(self, url: str) -> None:
         """
         Initilaizes a spyder object which acts as a crawler
-        through posted NOAA folders of grib/grib2 data
+        through posted NOAA folders of grib/grib2 data.
         """
         self.__url: str = url
 
@@ -47,7 +47,7 @@ class Spyder:
     def filelist(self) -> List[str]:
         """
         Generates the file list at the given url
-        :return: list of files
+        :return: list of files.
         """
         try:
             r = requests.get(self.__url, timeout=30)

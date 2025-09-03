@@ -28,7 +28,7 @@
 ###################################################################################################
 import copy
 from datetime import datetime
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
@@ -44,9 +44,9 @@ from .triangulation import Triangulation
 
 
 class Meteorology:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
-        Constructor for the meteorology class
+        Constructor for the meteorology class.
 
         Args:
             grid (OutputGrid): The output grid
@@ -55,6 +55,7 @@ class Meteorology:
             backfill (bool): Whether to backfill missing data
             domain_level (int): The domain level
             epsg (int): The EPSG code of the output grid
+
         """
         # Check for missing keys
         required_keys = [
@@ -108,10 +109,11 @@ class Meteorology:
 
     def __check_if_accumulated(self) -> Tuple[bool, Optional[float]]:
         """
-        Checks if the variable type is an accumulated variable
+        Checks if the variable type is an accumulated variable.
 
         Returns:
             bool: Whether the variable type is an accumulated variable
+
         """
         service_att = attributes_from_service(str(self.__source_key))
         var = self.__data_type_key.select()[0]
@@ -125,64 +127,71 @@ class Meteorology:
 
     def grid(self) -> OutputGrid:
         """
-        Get the output grid
+        Get the output grid.
 
         Returns:
             OutputGrid: The output grid
+
         """
         return self.__grid
 
     def source_key(self) -> MeteorologicalSource:
         """
-        Get the meteorological source
+        Get the meteorological source.
 
         Returns:
             MeteorologicalSource: The meteorological source
+
         """
         return self.__source_key
 
     def data_type_key(self) -> VariableType:
         """
-        Get the variable type
+        Get the variable type.
 
         Returns:
             VariableType: The variable type
+
         """
         return self.__data_type_key
 
     def backfill(self) -> bool:
         """
-        Get whether to backfill missing data
+        Get whether to backfill missing data.
 
         Returns:
             bool: Whether to backfill missing data
+
         """
         return self.__backfill
 
     def epsg(self) -> int:
         """
-        Get the EPSG code of the output grid
+        Get the EPSG code of the output grid.
 
         Returns:
             int: The EPSG code of the output grid
+
         """
         return self.__epsg
 
     def f1(self) -> Optional[FileObj]:
         """
-        Get the first file
+        Get the first file.
 
         Returns:
             Union[None, str]: The first file
+
         """
         return self.__file_1
 
     def f2(self) -> Optional[FileObj]:
         """
-        Get the second file
+        Get the second file.
 
         Returns:
             Union[None, str]: The second file
+
         """
         return self.__file_2
 
@@ -196,6 +205,7 @@ class Meteorology:
 
         Returns:
             None
+
         """
         if self.__file_1 is None:
             self.__file_1 = f_obj
@@ -206,13 +216,14 @@ class Meteorology:
 
     def set_triangulation(self, triangulation: Triangulation) -> None:
         """
-        Set the triangulation
+        Set the triangulation.
 
         Args:
             triangulation (Triangulation): The triangulation
 
         Returns:
             None
+
         """
         if self.__interpolation_1:
             self.__interpolation_1.set_triangulation(triangulation)
@@ -221,10 +232,11 @@ class Meteorology:
 
     def process_files(self) -> None:
         """
-        Process the files
+        Process the files.
 
         Returns:
             None
+
         """
         if self.__interpolation_result_2 is not None:
             self.__interpolation_result_1 = self.__interpolation_result_2
@@ -250,113 +262,112 @@ class Meteorology:
 
     def time_weight(self, time: datetime) -> float:
         """
-        Get the time weight
+        Get the time weight.
 
         Args:
             time (datetime): The time to get the weight for
 
         Returns:
             float: The time weight
+
         """
         if time >= self.__file_2.time():
             return 1.0
-        elif time <= self.__file_1.time():
+        if time <= self.__file_1.time():
             return 0.0
-        else:
-            return (time - self.__file_1.time()) / (
-                self.__file_2.time() - self.__file_1.time()
-            )
+        return (time - self.__file_1.time()) / (
+            self.__file_2.time() - self.__file_1.time()
+        )
 
     def __compute_accumulated_rate_two_files(
         self, time: datetime
     ) -> Union[xr.Dataset, np.ndarray]:
         """
-        Compute the accumulated rate using two file interpolation
+        Compute the accumulated rate using two file interpolation.
         """
         if (time > self.__file_2.time() or time < self.__file_1.time()) or (
             not self.__interpolation_result_2 or not self.__interpolation_result_1
         ):
             return np.zeros_like(self.__interpolation_result_1)
-        else:
-            dv = self.__interpolation_result_2 - self.__interpolation_result_1
-            dt = (self.__file_2.time() - self.__file_1.time()).total_seconds()
+        dv = self.__interpolation_result_2 - self.__interpolation_result_1
+        dt = (self.__file_2.time() - self.__file_1.time()).total_seconds()
 
-            # The accumulated value can never be less than zero since it is a rate
-            dv = dv.where(dv > 0, 0)
+        # The accumulated value can never be less than zero since it is a rate
+        dv = dv.where(dv > 0, 0)
 
-            return dv / dt
+        return dv / dt
 
     def __compute_accumulated_rate(
         self, time: datetime
     ) -> Union[np.ndarray, xr.Dataset]:
         """
-        Compute the accumulated rate when the accumulation time is known
+        Compute the accumulated rate when the accumulation time is known.
 
         Args:
             time (datetime): The time to get the accumulated rate for
+
         """
         if time >= self.__file_2.time():
             return self.__interpolation_result_2 / self.__accumulation_time
-        elif time <= self.__file_1.time():
+        if time <= self.__file_1.time():
             return self.__interpolation_result_1 / self.__accumulation_time
-        else:
-            weight = self.time_weight(time)
-            return (
-                self.__interpolation_result_1 * (1.0 - weight)
-                + self.__interpolation_result_2 * weight
-            ) / self.__accumulation_time
+        weight = self.time_weight(time)
+        return (
+            self.__interpolation_result_1 * (1.0 - weight)
+            + self.__interpolation_result_2 * weight
+        ) / self.__accumulation_time
 
     def __compute_time_interpolated_quantity(
         self, time: datetime
     ) -> Union[np.ndarray, xr.Dataset]:
         """
-        Compute the time interpolated quantity
+        Compute the time interpolated quantity.
 
         Args:
             time (datetime): The time to get the interpolated quantity for
 
         Returns:
             np.array: The interpolated quantity
+
         """
         if time >= self.__file_2.time():
             return self.__interpolation_result_2
-        elif time <= self.__file_1.time():
+        if time <= self.__file_1.time():
             return self.__interpolation_result_1
-        else:
-            weight = self.time_weight(time)
-            return (
-                self.__interpolation_result_1 * (1.0 - weight)
-                + self.__interpolation_result_2 * weight
-            )
+        weight = self.time_weight(time)
+        return (
+            self.__interpolation_result_1 * (1.0 - weight)
+            + self.__interpolation_result_2 * weight
+        )
 
     def __compute_time_interpolated_accumulated_quantity(
         self, time: datetime
     ) -> np.ndarray:
         """
-        Compute the accumulated quantity based on the type of accumulation
+        Compute the accumulated quantity based on the type of accumulation.
 
         Args:
             time (datetime): The time to get the accumulated quantity for
 
         Returns:
             np.array: The accumulated quantity
+
         """
         if self.__accumulation_time is not None:
             return self.__compute_accumulated_rate(time)
-        else:
-            return self.__compute_accumulated_rate_two_files(time)
+        return self.__compute_accumulated_rate_two_files(time)
 
     def get(self, time: datetime) -> Union[np.ndarray, xr.Dataset]:
         """
-        Get the meteorological field at the specified time
+        Get the meteorological field at the specified time.
 
         Args:
             time (datetime): The time to get the meteorological field for
 
         Returns:
             np.array: The meteorological field
+
         """
         if self.__is_accumulated:
             return self.__compute_time_interpolated_accumulated_quantity(time)
-        else:
-            return self.__compute_time_interpolated_quantity(time)
+        return self.__compute_time_interpolated_quantity(time)

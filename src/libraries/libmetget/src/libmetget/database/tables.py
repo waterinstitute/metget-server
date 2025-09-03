@@ -30,6 +30,7 @@
 import enum
 import os
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -45,7 +46,7 @@ TableBase = declarative_base()
 class AuthTable(TableBase):
     """
     This class is used to create the table that holds the API keys
-    which are used to authenticate users
+    which are used to authenticate users.
     """
 
     __tablename__ = os.environ["METGET_API_KEY_TABLE"]
@@ -62,7 +63,7 @@ class AuthTable(TableBase):
 class RequestEnum(enum.Enum):
     """
     This class is used to create the enum for the request status which
-    is used to track the status of a request through the system
+    is used to track the status of a request through the system.
     """
 
     queued = 0
@@ -75,7 +76,7 @@ class RequestEnum(enum.Enum):
 class RequestTable(TableBase):
     """
     This class is used to create the table that holds the requests which are currently
-    being processed or have been fulfilled by the system
+    being processed or have been fulfilled by the system.
     """
 
     __tablename__ = os.environ["METGET_REQUEST_TABLE"]
@@ -93,9 +94,9 @@ class RequestTable(TableBase):
     message = Column(MutableDict.as_mutable(JSONB))
 
     @staticmethod
-    def add_request(**kwargs) -> None:
+    def add_request(**kwargs: Any) -> None:
         """
-        This method is used to add a new request to the database
+        This method is used to add a new request to the database.
 
         Args:
             **kwargs: The keyword arguments for the request table
@@ -111,6 +112,7 @@ class RequestTable(TableBase):
 
         Returns:
             None
+
         """
         request_id = kwargs.get("request_id")
         request_status = kwargs.get("request_status")
@@ -166,9 +168,9 @@ class RequestTable(TableBase):
                     session.commit()
 
     @staticmethod
-    def update_request(**kwargs) -> None:
+    def update_request(**kwargs: Any) -> None:
         """
-        This method is used to update a request in the database
+        This method is used to update a request in the database.
 
         Args:
             **kwargs: The keyword arguments for the request table
@@ -185,6 +187,7 @@ class RequestTable(TableBase):
 
         Returns:
             None
+
         """
         request_id = kwargs.get("request_id")
         request_status = kwargs.get("request_status")
@@ -247,7 +250,7 @@ class RequestTable(TableBase):
 class GfsTable(TableBase):
     """
     This class is used to create the table that holds the GFS data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "gfs_ncep"
@@ -263,7 +266,7 @@ class GfsTable(TableBase):
 class NamTable(TableBase):
     """
     This class is used to create the table that holds the NAM data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "nam_ncep"
@@ -279,7 +282,7 @@ class NamTable(TableBase):
 class HwrfTable(TableBase):
     """
     This class is used to create the table that holds the HWRF data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "hwrf"
@@ -296,7 +299,7 @@ class HwrfTable(TableBase):
 class HafsATable(TableBase):
     """
     This class is used to create the table that holds the HAFS-A data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "ncep_hafs_a"
@@ -313,7 +316,7 @@ class HafsATable(TableBase):
 class HafsBTable(TableBase):
     """
     This class is used to create the table that holds the HAFS-B data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "ncep_hafs_b"
@@ -330,7 +333,7 @@ class HafsBTable(TableBase):
 class GefsTable(TableBase):
     """
     This class is used to create the table that holds the GEFS data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "gefs_fcst"
@@ -347,7 +350,7 @@ class GefsTable(TableBase):
 class CoampsTable(TableBase):
     """
     This class is used to create the table that holds the COAMPS data which has been
-    downloaded from the NRL server
+    downloaded from the NRL server.
     """
 
     __tablename__ = "coamps_tc"
@@ -363,7 +366,7 @@ class CoampsTable(TableBase):
 class CtcxTable(TableBase):
     """
     This class is used to create the table that holds the CTCX data which has been
-    downloaded from the S3 postings from NRL
+    downloaded from the S3 postings from NRL.
     """
 
     __tablename__ = "ctcx"
@@ -380,7 +383,7 @@ class CtcxTable(TableBase):
 class HrrrTable(TableBase):
     """
     This class is used to create the table that holds the HRRR data which has beenq
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "hrrr_ncep"
@@ -396,7 +399,7 @@ class HrrrTable(TableBase):
 class HrrrAlaskaTable(TableBase):
     """
     This class is used to create the table that holds the HRRR Alaska data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "hrrr_alaska_ncep"
@@ -412,7 +415,7 @@ class HrrrAlaskaTable(TableBase):
 class WpcTable(TableBase):
     """
     This class is used to create the table that holds the WPC data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "wpc_ncep"
@@ -428,7 +431,7 @@ class WpcTable(TableBase):
 class NhcBtkTable(TableBase):
     """
     This class is used to create the table that holds the NHC Best Track data which has been
-    downloaded from the NHC ftp server
+    downloaded from the NHC ftp server.
     """
 
     __tablename__ = "nhc_btk"
@@ -449,7 +452,7 @@ class NhcBtkTable(TableBase):
 class NhcFcstTable(TableBase):
     """
     This class is used to create the table that holds the NHC Forecast data which has been
-    processed from the NHC RSS feed
+    processed from the NHC RSS feed.
     """
 
     __tablename__ = "nhc_fcst"
@@ -486,7 +489,7 @@ class NhcAdeck(TableBase):
 class RrfsTable(TableBase):
     """
     This class is used to create the table that holds the RRFS data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "rrfs_ncep"
@@ -502,7 +505,7 @@ class RrfsTable(TableBase):
 class RefsTable(TableBase):
     """
     This class is used to create the table that holds the REFS data which has been
-    downloaded from the NCEP server
+    downloaded from the NCEP server.
     """
 
     __tablename__ = "refs_ncep"

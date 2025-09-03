@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 
-from typing import Union
+from typing import Any, Union
 
 import numpy as np
 from shapely.geometry import Polygon
@@ -38,7 +38,7 @@ from .output.outputgrid import OutputGrid
 
 
 class InterpData:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         self.__filename = kwargs.get("filename")
         self.__epsg = kwargs.get("epsg", 4326)
         self.__file_type = kwargs.get("file_type")

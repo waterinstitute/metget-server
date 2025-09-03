@@ -28,7 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime
-from typing import List, TextIO, Union
+from typing import Any, List, TextIO, Union
 
 import xarray as xr
 
@@ -37,7 +37,7 @@ from .outputgrid import OutputGrid
 
 
 class OutputDomain:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
         Construct an OWI ASCII output domain.
 
@@ -49,6 +49,7 @@ class OutputDomain:
 
         Returns:
             None
+
         """
         required_args = ["grid_obj", "start_date", "end_date", "time_step"]
         missing_args = [arg for arg in required_args if arg not in kwargs]
@@ -97,10 +98,11 @@ class OutputDomain:
 
     def open(self) -> None:
         """
-        Open the domain file(s)
+        Open the domain file(s).
 
         Returns:
             None
+
         """
         msg = "OutputDomain.open() is not implemented"
         raise NotImplementedError(msg)
@@ -116,17 +118,20 @@ class OutputDomain:
 
     def close(self) -> None:
         """
-        Close the domain file
+        Close the domain file.
 
         Returns:
             None
+
         """
         msg = "OutputDomain.close() is not implemented"
         raise NotImplementedError(msg)
 
-    def write(self, data: xr.Dataset, variable_type: VariableType, **kwargs) -> None:
+    def write(
+        self, data: xr.Dataset, variable_type: VariableType, **kwargs: Any
+    ) -> None:
         """
-        Write data to the domain file
+        Write data to the domain file.
 
         Args:
             data (Dataset): The data to write to the domain file.
@@ -135,6 +140,7 @@ class OutputDomain:
 
         Returns:
             None
+
         """
         msg = "OutputDomain.write() is not implemented"
         raise NotImplementedError(msg)

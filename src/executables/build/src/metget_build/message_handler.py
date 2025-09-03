@@ -31,7 +31,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 from os.path import exists
-from typing import List, Tuple, Union
+from typing import Generator, List, Tuple, Union
 
 from libmetget.build.domain import Domain
 from libmetget.build.fileobj import FileObj
@@ -68,38 +68,40 @@ from loguru import logger
 class MessageHandler:
     """
     This class is used to handle the messages from the queue
-    and process them into met fields
+    and process them into met fields.
     """
 
     def __init__(self, message: dict) -> None:
         """
-        Constructor for the message handler
+        Constructor for the message handler.
 
         Args:
             message (dict): The message to process
 
         Returns:
             None
+
         """
         self.__input = Input(message)
 
     def input(self) -> Input:
         """
-        Returns the input object that was created from the message
+        Returns the input object that was created from the message.
 
         Returns:
             Input: The input object
+
         """
         return self.__input
 
     def process_message(self) -> bool:
         """
-        Process a message from the queue of available messages
+        Process a message from the queue of available messages.
 
         Returns:
             True if the message was processed successfully, False otherwise
-        """
 
+        """
         pre_download_files = False
 
         filelist_name = "filelist.json"
@@ -166,12 +168,12 @@ class MessageHandler:
     @staticmethod
     def __get_version_info() -> dict:
         """
-        Gets the version information
+        Gets the version information.
 
         Returns:
             dict: The version information
-        """
 
+        """
         return {
             "metget-server": get_metget_version(),
         }
@@ -181,9 +183,9 @@ class MessageHandler:
         output_file_list: list,
         output_file_dict: dict,
         filelist_name: str,
-    ):
+    ) -> None:
         """
-        Uploads the files to the SE
+        Uploads the files to the SE.
 
         Args:
             output_file_list: The list of output files
@@ -192,6 +194,7 @@ class MessageHandler:
 
         Returns:
             None
+
         """
         s3up = S3file(os.environ["METGET_S3_BUCKET_UPLOAD"])
 
@@ -218,13 +221,14 @@ class MessageHandler:
 
     def __handle_ongoing_restore(self, met_field: OutputFile) -> None:
         """
-        Handles the case where there is an ongoing restore
+        Handles the case where there is an ongoing restore.
 
         Args:
             met_field: The met field object
 
         Returns:
             None
+
         """
         logger.info("Request is currently in restore status")
         RequestTable.update_request(
@@ -243,7 +247,7 @@ class MessageHandler:
     @staticmethod
     def __list_files_check_glacier(input_data: Input, met_field: OutputFile) -> dict:
         """
-        Gets the list of files from the database and checks for ongoing glacier restores
+        Gets the list of files from the database and checks for ongoing glacier restores.
 
         Args:
             input_data: The input data object
@@ -251,6 +255,7 @@ class MessageHandler:
 
         Returns:
             A dictionary containing the list of files and whether there is an ongoing restore
+
         """
         db_files = []
         nhc_data = {}
@@ -288,7 +293,7 @@ class MessageHandler:
     @staticmethod
     def __generate_filelist_obj(domain: Domain, input_data: Input) -> Filelist:
         """
-        Generates a filelist object from the domain and input data
+        Generates a filelist object from the domain and input data.
 
         Args:
             domain: The domain object
@@ -296,6 +301,7 @@ class MessageHandler:
 
         Returns:
             The filelist object
+
         """
         return Filelist(
             service=domain.service(),
@@ -313,9 +319,11 @@ class MessageHandler:
         )
 
     @staticmethod
-    def __date_span(start_date: datetime, end_date: datetime, delta: timedelta):
+    def __date_span(
+        start_date: datetime, end_date: datetime, delta: timedelta
+    ) -> Generator[datetime]:
         """
-        Generator function that yields a series of dates between the start and end
+        Generator function that yields a series of dates between the start and end.
 
         Args:
             start_date: The start date
@@ -324,6 +332,7 @@ class MessageHandler:
 
         Returns:
             A generator object that yields a series of dates between the start and end
+
         """
         current_date = start_date
         while current_date <= end_date:
@@ -333,41 +342,43 @@ class MessageHandler:
     @staticmethod
     def __generate_datatype_key(data_type: str) -> VariableType:
         """
-        Generate the key for the data type key
+        Generate the key for the data type key.
 
         Args:
             data_type: The data type to generate the key for
 
         Returns:
             The key for the data type
+
         """
         return VariableType.from_string(data_type)
 
     @staticmethod
     def __generate_data_source_key(data_source: str) -> MeteorologicalSource:
         """
-        Generate the key for the data source key
+        Generate the key for the data source key.
 
         Args:
             data_source: The data source to generate the key for
 
         Returns:
             The key for the data source
+
         """
         return MeteorologicalSource.from_string(data_source)
 
     @staticmethod
     def __generate_output_field(input_data: Input) -> Union[OutputFile, None]:
         """
-        Generate the met field object
+        Generate the met field object.
 
         Args:
             input_data: The input data object
 
         Returns:
             The output file object
-        """
 
+        """
         return OutputFileFactory.create_output_file(
             input_data.format(),
             input_data.start_date(),
@@ -377,9 +388,11 @@ class MessageHandler:
         )
 
     @staticmethod
-    def __generate_met_domain(input_data: Input, met_object: OutputFile, index: int):
+    def __generate_met_domain(
+        input_data: Input, met_object: OutputFile, index: int
+    ) -> None:
         """
-        Generate the met domain object
+        Generate the met domain object.
 
         Args:
             input_data: The input data object
@@ -388,6 +401,7 @@ class MessageHandler:
 
         Returns:
             The met domain object
+
         """
         d = input_data.domain(index)
         output_format = input_data.format()
@@ -448,7 +462,7 @@ class MessageHandler:
         besttrack_file: str, forecast_file: str, output_file: str
     ) -> str:
         """
-        Merge the best track and forecast files into a single file
+        Merge the best track and forecast files into a single file.
 
         Args:
             besttrack_file: The best track file
@@ -457,8 +471,8 @@ class MessageHandler:
 
         Returns:
             The output file
-        """
 
+        """
         btk_lines = []
         fcst_lines = []
 
@@ -516,12 +530,13 @@ class MessageHandler:
         filename: Union[str, list], service: str, time: datetime
     ) -> FileObj:
         """
-        Generates the file object
+        Generates the file object.
 
         Args:
             filename (str): The filename
             service (str): The service
             time (datetime): The time
+
         """
         if service == "gfs-ncep":
             file_type = NCEP_GFS
@@ -555,8 +570,7 @@ class MessageHandler:
             for _ in filename:
                 file_type_list.append(file_type)
             return FileObj(filename, file_type_list, time)
-        else:
-            return FileObj(filename, file_type, time)
+        return FileObj(filename, file_type, time)
 
     @staticmethod
     def __interpolate_wind_fields(
@@ -566,7 +580,7 @@ class MessageHandler:
         domain_data: list,
     ) -> dict:
         """
-        Interpolates the wind fields for the given domains
+        Interpolates the wind fields for the given domains.
 
         Args:
             input_data (Input): The input data
@@ -576,6 +590,7 @@ class MessageHandler:
 
         Returns:
             Dict: The list of output files and the list of files used
+
         """
         logger.info("Starting to interpolate meteorological fields")
 
@@ -618,16 +633,16 @@ class MessageHandler:
         return {"output_files": output_file_list, "files_used": files_used_list}
 
     @staticmethod
-    def __process_domain(  # noqa: PLR0913
+    def __process_domain(
         domain_index: int,
         input_data: Input,
         data_type_key: VariableType,
         domain_data: list,
         output_file: OutputFile,
         files_used_list: dict,
-    ):
+    ) -> None:
         """
-        Processes the domain at the given index
+        Processes the domain at the given index.
 
         Args:
             domain_index (int): The index of the domain
@@ -681,7 +696,7 @@ class MessageHandler:
                 t_now_str = time_now.strftime("%Y-%m-%d %H:%M")
                 next_time_str = meteo_obj.f2().time().strftime("%Y-%m-%d %H:%M")
                 logger.debug(
-                    f"Processing next domain time step: {t_now_str:s} > {next_time_str:s}"
+                    f"Processing next domain time step: {t_now_str:s} -> {next_time_str:s}"
                 )
                 domain_files_used = MessageHandler.__process_next_domain_time_step(
                     domain_data,
@@ -722,7 +737,7 @@ class MessageHandler:
         files_used_list[input_data.domain(domain_index).name()] = domain_files_used
 
     @staticmethod
-    def __process_next_domain_time_step(  # noqa: PLR0913
+    def __process_next_domain_time_step(
         domain_data: list,
         domain_files_used: list,
         domain_index: int,
@@ -732,7 +747,7 @@ class MessageHandler:
         output_obj: OutputFile,
     ) -> list:
         """
-        Processes the next domain time step when the next time is greater than the current time
+        Processes the next domain time step when the next time is greater than the current time.
 
         Args:
             domain_data (list): The list of domain data
@@ -745,6 +760,7 @@ class MessageHandler:
 
         Returns:
             List[str]: The list of domain files used
+
         """
         index = MessageHandler.__get_next_file_index(
             interpolation_time, domain_data[domain_index]
@@ -786,7 +802,7 @@ class MessageHandler:
         meteo_obj: Meteorology, domain_index: int, input_data: Input
     ) -> None:
         """
-        Cleans up the temporary grib files
+        Cleans up the temporary grib files.
 
         Args:
             meteo_obj (Meteorology): The meteorology object
@@ -795,6 +811,7 @@ class MessageHandler:
 
         Returns:
             None
+
         """
 
         def remover(file_obj: FileObj) -> None:
@@ -818,7 +835,7 @@ class MessageHandler:
         domain_files_used: list,
     ) -> list:
         """
-        Appends the domain files which are used to the list
+        Appends the domain files which are used to the list.
 
         Args:
             domain_index (int): The index of the domain
@@ -829,6 +846,7 @@ class MessageHandler:
 
         Returns:
             None
+
         """
         if (
             input_data.domain(domain_index).service() == "coamps-tc"
@@ -854,7 +872,7 @@ class MessageHandler:
         meteo_object: Meteorology,
     ) -> list:
         """
-        Generates the initial domain data
+        Generates the initial domain data.
 
         Args:
             domain_data (list): The list of domain data
@@ -865,6 +883,7 @@ class MessageHandler:
 
         Returns:
             Tuple[str, list, int, datetime]: The list of domain files used, the index, and the next time
+
         """
         current_time = domain_data[domain_index][0]["time"]
         domain_files_used = []
@@ -930,7 +949,7 @@ class MessageHandler:
         )
 
     @staticmethod
-    def __get_current_domain_file(  # noqa: PLR0913
+    def __get_current_domain_file(
         current_time: datetime,
         domain_data: list,
         domain_index: int,
@@ -943,7 +962,7 @@ class MessageHandler:
         """
         Gets the current domain file. If the file was downloaded already,
         just return the file path. If not, download the file and return the file path
-        and the remote instances (so we don't need to create them again)
+        and the remote instances (so we don't need to create them again).
 
         Args:
             current_time (datetime): The current time
@@ -957,6 +976,7 @@ class MessageHandler:
 
         Returns:
             Tuple[str, S3GribIO, S3file]: The current file, the remote s3 grib instance, and the remote s3 file instance
+
         """
         if domain_data[domain_index][file_index]["is_local"]:
             current_file = domain_data[domain_index][file_index]["filepath"]
@@ -982,7 +1002,7 @@ class MessageHandler:
         return current_file, s3_grib, s3_obj
 
     @staticmethod
-    def __download_data_on_demand(  # noqa: PLR0913
+    def __download_data_on_demand(
         current_time: datetime,
         file_index: int,
         domain_data: list,
@@ -993,7 +1013,7 @@ class MessageHandler:
         s3_obj: S3file,
     ) -> Union[str, List[str]]:
         """
-        Downloads the data on demand right before interpolation
+        Downloads the data on demand right before interpolation.
 
         Args:
             current_time (datetime): The current time
@@ -1007,6 +1027,7 @@ class MessageHandler:
 
         Returns:
             str: The current file(s) on disk
+
         """
         if (
             input_data.domain(domain_index).service() == "coamps-tc"
@@ -1046,9 +1067,9 @@ class MessageHandler:
         return current_file
 
     @staticmethod
-    def __generate_raw_files_list(domain_data, input_data) -> dict:
+    def __generate_raw_files_list(domain_data: list, input_data: Input) -> dict:
         """
-        Generates the list of raw files used for the given domains
+        Generates the list of raw files used for the given domains.
 
         Args:
             domain_data (list): The list of domain data
@@ -1056,6 +1077,7 @@ class MessageHandler:
 
         Returns:
             Dict: The list of output files and the list of files used
+
         """
         output_file_list = []
         files_used_list = {}
@@ -1067,10 +1089,14 @@ class MessageHandler:
 
     @staticmethod
     def __download_files_from_s3(
-        db_files, input_data, met_field, nhc_data, do_download: bool
+        db_files: list,
+        input_data: Input,
+        met_field: OutputFile,
+        nhc_data: dict,
+        do_download: bool,
     ) -> list:
         """
-        Downloads the files from S3 and generates the list of files used
+        Downloads the files from S3 and generates the list of files used.
 
         Args:
             db_files (list): The list of files from the database
@@ -1081,6 +1107,7 @@ class MessageHandler:
 
         Returns:
             List[str]: The list of files used
+
         """
         domain_data = []
         for i in range(input_data.num_domains()):
@@ -1106,33 +1133,32 @@ class MessageHandler:
     @staticmethod
     def __generate_noaa_s3_remote_instance(data_type: str) -> Union[S3GribIO, None]:
         """
-        Generates the remote s3 grib instance for NOAA S3 archived files
+        Generates the remote s3 grib instance for NOAA S3 archived files.
 
         Args:
             data_type (str): The data type
 
         Returns:
             S3GribIO: The remote s3 grib instance
-        """
 
+        """
         attributes = attributes_from_name(data_type)
         if attributes.file_format() is MetFileFormat.GRIB:
             return S3GribIO(attributes.bucket(), attributes.variables())
-        else:
-            return None
+        return None
 
     @staticmethod
-    def __get_2d_forcing_files(  # noqa: PLR0913
+    def __get_2d_forcing_files(
         data_type: str,
         domain: Domain,
         db_files: list,
         domain_data: list,
         index: int,
-        met_field,
+        met_field: OutputFile,
         do_download: bool,
     ) -> None:
         """
-        Gets the 2D forcing files from s3
+        Gets the 2D forcing files from s3.
 
         Args:
             data_type (str): The data type
@@ -1179,34 +1205,38 @@ class MessageHandler:
                         "is_local": is_local,
                     }
                 )
-            else:  # noqa: PLR5501
-                if not do_download:
+            elif not do_download:
+                domain_data[index].append(
+                    {
+                        "time": item["forecasttime"],
+                        "filepath": item["filepath"],
+                        "is_local": False,
+                    }
+                )
+            else:
+                local_file, success = MessageHandler.__download_met_data_from_s3(
+                    data_type, domain, item, met_field, s3, s3_remote
+                )
+                if success:
                     domain_data[index].append(
                         {
                             "time": item["forecasttime"],
-                            "filepath": item["filepath"],
-                            "is_local": False,
+                            "filepath": local_file,
+                            "is_local": True,
                         }
                     )
-                else:
-                    local_file, success = MessageHandler.__download_met_data_from_s3(
-                        data_type, domain, item, met_field, s3, s3_remote
-                    )
-                    if success:
-                        domain_data[index].append(
-                            {
-                                "time": item["forecasttime"],
-                                "filepath": local_file,
-                                "is_local": True,
-                            }
-                        )
 
     @staticmethod
-    def __download_met_data_from_s3(  # noqa: PLR0913
-        data_type, domain, item, met_field, s3, s3_remote
+    def __download_met_data_from_s3(
+        data_type: str,
+        domain: Domain,
+        item: dict,
+        met_field: OutputFile,
+        s3: S3file,
+        s3_remote: S3GribIO,
     ) -> Tuple[str, bool]:
         """
-        Downloads the grib met data from s3
+        Downloads the grib met data from s3.
 
         Args:
             data_type (str): The data type
@@ -1218,8 +1248,8 @@ class MessageHandler:
 
         Returns:
             Tuple[str, bool]: The local file and whether the download was successful
-        """
 
+        """
         if "s3://" in item["filepath"]:
             tempdir = tempfile.gettempdir()
             fn = os.path.split(item["filepath"])[1]
@@ -1249,7 +1279,7 @@ class MessageHandler:
         domain: Domain, files: list, item: dict, met_field: OutputFile, s3: S3file
     ) -> List[str]:
         """
-        Downloads the coamps files from s3
+        Downloads the coamps files from s3.
 
         Args:
             domain (Domain): The domain
@@ -1260,8 +1290,8 @@ class MessageHandler:
 
         Returns:
             str: The local file
-        """
 
+        """
         local_file_list = []
         for ff in files:
             local_file = s3.download(ff, domain.service(), item["forecasttime"])
@@ -1273,13 +1303,14 @@ class MessageHandler:
         return local_file_list
 
     @staticmethod
-    def __print_file_status(filepath: any, time: datetime) -> None:
+    def __print_file_status(filepath: Union[str, list], time: datetime) -> None:
         """
-        Print the status of the file being processed to the screen
+        Print the status of the file being processed to the screen.
 
         Args:
             filepath: The file being processed
             time: The time of the file being processed
+
         """
         if isinstance(filepath, list):
             fnames = ""
@@ -1297,13 +1328,14 @@ class MessageHandler:
         )
 
     @staticmethod
-    def __get_next_file_index(time: datetime, domain_data):
+    def __get_next_file_index(time: datetime, domain_data: list) -> int:
         """
-        Get the index of the next file to process in the domain data list
+        Get the index of the next file to process in the domain data list.
 
         Args:
             time: The time of the file being processed
             domain_data: The list of files to process
+
         """
         for ii in range(len(domain_data)):
             if time <= domain_data[ii]["time"]:
@@ -1312,10 +1344,14 @@ class MessageHandler:
 
     @staticmethod
     def __generate_merged_nhc_files(
-        domain, domain_data, index, met_field, nhc_data
+        domain: Domain,
+        domain_data: list,
+        index: int,
+        met_field: OutputFile,
+        nhc_data: dict,
     ) -> None:
         """
-        Generates the merged NHC files for the given domain which are returned
+        Generates the merged NHC files for the given domain which are returned.
 
         Args:
             domain (Domain): The domain
@@ -1326,6 +1362,7 @@ class MessageHandler:
 
         Returns:
             None
+
         """
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
 
@@ -1383,7 +1420,7 @@ class MessageHandler:
     @staticmethod
     def __check_glacier_restore(domain: Domain, filelist: list) -> bool:
         """
-        Checks the list of files to see if any are currently being restored from Glacier
+        Checks the list of files to see if any are currently being restored from Glacier.
 
         Args:
             domain (Domain): Domain object
@@ -1405,28 +1442,27 @@ class MessageHandler:
                     if ongoing_restore_this:
                         glacier_count += 1
                         ongoing_restore = True
-            else:  # noqa: PLR5501
-                if "s3://" not in item["filepath"]:
-                    ongoing_restore_this = s3.check_archive_initiate_restore(
-                        item["filepath"]
-                    )
-                    if ongoing_restore_this:
-                        glacier_count += 1
-                        ongoing_restore = True
+            elif "s3://" not in item["filepath"]:
+                ongoing_restore_this = s3.check_archive_initiate_restore(
+                    item["filepath"]
+                )
+                if ongoing_restore_this:
+                    glacier_count += 1
+                    ongoing_restore = True
 
         logger.info(f"Found {glacier_count:d} files currently in Glacier storage")
 
         return ongoing_restore
 
     @staticmethod
-    def __cleanup_temp_files(data: list):
+    def __cleanup_temp_files(data: list) -> None:
         """
-        Removes all temporary files created during processing
+        Removes all temporary files created during processing.
 
         Args:
             data (list): List of dictionaries containing the filepaths of the
-        """
 
+        """
         for domain in data:
             for f in domain:
                 if isinstance(f["filepath"], list):

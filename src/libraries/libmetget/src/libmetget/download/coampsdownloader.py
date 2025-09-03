@@ -83,8 +83,8 @@ class CoampsDownloader:
 
         Returns:
             None
-        """
 
+        """
         logger.info(f"Deleting temporary directory: {self.__temp_directory}")
 
         shutil.rmtree(self.__temp_directory)
@@ -110,6 +110,7 @@ class CoampsDownloader:
 
         Returns:
             Tuple of cycle and forecast date
+
         """
         forecast_nhour = int(filename[-6:-3])
         date_str = filename[-20:-10]
@@ -126,12 +127,9 @@ class CoampsDownloader:
 
         Returns:
             Number of files downloaded
-        """
 
-        if year is not None:
-            current_year = year
-        else:
-            current_year = datetime.utcnow().year
+        """
+        current_year = year if year is not None else datetime.utcnow().year
 
         file_count = 0
 
@@ -228,8 +226,8 @@ class CoampsDownloader:
 
         Returns:
             Dictionary of forecast snapshots
-        """
 
+        """
         file_list = {}
         for f in files:
             cycle_date, forecast_hour = CoampsDownloader.__date_from_filename(f)
@@ -244,7 +242,9 @@ class CoampsDownloader:
 
         return file_list
 
-    def __download_and_unpack_forecast(self, filename: str, forecast: Any) -> List[str]:
+    def __download_and_unpack_forecast(
+        self, filename: str, forecast: object
+    ) -> List[str]:
         """
         Download and unpack the forecast file from the tar archive
 
@@ -254,8 +254,8 @@ class CoampsDownloader:
 
         Returns:
             List of netcdf files in the temporary directory
-        """
 
+        """
         # ...Download the file
         logger.info(f"Downloading file: {filename}")
         local_file = os.path.join(self.__temp_directory, filename)
@@ -265,7 +265,7 @@ class CoampsDownloader:
         logger.info(f"Unpacking file: {filename}")
         with tarfile.open(local_file, "r") as tar:
 
-            def is_within_directory(directory, target):
+            def is_within_directory(directory: str, target: str) -> bool:
                 abs_directory = os.path.abspath(directory)
                 abs_target = os.path.abspath(target)
 
@@ -274,8 +274,12 @@ class CoampsDownloader:
                 return prefix == abs_directory
 
             def safe_extract(
-                tar_obj, extract_path=".", members=None, *, numeric_owner=False
-            ):
+                tar_obj: tarfile.TarFile,
+                extract_path: str = ".",
+                members: Optional[list] = None,
+                *,
+                numeric_owner: bool = False,
+            ) -> None:
                 for member in tar_obj.getmembers():
                     member_path = os.path.join(extract_path, member.name)
                     if not is_within_directory(extract_path, member_path):
@@ -302,6 +306,7 @@ class CoampsDownloader:
 
         Returns:
             True if all forecast snapshots exist in the database, False otherwise
+
         """
         has_all_forecast_snaps = True
 

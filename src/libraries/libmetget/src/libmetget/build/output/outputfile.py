@@ -29,7 +29,7 @@
 
 import os
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 import xarray as xr
 
@@ -41,7 +41,7 @@ from .outputgrid import OutputGrid
 class OutputFile:
     def __init__(
         self, start_time: datetime, end_time: datetime, time_step: Optional[int]
-    ):
+    ) -> None:
         """
         A class to represent a meteorological field.
 
@@ -52,6 +52,7 @@ class OutputFile:
 
         Returns:
             None
+
         """
         self.__start_time = start_time
         self.__end_time = end_time
@@ -72,12 +73,16 @@ class OutputFile:
 
         Returns:
             None
+
         """
         msg = "OutputFile.write() is not implemented"
         raise NotImplementedError(msg)
 
     def add_domain(
-        self, grid: OutputGrid, filename: Union[List[str], str], **kwargs
+        self,
+        grid: OutputGrid,
+        filename: Union[List[str], str],
+        **kwargs: Any,
     ) -> None:
         msg = "OutputFile.add_domain() is not implemented"
         raise NotImplementedError(msg)
@@ -94,6 +99,7 @@ class OutputFile:
 
         Returns:
             None
+
         """
         self.__domains.append(domain)
         self.__filenames.append(filename)
@@ -104,6 +110,7 @@ class OutputFile:
 
         Returns:
             datetime: The start time of the meteorological field.
+
         """
         return self.__start_time
 
@@ -113,6 +120,7 @@ class OutputFile:
 
         Returns:
             datetime: The end time of the meteorological field.
+
         """
         return self.__end_time
 
@@ -122,6 +130,7 @@ class OutputFile:
 
         Returns:
             int: The time step of the meteorological field.
+
         """
         return self.__time_step
 
@@ -134,6 +143,7 @@ class OutputFile:
 
         Returns:
             Tuple[Domain, str]: The domain and filename at the specified index.
+
         """
         return self.__domains[index]
 
@@ -146,6 +156,7 @@ class OutputFile:
 
         Returns:
             str: The filename at the specified index.
+
         """
         return self.__filenames[index]
 
@@ -155,6 +166,7 @@ class OutputFile:
 
         Returns:
             int: The number of domains in the meteorological field.
+
         """
         return len(self.__domains)
 
@@ -164,6 +176,7 @@ class OutputFile:
 
         Returns:
             List[dict]: The domains in the meteorological field.
+
         """
         data = []
         for i in range(self.num_domains()):
@@ -176,6 +189,7 @@ class OutputFile:
 
         Returns:
             None
+
         """
         for filename in self.__filenames:
             if isinstance(filename, list):
@@ -186,10 +200,11 @@ class OutputFile:
 
     def open(self) -> None:
         """
-        Open the meteorological field file(s)
+        Open the meteorological field file(s).
 
         Returns:
             None
+
         """
         for domain in self.__domains:
             domain.open()
@@ -200,6 +215,7 @@ class OutputFile:
 
         Returns:
             None
+
         """
         msg = "OutputFile.close() is not implemented"
         raise NotImplementedError(msg)
@@ -210,8 +226,8 @@ class OutputFile:
 
         Returns:
             list: The filenames of the meteorological field.
+
         """
         if isinstance(self.__filenames, list):
             return self.__filenames
-        else:
-            return [self.__filenames]
+        return [self.__filenames]

@@ -51,7 +51,7 @@ VALID_DATA_TYPES = [
 class Input:
     """
     This class is used to parse the input JSON data and validate it
-    for use in the MetBuild process
+    for use in the MetBuild process.
     """
 
     METGET_DOMAIN_SCHEMA = Schema(
@@ -106,15 +106,14 @@ class Input:
         }
     )
 
-    def __init__(self, json_data: dict):
+    def __init__(self, json_data: dict) -> None:
         """
-        Constructor for Input
+        Constructor for Input.
 
         Args:
             json_data: A dictionary containing the json data for the input
 
         """
-
         # ....Validate the input json data
         logger.info("Begin validating input JSON data with the schema")
         try:
@@ -158,216 +157,239 @@ class Input:
 
     def request_id(self) -> str:
         """
-        Returns the request id
+        Returns the request id.
 
         Returns:
             The request id
+
         """
         return self.__request_id
 
     def credit_usage(self) -> int:
         """
-        Returns the credit cost of the request
+        Returns the credit cost of the request.
 
         Returns:
             The credit cost of the request
+
         """
         return self.__credit_usage
 
-    def valid(self):
+    def valid(self) -> bool:
         """
-        Returns whether the input is valid
+        Returns whether the input is valid.
 
         Returns:
             A boolean indicating whether the input is valid
+
         """
         return self.__valid
 
     def epsg(self) -> int:
         """
         Returns the epsg projection code that the user
-        requested the data be returned in
+        requested the data be returned in.
 
         Returns:
             epsg code of output data
+
         """
         return self.__epsg
 
     def data_type(self) -> str:
         """
-        Returns the data type that has been requested
+        Returns the data type that has been requested.
 
         Returns:
             data type requested by the user request
+
         """
         return self.__data_type
 
-    def dry_run(self):
+    def dry_run(self) -> bool:
         """
-        Returns whether the input is a dry run
+        Returns whether the input is a dry run.
 
         Returns:
             A boolean indicating whether the input is a dry run
+
         """
         return self.__dry_run
 
     def compression(self) -> bool:
         """
-        Returns the option for using ascii file compression in output
+        Returns the option for using ascii file compression in output.
 
         Returns:
             boolean indicating if compression should be turned on/off
+
         """
         return self.__compression
 
     def error(self) -> list:
         """
-        Returns the error message
+        Returns the error message.
 
         Returns:
             The error message
+
         """
         return self.__error
 
-    def format(self):
+    def format(self) -> str:
         """
-        Returns the format of the output data requested
+        Returns the format of the output data requested.
 
         Returns:
             The format of the output data requested
+
         """
         return self.__format
 
-    def filename(self):
+    def filename(self) -> str:
         """
-        Returns the filename that will be used for the output data
+        Returns the filename that will be used for the output data.
 
         Returns:
             The filename that will be used for the output data
+
         """
         return self.__filename
 
     def json(self) -> dict:
         """
-        Returns the json data that was provided in the input
+        Returns the json data that was provided in the input.
 
         Returns:
             The json data that was provided in the input
+
         """
         return self.__json
 
     def version(self) -> str:
         """
-        Returns the version of the input data
+        Returns the version of the input data.
 
         Returns:
             The version of the input data
+
         """
         return self.__version
 
     def operator(self) -> str:
         """
-        Returns the operator who provided the input data
+        Returns the operator who provided the input data.
 
         Returns:
             The operator who provided the input data
+
         """
         return self.__operator
 
     def start_date(self) -> datetime:
         """
-        Returns the start date of the input data
+        Returns the start date of the input data.
 
         Returns:
             The start date of the input data
+
         """
         return self.__start_date
 
     def end_date(self) -> datetime:
         """
-        Returns the end date of the input data
+        Returns the end date of the input data.
 
         Returns:
             The end date of the input data
+
         """
         return self.__end_date
 
     def time_step(self) -> int:
         """
-        Returns the time step of the input data
+        Returns the time step of the input data.
 
         Returns:
             The time step of the input data
+
         """
         return self.__time_step
 
     def num_domains(self) -> int:
         """
-        Returns the number of domains in the input data
+        Returns the number of domains in the input data.
 
         Returns:
             The number of domains in the input data
+
         """
         return len(self.__domains)
 
     def domain(self, index: int) -> Domain:
         """
-        Returns the domain at the specified index
+        Returns the domain at the specified index.
 
         Args:
             index: The index of the domain to return
+
         """
         return self.__domains[index]
 
     def domains(self) -> List[Domain]:
         """
-        Returns the list of domains
+        Returns the list of domains.
 
         Returns:
             The list of domains
+
         """
         return self.__domains
 
     def nowcast(self) -> bool:
         """
-        Returns whether the data should only contain nowcast data
+        Returns whether the data should only contain nowcast data.
 
         Returns:
             A boolean indicating whether the data should only contain nowcast data
+
         """
         return self.__nowcast
 
     def multiple_forecasts(self) -> bool:
         """
-        Returns whether the output data should contain multiple forecasts
+        Returns whether the output data should contain multiple forecasts.
 
         Returns:
             A boolean indicating whether the output data should contain multiple forecasts
+
         """
         return self.__multiple_forecasts
 
     def backfill(self) -> bool:
         """
         Returns whether the output data should be backfilled when the domain
-        extents are not available
+        extents are not available.
 
         Returns:
             A boolean indicating whether the output data should be backfilled
+
         """
         return self.__backfill
 
     def strict(self) -> bool:
         """
-        Returns whether the request should be handled strictly
+        Returns whether the request should be handled strictly.
 
         Returns:
             A boolean indicating whether the request should be handled strictly
+
         """
         return self.__strict
 
     def __parse(self) -> None:  # noqa: PLR0915
         """
-        Parses the input data
+        Parses the input data.
         """
         logger.info("Begin parsing input JSON data")
 
@@ -472,15 +494,15 @@ class Input:
 
     def __calculate_credit_usage(self) -> int:
         """
-        Calculates the credit usage of the request
+        Calculates the credit usage of the request.
 
         Credits are calculated as the number of grid cells
         multiplied by the number of time steps
 
         Returns:
             The credit usage of the request
-        """
 
+        """
         logger.info("Calculating credit usage")
 
         credit_usage = 0

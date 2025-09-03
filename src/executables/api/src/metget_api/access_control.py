@@ -28,6 +28,7 @@
 ###################################################################################################
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+from typing import Tuple
 
 from flask import request
 from libmetget.database.database import Database
@@ -42,16 +43,16 @@ WHITELISTED_DOMAINS = [".floodid.org", "localhost:5173"]
 
 class AccessControl:
     """
-    This class is used to check if the user is authorized to use the API
+    This class is used to check if the user is authorized to use the API.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @staticmethod
     def hash_access_token(token: str) -> str:
         """
-        This method is used to hash the access token before comparison
+        This method is used to hash the access token before comparison.
         """
         return sha256(token.encode()).hexdigest()
 
@@ -63,12 +64,12 @@ class AccessControl:
 
         Returns:
             bool: True if the request is coming from a whitelisted domain and False if not
+
         """
         referrer = request.headers.get("Referer")
         if referrer is None:
             return False
-        else:
-            return any(domain in referrer for domain in WHITELISTED_DOMAINS)
+        return any(domain in referrer for domain in WHITELISTED_DOMAINS)
 
     @staticmethod
     def is_authorized(api_key: str, with_whitelist: bool = False) -> bool:
@@ -76,7 +77,7 @@ class AccessControl:
         This method is used to check if the user is authorized to use the API
         The method returns True if the user is authorized and False if not
         Keys are hashed before being compared to the database to prevent
-        accidental exposure of the keys and/or sql injection
+        accidental exposure of the keys and/or sql injection.
 
         Args:
             api_key (str): The API key used to authenticate the request
@@ -84,6 +85,7 @@ class AccessControl:
 
         Returns:
             bool: True if the user is authorized and False if not
+
         """
         if with_whitelist:
             whitelist_authorized = AccessControl.check_whitelisted_domain()
@@ -116,7 +118,7 @@ class AccessControl:
     def check_authorization_token(headers: dict, with_whitelist: bool = False) -> bool:
         """
         This method is used to check if the user is authorized to use the API
-        The method returns True if the user is authorized and False if not
+        The method returns True if the user is authorized and False if not.
 
         Args:
             headers (dict): The headers from the request
@@ -131,7 +133,7 @@ class AccessControl:
         return bool(gatekeeper.is_authorized(user_token, with_whitelist))
 
     @staticmethod
-    def unauthorized_response():
+    def unauthorized_response() -> Tuple[dict, int]:
         status = 401
         return {
             "statusCode": status,
@@ -141,13 +143,14 @@ class AccessControl:
     @staticmethod
     def get_credit_balance(api_key: str) -> dict:
         """
-        This method is used to get the credit balance for the user
+        This method is used to get the credit balance for the user.
 
         Args:
             api_key (str): The API key used to authenticate the request
 
         Returns:
             dict: A dictionary containing the credit limit, credits used, and credit balance
+
         """
         with Database() as db, db.session() as session:
             # ...Queries the database for the credit limit for the user

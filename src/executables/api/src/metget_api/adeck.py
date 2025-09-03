@@ -35,7 +35,7 @@ from libmetget.database.tables import NhcAdeck
 
 class ADeck:
     """
-    Class to handle the ADeck endpoint
+    Class to handle the ADeck endpoint.
     """
 
     @staticmethod
@@ -43,7 +43,7 @@ class ADeck:
         year: str, basin: str, model: str, storm: int | str, cycle: datetime
     ) -> Tuple[Union[dict, str], int]:
         """
-        Method to handle the GET request for the ADeck endpoint
+        Method to handle the GET request for the ADeck endpoint.
 
         Args:
             year: The year that the storm occurs
@@ -54,6 +54,7 @@ class ADeck:
 
         Returns:
             The response for the ADeck endpoint
+
         """
         basin = basin.upper()
         model = model.upper()
@@ -62,19 +63,18 @@ class ADeck:
 
         if isinstance(storm, str) and storm.lower() == "all":
             return ADeck.__get_all_storms(year, basin, model, cycle)
-        elif isinstance(storm, int) and model.lower() == "all":
+        if isinstance(storm, int) and model.lower() == "all":
             return ADeck.__get_one_storm_all_models(year, basin, storm, cycle)
-        elif isinstance(storm, int) and model.lower() != "all":
+        if isinstance(storm, int) and model.lower() != "all":
             return ADeck.__get_one_storm_one_model(year, basin, model, storm, cycle)
-        else:
-            return {"message": "Invalid request"}, 400
+        return {"message": "Invalid request"}, 400
 
     @staticmethod
     def __get_one_storm_all_models(
         year: str, basin: str, storm: int, cycle: datetime
     ) -> Tuple[Union[dict, str], int]:
         """
-        Method to get the storm track for a single storm for all models
+        Method to get the storm track for a single storm for all models.
 
         Args:
             year: The year that the storm occurs
@@ -84,6 +84,7 @@ class ADeck:
 
         Returns:
             The response for the ADeck endpoint
+
         """
         with Database() as db, db.session() as session:
             query_results = (
@@ -97,27 +98,26 @@ class ADeck:
 
             if not query_results:
                 return {"message": "No results found"}, 404
-            else:
-                storm_data = {}
-                for model, track in query_results:
-                    storm_data[model] = track
-                return {
-                    "message": "Success",
-                    "query": {
-                        "year": year,
-                        "basin": basin,
-                        "storm": storm,
-                        "cycle": cycle.strftime("%Y-%m-%d %H:%M"),
-                    },
-                    "storm_tracks": storm_data,
-                }, 200
+            storm_data = {}
+            for model, track in query_results:
+                storm_data[model] = track
+            return {
+                "message": "Success",
+                "query": {
+                    "year": year,
+                    "basin": basin,
+                    "storm": storm,
+                    "cycle": cycle.strftime("%Y-%m-%d %H:%M"),
+                },
+                "storm_tracks": storm_data,
+            }, 200
 
     @staticmethod
     def __get_one_storm_one_model(
         year: str, basin: str, model: str, storm: int, cycle: datetime
     ) -> Tuple[Union[dict, str], int]:
         """
-        Method to get the storm track for a single storm
+        Method to get the storm track for a single storm.
 
         Args:
             year: The year that the storm occurs
@@ -128,6 +128,7 @@ class ADeck:
 
         Returns:
             The response for the ADeck endpoint
+
         """
         with Database() as db, db.session() as session:
             query_results = (
@@ -142,28 +143,27 @@ class ADeck:
 
             if not query_results:
                 return {"message": "No results found"}, 404
-            elif len(query_results) > 1:
+            if len(query_results) > 1:
                 return {"message": "Multiple results found"}, 500
-            else:
-                track_data = query_results[0].geometry_data
-                return {
-                    "message": "Success",
-                    "query": {
-                        "year": year,
-                        "basin": basin,
-                        "model": model,
-                        "storm": storm,
-                        "cycle": cycle.strftime("%Y-%m-%d %H:%M"),
-                    },
-                    "storm_track": track_data,
-                }, 200
+            track_data = query_results[0].geometry_data
+            return {
+                "message": "Success",
+                "query": {
+                    "year": year,
+                    "basin": basin,
+                    "model": model,
+                    "storm": storm,
+                    "cycle": cycle.strftime("%Y-%m-%d %H:%M"),
+                },
+                "storm_track": track_data,
+            }, 200
 
     @staticmethod
     def __get_all_storms(
         year: str, basin: str, model: str, cycle: datetime
     ) -> Tuple[Union[dict, str], int]:
         """
-        Method to get all active storms at a given cycle for a model
+        Method to get all active storms at a given cycle for a model.
 
         Args:
             year: The year that the storm occurs
@@ -173,6 +173,7 @@ class ADeck:
 
         Returns:
             The response for the ADeck endpoint
+
         """
         with Database() as db, db.session() as session:
             query_results = (
@@ -186,17 +187,16 @@ class ADeck:
 
             if not query_results:
                 return {"message": "No results found"}, 404
-            else:
-                storm_data = {}
-                for storm, track in query_results:
-                    storm_data[storm] = track
-                return {
-                    "message": "Success",
-                    "query": {
-                        "year": year,
-                        "basin": basin,
-                        "model": model,
-                        "cycle": cycle.strftime("%Y-%m-%d %H:%M"),
-                    },
-                    "storm_tracks": storm_data,
-                }, 200
+            storm_data = {}
+            for storm, track in query_results:
+                storm_data[storm] = track
+            return {
+                "message": "Success",
+                "query": {
+                    "year": year,
+                    "basin": basin,
+                    "model": model,
+                    "cycle": cycle.strftime("%Y-%m-%d %H:%M"),
+                },
+                "storm_tracks": storm_data,
+            }, 200

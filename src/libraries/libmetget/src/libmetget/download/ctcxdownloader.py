@@ -84,8 +84,8 @@ class CtcxDownloader:
 
         Returns:
             The number of files downloaded
-        """
 
+        """
         current_year = datetime.utcnow().year - 1
 
         STORM_MIN = 1
@@ -129,8 +129,8 @@ class CtcxDownloader:
 
         Returns:
             The number of files processed
-        """
 
+        """
         file_count = 0
 
         info = self.__retrieve_files_from_s3(path, storm_name)
@@ -171,7 +171,6 @@ class CtcxDownloader:
             True if we have all the ensemble members for the given cycle date, False otherwise
 
         """
-
         ENSEMBLE_MEMBER_MIN = 0
         ENSEMBLE_MEMBER_MAX = 20
 
@@ -206,8 +205,8 @@ class CtcxDownloader:
         Args:
             base_name: The base name of the file (without the extension)
             ensemble_member: The ensemble member metadata to add
-        """
 
+        """
         # ...Add the ensemble member to the database
         logger.info(
             "Begin adding ensemble member {:s} to database".format(
@@ -275,8 +274,8 @@ class CtcxDownloader:
 
         Returns:
             A dict with the metadata
-        """
 
+        """
         # ...Get the metadata from the filename
         filename = os.path.basename(path)
         cycle_date = datetime.strptime(
@@ -308,6 +307,7 @@ class CtcxDownloader:
 
         Returns:
             A dict with the metadata
+
         """
         ensemble_member = int(filename.split("_")[0][-3:])
         ensemble_member_str = f"{ensemble_member:03d}"

@@ -4,6 +4,7 @@ Generates points, triangulates with a boundary constraint, and visualizes the re
 """
 
 import time
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
@@ -11,7 +12,9 @@ import numpy as np
 from fasttri import InterpolationWeights, Triangulation
 
 
-def point_in_polygon(x, y, poly_x, poly_y):
+def point_in_polygon(
+    x: np.ndarray, y: np.ndarray, poly_x: np.ndarray, poly_y: np.ndarray
+) -> np.ndarray:
     """Check if points are inside a polygon using ray casting algorithm."""
     n = len(poly_x)
     inside = np.zeros(len(x), dtype=bool)
@@ -36,9 +39,8 @@ def point_in_polygon(x, y, poly_x, poly_y):
     return inside
 
 
-def generate_test_data():
+def generate_test_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Generate test points and boundary polygon with curved boundaries."""
-
     # Create a boundary with:
     # - Concave (inward curving) south side
     # - Convex (outward curving) north side
@@ -105,9 +107,10 @@ def generate_test_data():
     return all_points_x, all_points_y, boundary_x, boundary_y
 
 
-def test_interpolation(triangulation, points_x, points_y):
+def test_interpolation(
+    triangulation: Triangulation, points_x: np.ndarray, points_y: np.ndarray
+) -> np.ndarray:
     """Test interpolation at some query points."""
-
     # Create a simple function to interpolate (e.g., z = x^2 + y^2)
     values = points_x**2 + points_y**2
 
@@ -134,9 +137,10 @@ def test_interpolation(triangulation, points_x, points_y):
     return values
 
 
-def test_vector_interpolation(triangulation, points_x, points_y):
+def test_vector_interpolation(
+    triangulation: Triangulation, points_x: np.ndarray, points_y: np.ndarray
+) -> None:
     """Test vector-based interpolation methods."""
-
     print("\n" + "=" * 50)
     print("Vector-based Interpolation Tests")
     print("=" * 50)
@@ -219,9 +223,13 @@ def test_vector_interpolation(triangulation, points_x, points_y):
     print("\nVector tests completed successfully!")
 
 
-def visualize_triangulation(triangulation, boundary_x, boundary_y, values=None):
+def visualize_triangulation(
+    triangulation: Triangulation,
+    boundary_x: np.ndarray,
+    boundary_y: np.ndarray,
+    values: np.ndarray = None,
+) -> None:
     """Create a visualization of the triangulation."""
-
     # Get mesh data from triangulation
     vertices = triangulation.get_vertices()
     triangles = triangulation.get_triangles()
@@ -286,9 +294,8 @@ def visualize_triangulation(triangulation, boundary_x, boundary_y, values=None):
     return fig
 
 
-def main():
+def main() -> None:
     """Main test function."""
-
     print("=" * 50)
     print("FastTri Triangulation Test")
     print("=" * 50)

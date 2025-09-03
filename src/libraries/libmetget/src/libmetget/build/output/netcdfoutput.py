@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 from datetime import datetime
-from typing import List, Union
+from typing import Any, List, Union
 
 import xarray as xr
 from loguru import logger
@@ -43,7 +43,9 @@ class NetcdfOutput(OutputFile):
     A class to represent a NetCDF output file.
     """
 
-    def __init__(self, start_time: datetime, end_time: datetime, time_step: int):
+    def __init__(
+        self, start_time: datetime, end_time: datetime, time_step: int
+    ) -> None:
         """
         Construct a NetCDF output file.
         """
@@ -59,7 +61,7 @@ class NetcdfOutput(OutputFile):
         index: int,
         dataset: List[xr.Dataset],
         variable_types: List[VariableType],
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Write the NetCDF output file.
@@ -72,6 +74,7 @@ class NetcdfOutput(OutputFile):
 
         Returns:
             None
+
         """
         if len(dataset) != 1:
             msg = "NetCDF output files only support one output domain."
@@ -84,7 +87,10 @@ class NetcdfOutput(OutputFile):
         self.domain(0).write(dataset[0], variable_types[0], **kwargs)
 
     def add_domain(
-        self, grid: OutputGrid, filename: Union[List[str], str], **kwargs
+        self,
+        grid: OutputGrid,
+        filename: Union[List[str], str],
+        **kwargs: Any,
     ) -> None:
         """
         Add a domain to the output file.
@@ -96,6 +102,7 @@ class NetcdfOutput(OutputFile):
 
         Returns:
             None
+
         """
         if isinstance(filename, list) and len(filename) > 1:
             msg = "NetCDF output files only support one output filename."

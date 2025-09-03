@@ -43,10 +43,11 @@ class S3file:
         self.__resource: Any = boto3.resource("s3")
 
     def upload_file(self, local_file: str, remote_path: str) -> bool:
-        """Upload a file to an S3 bucket
+        """
+        Upload a file to an S3 bucket
         :param local_file: local path to file for upload
         :param remote_path: desired path to the remote file
-        :return: True if file was uploaded, else False
+        :return: True if file was uploaded, else False.
         """
         # Upload the file
         try:
@@ -76,8 +77,7 @@ class S3file:
         except botocore.exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "404":
                 return False
-            else:
-                # Something else has gone wrong.
-                logger.error(str(e))
-                raise
+            # Something else has gone wrong.
+            logger.error(str(e))
+            raise
         return True

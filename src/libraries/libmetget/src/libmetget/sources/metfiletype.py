@@ -332,8 +332,8 @@ NCEP_RRFS = MetFileAttributes(
             "type": MetDataType.CATEGORICAL_ICE,
             "name": "cat_ice",
             "long_name": "CICEP:surface",
-            "var_name": "cice",
-            "grib_name": "cice",
+            "var_name": "cicep",
+            "grib_name": "cicep",
             "scale": 1.0,
             "is_accumulated": False,
         },
@@ -443,8 +443,8 @@ NCEP_REFS = MetFileAttributes(
             "type": MetDataType.CATEGORICAL_ICE,
             "name": "cat_ice",
             "long_name": "CICEP:surface",
-            "var_name": "cice",
-            "grib_name": "cice",
+            "var_name": "cicep",
+            "grib_name": "cicep",
             "scale": 1.0,
             "is_accumulated": False,
         },
@@ -861,13 +861,14 @@ MET_FILE_ATTRIBUTES_LIST = [
 
 def attributes_from_name(name: str) -> MetFileAttributes:
     """
-    Get the MetFileAttributes from the name of the service
+    Get the MetFileAttributes from the name of the service.
 
     Args:
         name (str): The name of the service
 
     Returns:
         MetFileAttributes: The MetFileAttributes for the service
+
     """
     for met_file_attributes in MET_FILE_ATTRIBUTES_LIST:
         if met_file_attributes.name().lower() == name.lower():
@@ -878,15 +879,15 @@ def attributes_from_name(name: str) -> MetFileAttributes:
 
 def attributes_from_service(service: str) -> MetFileAttributes:
     """
-    This method is used to get the service type
+    This method is used to get the service type.
 
     Args:
         service (str): The service to get the type for
 
     Returns:
         MetFileAttributes: The service type
-    """
 
+    """
     service_map: Dict[str, MetFileAttributes] = {
         "gfs-ncep": NCEP_GFS,
         "nam-ncep": NCEP_NAM,

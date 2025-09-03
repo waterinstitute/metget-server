@@ -30,7 +30,7 @@
 import os
 import uuid
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, Tuple
 
 import libmetget.version
 import sqlalchemy
@@ -63,24 +63,25 @@ CORS(application)
 # Loguru handles log levels automatically
 
 
-def ratelimit_error_responder(request_limit: RequestLimit):
+def ratelimit_error_responder(request_limit: RequestLimit) -> Response:
     """
     This method is used to return a 429 error when the user has exceeded the
-    rate limit
+    rate limit.
 
     Args:
         request_limit: The request limit object
 
     Returns:
         A 429 error response
+
     """
     return make_response(jsonify({"error": "rate_limit_exceeded"}), 429)
 
 
 @application.route("/")
-def index():
+def index() -> Response:
     """
-    When the user hits the root path, redirect them to the MetGet homepage
+    When the user hits the root path, redirect them to the MetGet homepage.
     """
     return redirect(location="http://thewaterinstitute.org", code=302)
 
@@ -88,7 +89,7 @@ def index():
 class MetGetStatus(Resource):
     """
     This class is used to check the status of the MetGet API and see what
-    data is currently available in the database
+    data is currently available in the database.
 
     This is found at the /status path
 
@@ -102,23 +103,22 @@ class MetGetStatus(Resource):
     ]
 
     @staticmethod
-    def get():
+    def get() -> Tuple[dict, int]:
         """
         This method is used to check the status of the MetGet API and see what
-        data is currently available in the database
+        data is currently available in the database.
         """
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
             s = Status()
             status_data, status_code = s.get_status(request)
             return {"statusCode": status_code, "body": status_data}, status_code
-        else:
-            return AccessControl.unauthorized_response()
+        return AccessControl.unauthorized_response()
 
 
 class MetGetBuild(Resource):
     """
-    This class is used to build a new MetGet request into a 2d wind field
+    This class is used to build a new MetGet request into a 2d wind field.
 
     This is found at the /build path
     """
@@ -128,20 +128,19 @@ class MetGetBuild(Resource):
     ]
 
     @staticmethod
-    def post():
+    def post() -> Tuple[dict, int]:
         """
-        This method is used to build a new MetGet request into a 2d wind field
+        This method is used to build a new MetGet request into a 2d wind field.
         """
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
             return MetGetBuild.__build()
-        else:
-            return AccessControl.unauthorized_response()
+        return AccessControl.unauthorized_response()
 
     @staticmethod
-    def __build():
+    def __build() -> Tuple[dict, int]:
         """
-        This method is used to build a new MetGet request into a 2d wind field
+        This method is used to build a new MetGet request into a 2d wind field.
         """
         request_uuid = str(uuid.uuid4())
         request_api_key = request.headers.get("x-api-key")
@@ -160,7 +159,7 @@ class MetGetBuild(Resource):
 
 class MetGetCheckRequest(Resource):
     """
-    Allows users to check on the status of a request that is currently being built
+    Allows users to check on the status of a request that is currently being built.
 
     The request is specified as a query string parameter "request-id" to the get method
     """
@@ -170,19 +169,18 @@ class MetGetCheckRequest(Resource):
     ]
 
     @staticmethod
-    def get():
+    def get() -> Tuple[dict, int]:
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
             c = CheckRequest()
             message, status = c.get(request)
             return message, status
-        else:
-            return AccessControl.unauthorized_response()
+        return AccessControl.unauthorized_response()
 
 
 class MetGetADeck(Resource):
     """
-    Allows the user to query storm tracks from the A-Deck database
+    Allows the user to query storm tracks from the A-Deck database.
 
     This endpoint takes the following query parameters:
     - year - The year that the storm occurs
@@ -197,9 +195,11 @@ class MetGetADeck(Resource):
     ]
 
     @staticmethod
-    def get(year: str, basin: str, model: str, storm: str, cycle: str):
+    def get(
+        year: str, basin: str, model: str, storm: str, cycle: str
+    ) -> Tuple[dict, int]:
         """
-        Method to handle the GET request for the ADeck endpoint
+        Method to handle the GET request for the ADeck endpoint.
 
         Args:
             year: The year that the storm occurs
@@ -210,6 +210,7 @@ class MetGetADeck(Resource):
 
         Returns:
             The response for the ADeck endpoint
+
         """
         authorized = AccessControl.check_authorization_token(
             request.headers, with_whitelist=True
@@ -246,7 +247,7 @@ class MetGetADeck(Resource):
 
 class MetGetTrack(Resource):
     """
-    Allows users to query a storm track in geojson format from the MetGet database
+    Allows users to query a storm track in geojson format from the MetGet database.
 
     The endpoint takes the following query parameters:
         - advisory - The nhc advisory number
@@ -262,7 +263,7 @@ class MetGetTrack(Resource):
     ]
 
     @staticmethod
-    def get():
+    def get() -> Tuple[dict, int]:
         # authorized = AccessControl.check_authorization_token(request.headers)
         # if authorized:
         #    return self.__get_storm_track()
@@ -280,11 +281,11 @@ class MetGetCredits(Resource):
     """
     Allows the user to query the current credit balance for
     their API key. This endpoint uses the API key passed in
-    with the header and takes no parameters
+    with the header and takes no parameters.
     """
 
     @staticmethod
-    def get():
+    def get() -> Tuple[dict, int]:
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
             user_token = request.headers.get("x-api-key")
@@ -292,8 +293,7 @@ class MetGetCredits(Resource):
             if credit_data["credit_limit"] == 0.0:
                 credit_data["credit_balance"] = 0.0
             return {"statusCode": 200, "body": credit_data}, 200
-        else:
-            return AccessControl.unauthorized_response()
+        return AccessControl.unauthorized_response()
 
 
 class MetGetDashboard(Resource):
@@ -305,7 +305,7 @@ class MetGetDashboard(Resource):
     """
 
     @staticmethod
-    def get():
+    def get() -> Response:
         """
         Serves the dashboard HTML page that displays real-time status
         of meteorological models and NHC data.
@@ -316,7 +316,7 @@ class MetGetDashboard(Resource):
         return MetGetDashboard._load_dashboard_html()
 
     @staticmethod
-    def _load_dashboard_html():
+    def _load_dashboard_html() -> Response:
         """Load and return the dashboard HTML template."""
         template_path = os.path.join(
             os.path.dirname(__file__), "templates", "dashboard.html"
@@ -330,9 +330,9 @@ class MetGetDashboard(Resource):
             return Response(error_html, mimetype="text/html", status=404)
 
 
-def health_ready():
+def health_ready() -> None:
     """
-    This method is used to check the readiness of the MetGet API
+    This method is used to check the readiness of the MetGet API.
 
     This function checks:
         - The database connection

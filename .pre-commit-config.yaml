@@ -11,8 +11,6 @@ repos:
         name: Ruff
         args: [ "--fix",
                 "--show-fixes",
-                "--select", "E,W,F,B,I,C4,EM,ICN,ISC,PGH,PIE,PL,PT,RET,RUF,SIM,UP,YTT,EXE,NPY,PD",
-                "--ignore", "E501,PT004,RET505,RET506,RET507,RET508,SIM108,PLR2004",
                 "--unsafe-fixes"
         ]
       - id: ruff-format

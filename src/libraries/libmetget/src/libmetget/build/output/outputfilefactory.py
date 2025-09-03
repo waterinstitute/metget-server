@@ -41,7 +41,7 @@ class OutputFileFactory:
     A class to represent a factory for creating output files.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @staticmethod
@@ -64,15 +64,15 @@ class OutputFileFactory:
 
         Returns:
             OutputFile: The output file.
+
         """
         output_type = OutputTypes.from_string(output_format)
 
         if output_type == OutputTypes.OWI_ASCII:
             return OwiAsciiOutput(start_time, end_time, time_step, compression)
-        elif output_type == OutputTypes.OWI_NETCDF:
+        if output_type == OutputTypes.OWI_NETCDF:
             return OwiNetcdfOutput(start_time, end_time, time_step)
-        elif output_type == OutputTypes.CF_NETCDF:
+        if output_type == OutputTypes.CF_NETCDF:
             return NetcdfOutput(start_time, end_time, time_step)
-        else:
-            msg = "Invalid output format: " + output_format
-            raise ValueError(msg)
+        msg = "Invalid output format: " + output_format
+        raise ValueError(msg)

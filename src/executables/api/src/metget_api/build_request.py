@@ -28,6 +28,7 @@
 ###################################################################################################
 import json
 import os
+from datetime import datetime
 from typing import Tuple, Union
 
 import pika
@@ -41,7 +42,7 @@ from loguru import logger
 class BuildRequest:
     """
     This class is used to build a new MetGet request into a 2d wind field
-    and initiate the k8s process within argo
+    and initiate the k8s process within argo.
     """
 
     def __init__(
@@ -53,7 +54,7 @@ class BuildRequest:
         no_construct: bool,
     ) -> None:
         """
-        Constructor for BuildRequest
+        Constructor for BuildRequest.
 
         Args:
             request_id: A string containing the request id
@@ -99,7 +100,7 @@ class BuildRequest:
     ) -> None:
         """
         This method is used to add a new request to the database and initiate
-        the k8s process within argo
+        the k8s process within argo.
 
         Args:
             request_status: The status of the request
@@ -109,6 +110,7 @@ class BuildRequest:
 
         Returns:
             None
+
         """
         if transmit:
             # Eventually we can remove this logic completely as we transition
@@ -144,13 +146,14 @@ class BuildRequest:
     @staticmethod
     def __count_forecasts(data: list) -> int:
         """
-        This method is used to count the number of forecasts in the request
+        This method is used to count the number of forecasts in the request.
 
         Args:
             data (list): The list of forecast data
 
         Returns:
             int: The number of forecasts in the request
+
         """
         s = set()
         for fcst in data:
@@ -160,13 +163,14 @@ class BuildRequest:
     @staticmethod
     def __check_time_step(data: list) -> list:
         """
-        This method is used to check the time step between forecasts
+        This method is used to check the time step between forecasts.
 
         Args:
             data (list): The list of forecast data
 
         Returns:
             list: The time step between forecasts
+
         """
         dt = []
         for i, fcst in enumerate(data[0:-2]):
@@ -176,13 +180,14 @@ class BuildRequest:
     @staticmethod
     def __check_forecast_hours(data: list) -> list:
         """
-        This method is used to check the forecast hours
+        This method is used to check the forecast hours.
 
         Args:
             data (list): The list of forecast data
 
         Returns:
             list: The forecast hours
+
         """
         dt = []
         for f in data:
@@ -191,12 +196,12 @@ class BuildRequest:
 
     def validate(self) -> bool:
         """
-        This method is used to validate the request
+        This method is used to validate the request.
 
         Returns:
             bool: True if the request is valid, False otherwise
-        """
 
+        """
         # ...Step 1: Check if the input was even parsed correctly
         if not self.__check_input_obj():
             return False
@@ -209,15 +214,15 @@ class BuildRequest:
 
     def __validate_domain(self, domain: Domain) -> bool:
         """
-        This method is used to validate the domain
+        This method is used to validate the domain.
 
         Args:
             domain: The domain object to validate
 
         Returns:
             bool: The updated validity status
-        """
 
+        """
         # Check the ensemble member and update is_valid if it returns false
         is_domain_valid = self.__check_ensemble_member(domain)
 
@@ -240,7 +245,7 @@ class BuildRequest:
 
     def __check_synoptic_request_validity(self, lookup: list, tau: int) -> bool:
         """
-        This method is used to check the validity of the synoptic request
+        This method is used to check the validity of the synoptic request.
 
         Args:
             lookup: The lookup object
@@ -248,8 +253,8 @@ class BuildRequest:
 
         Returns:
             bool: True if the synoptic request is valid, False otherwise
-        """
 
+        """
         is_valid = True
 
         if len(lookup) < 2:
@@ -294,10 +299,12 @@ class BuildRequest:
 
         return is_valid
 
-    def __generate_lookup_obj(self, d, tau) -> Tuple[Union[list, dict], bool]:
+    def __generate_lookup_obj(
+        self, d: Domain, tau: int
+    ) -> Tuple[Union[list, dict], bool]:
         """
         This method is used to generate the lookup object for the request and
-        check its validity
+        check its validity.
 
         Args:
             d: The domain object
@@ -305,6 +312,7 @@ class BuildRequest:
 
         Returns:
             Tuple[Union[list, dict], bool]: The lookup object and a boolean indicating if the lookup is valid
+
         """
         lookup = self.__generate_file_list(
             d.service(),
@@ -328,13 +336,14 @@ class BuildRequest:
 
     def __get_tau_parameter(self, d: Domain) -> int:
         """
-        This method is used to get the tau parameter for the request
+        This method is used to get the tau parameter for the request.
 
         Args:
             d: The domain object
 
         Returns:
             int: The tau parameter
+
         """
         if d.service() != "nhc":
             tau = FilelistBase.check_tau_parameter(
@@ -346,13 +355,14 @@ class BuildRequest:
 
     def __check_ensemble_member(self, d: Domain) -> bool:
         """
-        This method is used to check if the ensemble member is valid
+        This method is used to check if the ensemble member is valid.
 
         Args:
             d: The domain object
 
         Returns:
             bool: True if the ensemble member is valid, False otherwise
+
         """
         if d.service() == "gefs-ncep" and not d.ensemble_member():
             self.__error.append("GEFS-NCEP requires an ensemble member")
@@ -362,10 +372,11 @@ class BuildRequest:
     def __check_input_obj(self) -> bool:
         """
         This method is used to check if the input object is valid and
-        save any errors that occur
+        save any errors that occur.
 
         Returns:
             bool: True if the input object is valid, False otherwise
+
         """
         if not self.__input_obj.valid():
             self.__error.append("Input data could not be parsed")
@@ -375,23 +386,23 @@ class BuildRequest:
         return True
 
     @staticmethod
-    def __generate_file_list(  # noqa: PLR0913
-        service,
-        param,
-        start,
-        end,
-        tau,
-        storm_year,
-        storm,
-        basin,
-        advisory,
-        nowcast,
-        multiple_forecasts,
-        ensemble_member,
+    def __generate_file_list(
+        service: str,
+        param: str,
+        start: datetime,
+        end: datetime,
+        tau: int,
+        storm_year: int,
+        storm: str,
+        basin: str,
+        advisory: int,
+        nowcast: bool,
+        multiple_forecasts: bool,
+        ensemble_member: str,
     ) -> Union[list, dict]:
         """
         This method is used to generate a list of files that will be used
-        to generate the requested data
+        to generate the requested data.
         """
         file_list = Filelist(
             service=service,
