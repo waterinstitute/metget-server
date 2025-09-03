@@ -678,8 +678,10 @@ class MessageHandler:
             timedelta(seconds=input_data.time_step()),
         ):
             if time_now > meteo_obj.f2().time():
+                t_now_str = time_now.strftime("%Y-%m-%d %H:%M")
+                next_time_str = meteo_obj.f2().time().strftime("%Y-%m-%d %H:%M")
                 logger.debug(
-                    f"Processing next domain time step: {time_now:s} > {meteo_obj.f2().time():s}"
+                    f"Processing next domain time step: {t_now_str:s} > {next_time_str:s}"
                 )
                 domain_files_used = MessageHandler.__process_next_domain_time_step(
                     domain_data,

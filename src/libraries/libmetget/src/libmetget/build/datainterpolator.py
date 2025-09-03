@@ -257,8 +257,6 @@ class DataInterpolator:
         Returns:
             xr.Dataset: The interpolated data.
         """
-        from .triangulation import Triangulation
-
         boundary, points = self.__get_dataset_points_and_edges(data_item)
         if self.__triangulation is None or not Triangulation.matches(
             self.__triangulation, points
