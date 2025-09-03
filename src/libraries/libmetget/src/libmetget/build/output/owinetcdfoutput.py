@@ -28,7 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime
-from typing import List, Union
+from typing import Any, List, Union
 
 import xarray as xr
 from netCDF4 import Dataset
@@ -49,7 +49,7 @@ class OwiNetcdfOutput(OutputFile):
         start_time: datetime,
         end_time: datetime,
         time_step: int,
-    ):
+    ) -> None:
         """
         Construct an OWI ASCII output file.
         """
@@ -59,7 +59,10 @@ class OwiNetcdfOutput(OutputFile):
         super().__init__(start_time, end_time, time_step)
 
     def add_domain(
-        self, grid: OutputGrid, filename: Union[List[str], str], **kwargs
+        self,
+        grid: OutputGrid,
+        filename: Union[List[str], str],
+        **kwargs: Any,
     ) -> None:
         """
         Add a domain to the OWI ASCII output file.
@@ -125,6 +128,7 @@ class OwiNetcdfOutput(OutputFile):
 
         Returns:
             None
+
         """
         msg = "OwiNetcdfOutput.write() is not implemented"
         raise NotImplementedError(msg)
@@ -135,6 +139,7 @@ class OwiNetcdfOutput(OutputFile):
 
         Returns:
             None
+
         """
         for d in self.domains():
             d["domain"].close()

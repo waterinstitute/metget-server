@@ -33,7 +33,7 @@ import os
 import tempfile
 import urllib.request
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Type
 
 import boto3
 import requests
@@ -163,15 +163,15 @@ def rebuild_ctcx(start: datetime, end: datetime) -> int:
 
 def read_nhc_data(filename: str) -> list:
     """
-    Reads the specified ATCF file and puts the data into a dict with the keys specified for each field
+    Reads the specified ATCF file and puts the data into a dict with the keys specified for each field.
 
     Args:
         filename (str): The filename to read
 
     Returns:
         list: A list of dictionaries containing the data
-    """
 
+    """
     # ...Keys for the zippered dictionary from the NHC file
     atcf_keys = [
         "basin",
@@ -224,8 +224,8 @@ def read_nhc_data(filename: str) -> list:
     return data
 
 
-def nhc_compute_pressure(self, filepath: str) -> None:
-    nhc_data = self.read_nhc_data(filepath)
+def nhc_compute_pressure(filepath: str) -> None:
+    nhc_data = read_nhc_data(filepath)
 
     last_vmax = None
     last_pressure = None
@@ -255,7 +255,7 @@ def nhc_compute_pressure(self, filepath: str) -> None:
             entry["data"]["pressure_outer"] = background_pressure
 
 
-def nhc_compute_checksum(path):
+def nhc_compute_checksum(path: str) -> str:
     with open(path, "rb") as file:
         data = file.read()
         return hashlib.md5(data).hexdigest()
@@ -264,15 +264,14 @@ def nhc_compute_checksum(path):
 def nhc_position_to_float(position: str) -> float:
     if position[-1] == "N":
         return float(position[:-1]) / 10.0
-    elif position[-1] == "S":
+    if position[-1] == "S":
         return -1 * float(position[:-1]) / 10.0
-    elif position[-1] == "E":
+    if position[-1] == "E":
         return float(position[:-1]) / 10.0
-    elif position[-1] == "W":
+    if position[-1] == "W":
         return -1 * float(position[:-1]) / 10.0
-    else:
-        msg = f"Invalid position: {position}"
-        raise ValueError(msg)
+    msg = f"Invalid position: {position}"
+    raise ValueError(msg)
 
 
 def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
@@ -308,7 +307,7 @@ def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
     return FeatureCollection(features=points)
 
 
-def nhc_download_data(table) -> int:  # noqa: PLR0912
+def nhc_download_data(table: Type) -> int:  # noqa: PLR0912
     bucket = os.environ["METGET_S3_BUCKET"]
     client = boto3.client("s3")
     paginator = client.get_paginator("list_objects_v2")
@@ -569,7 +568,7 @@ def rebuild_nhc() -> int:
     return n
 
 
-def check_for_environment_variables():
+def check_for_environment_variables() -> None:
     required_env_vars = [
         "METGET_DATABASE_USER",
         "METGET_DATABASE_PASSWORD",
@@ -585,7 +584,7 @@ def check_for_environment_variables():
             raise ValueError(msg)
 
 
-def rebuilder():
+def rebuilder() -> None:
     p = argparse.ArgumentParser(
         description="Utility to rebuild the MetGet database from data that exists"
     )

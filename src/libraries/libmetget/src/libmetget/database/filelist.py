@@ -28,7 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime
-from typing import ClassVar, Union
+from typing import Any, ClassVar, Union
 
 from ..sources.metfiletype import (
     COAMPS_CTCX,
@@ -72,9 +72,9 @@ class Filelist:
     ENSEMBLE_TYPES: ClassVar = [NCEP_GEFS, NCEP_REFS]
     STORM_ENSEMBLE_TYPES: ClassVar = [COAMPS_CTCX]
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
-        Constructor for the Filelist class
+        Constructor for the Filelist class.
 
         Args:
             service (str): The service that is being requested
@@ -89,8 +89,8 @@ class Filelist:
             nowcast (bool): Whether this is a nowcast
             multiple_forecasts (bool): Whether multiple forecasts are being requested
             ensemble_member (str): The ensemble member that is being requested
-        """
 
+        """
         if "service" not in kwargs:
             msg = "service type must be provided"
             raise ValueError(msg)
@@ -120,13 +120,14 @@ class Filelist:
 
     def __parse_generic_kwargs(self, kwargs: dict) -> None:
         """
-        Parse the kwargs that are provided for generic type data
+        Parse the kwargs that are provided for generic type data.
 
         Args:
             kwargs: The kwargs that are provided at the top level
 
         Returns:
             None
+
         """
         required_args = [
             "service",
@@ -173,13 +174,14 @@ class Filelist:
 
     def __parse_nhc_kwargs(self, kwargs: dict) -> None:
         """
-        Parse the kwargs that are provided for NHC type data
+        Parse the kwargs that are provided for NHC type data.
 
         Args:
             kwargs: The kwargs that are provided at the top level
 
         Returns:
             None
+
         """
         required_args = [
             "storm",
@@ -205,12 +207,12 @@ class Filelist:
     def __query_files(self) -> None:
         """
         This method is used to query the database for the files that will be used to
-        generate the requested forcing data
+        generate the requested forcing data.
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
-        """
 
+        """
         filelist_obj = self.__filelist_obj_factory()
 
         if filelist_obj is not None:
@@ -223,11 +225,12 @@ class Filelist:
     def __filelist_obj_factory(self) -> Union[FilelistBase, None]:
         """
         This method is used to generate the appropriate filelist object based on the
-        type of service that is being requested
+        type of service that is being requested.
 
         Returns:
             FilelistBase: The filelist object that will be used to generate the list of
             files
+
         """
         filelist_obj = None
 
@@ -292,6 +295,6 @@ class Filelist:
 
     def files(self) -> Union[None, list, dict]:
         """
-        Returns the file data selected in the database
+        Returns the file data selected in the database.
         """
         return self.__files

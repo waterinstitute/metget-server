@@ -32,33 +32,33 @@ import os.path
 import tempfile
 from datetime import datetime, timedelta
 from time import sleep
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Generator, List, Optional, Tuple, Union
 
 import boto3
 import requests
 from botocore.exceptions import ClientError
 from loguru import logger
+from requests.adapters import Retry
 
 from .metdb import Metdb
 from .s3file import S3file
 
 
-class RetryLogger(requests.adapters.Retry):
+class RetryLogger(Retry):
     """
-    A retry class that logs the retries
+    A retry class that logs the retries.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        # logger.warning(f"Request failed. Retrying...")
+    def __init__(self, *args: tuple, **kwargs: dict[str, Any]) -> None:
         super().__init__(*args, **kwargs)
 
 
 class NoaaDownloader:
     """
-    Parent class for downloading noaa grib format data
+    Parent class for downloading noaa grib format data.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         met_type: str,
         met_string: str,
@@ -70,9 +70,9 @@ class NoaaDownloader:
         verbose: bool = True,
     ) -> None:
         """
-        Constructor for the NoaaDownloader class. Initializes the class variables
+        Constructor for the NoaaDownloader class. Initializes the class variables.
 
-            Args:
+        Args:
                 met_type (str): Type of meteorology that is to be downloaded
                 met_string (str): String representation of the meteorology
                 address (str): Server address
@@ -81,8 +81,8 @@ class NoaaDownloader:
                 use_aws_big_data (bool): Use AWS S3 for downloading big data
                 do_archive (bool): Archive the downloaded data. True indicates that the data will be archived in the s3 bucket. False indicates it will be left on the remote server
                 verbose (bool): Print verbose output
-        """
 
+        """
         self.__met_type = met_type
         self.__met_string = met_string
         self.__address = address
@@ -103,7 +103,7 @@ class NoaaDownloader:
             self.__s3file = None
 
     @staticmethod
-    def http_retry_strategy() -> requests.adapters.Retry:
+    def http_retry_strategy() -> Retry:
         # ...Note: Status 302 is NOAA speak for "chill out", not a redirect as in normal http
         return RetryLogger(
             total=10,
@@ -115,76 +115,82 @@ class NoaaDownloader:
 
     def verbose(self) -> bool:
         """
-        Returns whether to print verbose output
+        Returns whether to print verbose output.
 
         Returns:
             bool: True if printing verbose output, else False
+
         """
         return self.__verbose
 
     def do_archive(self) -> bool:
         """
-        Returns whether to archive the downloaded data
+        Returns whether to archive the downloaded data.
 
         Returns:
             bool: True if the data is to be archived, else False
+
         """
         return self.__do_archive
 
     def s3file(self) -> S3file:
         """
-        Returns the S3 file object
+        Returns the S3 file object.
 
         Returns:
             S3file: S3 file object
+
         """
         return self.__s3file
 
     def set_cycles(self, cycle_list: list) -> None:
         """
-        Sets the cycles to download
+        Sets the cycles to download.
 
         Args:
             cycle_list (list): List of cycles to download
 
         Returns:
             None
+
         """
         self.__cycles = cycle_list
 
     def cycles(self) -> list:
         """
-        Returns the cycles to download
+        Returns the cycles to download.
 
         Returns:
             list: List of cycles to download
+
         """
         return self.__cycles
 
     def set_big_data_bucket(self, bucket_name: str) -> None:
         """
-        Sets the bucket name for the AWS big data service
+        Sets the bucket name for the AWS big data service.
         """
         self.__big_data_bucket = bucket_name
 
     def big_data_bucket(self) -> str:
         """
-        Returns the bucket name for the AWS big data service
+        Returns the bucket name for the AWS big data service.
         """
         return self.__big_data_bucket
 
     def use_big_data(self) -> bool:
         """
-        Returns whether to use the AWS big data service
+        Returns whether to use the AWS big data service.
 
         Returns:
             bool: True if using AWS big data service, False otherwise
+
         """
         return self.__use_aws_big_data
 
     def add_download_variable(self, long_name: str, name: str) -> None:
         """
-        Adds a variable to the list of variables to download
+        Adds a variable to the list of variables to download.
 
         Args:
             long_name (str): The long name of the variable
@@ -192,117 +198,127 @@ class NoaaDownloader:
 
         Returns:
             None
+
         """
         self.__variables.append({"long_name": long_name, "name": name})
 
     def variables(self) -> List[dict]:
         """
-        Returns the list of variables to download
+        Returns the list of variables to download.
 
         Returns:
             list: List of variables to download
+
         """
         return self.__variables
 
     def met_type(self) -> str:
         """
-        Returns the met type
+        Returns the met type.
 
         Returns:
             str: The met type
+
         """
         return self.__met_type
 
     def met_string(self) -> str:
         """
-        Returns the met string
+        Returns the met string.
 
         Returns:
             str: The met string
+
         """
         return self.__met_string
 
     def address(self) -> str:
         """
-        Returns the noaa server address
+        Returns the noaa server address.
 
         Returns:
             str: The server address
+
         """
         return self.__address
 
     def database(self) -> Metdb:
         """
-        Returns the Metdb object
+        Returns the Metdb object.
 
         Returns:
             Metdb: The Metdb object
+
         """
         return self.__database
 
     def begin_date(self) -> datetime:
         """
-        Returns the start date of the download
+        Returns the start date of the download.
 
         Returns:
             datetime: The start date
+
         """
         return self.__beginDate
 
     def end_date(self) -> datetime:
         """
-        Returns the end date
+        Returns the end date.
 
         Returns:
             datetime: The end date
+
         """
         return self.__endDate
 
     def set_begin_date(self, date: datetime) -> None:
         """
-        Sets the start date of the download
+        Sets the start date of the download.
 
         Args:
             date (datetime): The start date
 
         Returns:
             None
+
         """
         self.__beginDate = date
 
     def set_end_date(self, date: datetime) -> None:
         """
-        Sets the end date
+        Sets the end date.
 
         Args:
             date (datetime): The end date
 
         Returns:
             None
+
         """
         self.__endDate = date
 
     def get_grib(self, info: dict) -> Tuple[str, int, int]:
         """
-        Gets the grib file from the noaa server
+        Gets the grib file from the noaa server.
 
         Args:
             info (dict): The info dictionary
 
         Returns:
             str: The path to the grib file
+
         """
         if self.use_big_data():
             return self.__get_grib_big_data(info)
-        else:
-            return self.__get_grib_noaa_servers(info)
+        return self.__get_grib_noaa_servers(info)
 
     @staticmethod
     def get_inventory_byte_list(
         inventory_data: list, variable: dict
     ) -> Union[dict, None]:
         """
-        Gets the byte list for the variable from the inventory data
+        Gets the byte list for the variable from the inventory data.
 
         Args:
             inventory_data (list): The inventory data
@@ -310,6 +326,7 @@ class NoaaDownloader:
 
         Returns:
             dict: The byte list for the variable
+
         """
         for i in range(len(inventory_data)):
             if variable["long_name"] in inventory_data[i]:
@@ -334,6 +351,7 @@ class NoaaDownloader:
 
         Returns:
             The object from the bucket
+
         """
         max_tries = 5
         sleep_interval = 5
@@ -345,8 +363,7 @@ class NoaaDownloader:
                     return self.__client.get_object(
                         Bucket=bucket, Key=key, Range=byte_range
                     )
-                else:
-                    return self.__client.get_object(Bucket=bucket, Key=key)
+                return self.__client.get_object(Bucket=bucket, Key=key)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "NoSuchKey":
                     tries += 1
@@ -359,13 +376,14 @@ class NoaaDownloader:
 
     def __get_inventory_big_data(self, info: dict) -> list:
         """
-        Gets the inventory data from the AWS big data service
+        Gets the inventory data from the AWS big data service.
 
         Args:
             info (dict): The info dictionary
 
         Returns:
             list: The inventory data
+
         """
         inv_obj = self.__try_get_object(self.__big_data_bucket, info["inv"])
         inv_data_tmp = str(inv_obj["Body"].read().decode("utf-8")).split("\n")
@@ -380,13 +398,14 @@ class NoaaDownloader:
 
     def __get_grib_big_data(self, info: dict) -> Tuple[Union[str, None], int, int]:
         """
-        Gets the grib file from the AWS big data service
+        Gets the grib file from the AWS big data service.
 
         Args:
             info (dict): The info dictionary
 
         Returns:
             str: The path to the grib file
+
         """
         time = info["cycledate"]
         fn = info["grb"].rsplit("/")[-1]
@@ -439,14 +458,11 @@ class NoaaDownloader:
 
             return remote_file, n, 0
 
-        else:
-            return None, 0, 0
+        return None, 0, 0
 
-    def __get_grib_noaa_servers(  # noqa: PLR0915, PLR0912
-        self, info: dict
-    ) -> Tuple[Union[str, None], int, int]:
+    def __get_grib_noaa_servers(self, info: dict) -> Tuple[Union[str, None], int, int]:  # noqa: PLR0915, PLR0912
         """
-        Gets the grib based upon the input data
+        Gets the grib based upon the input data.
 
         Args:
             info (dict): variable containing the location of the data
@@ -456,22 +472,22 @@ class NoaaDownloader:
 
         Pain and suffering this way lies, use the AWS big data option whenever
         available
+
         """
-        adaptor = requests.adapters.HTTPAdapter(
+        adapter = requests.adapters.HTTPAdapter(
             max_retries=NoaaDownloader.http_retry_strategy()
         )
 
         try:
             with requests.Session() as http:
-                http.mount("https://", adaptor)
-                http.mount("http://", adaptor)
+                http.mount("https://", adapter)
+                http.mount("http://", adapter)
 
                 inv = http.get(info["inv"], timeout=30)
                 if inv.status_code in (302, 403, 404):
                     logger.error("RESP: ".format())
                     return None, 0, 0
-                else:
-                    inv.raise_for_status()
+                inv.raise_for_status()
 
                 inv_lines = str(inv.text).split("\n")
                 retlist = []
@@ -553,8 +569,7 @@ class NoaaDownloader:
                     os.remove(floc)
 
                     return remote_file, n, 0
-                else:
-                    return None, 0, 0
+                return None, 0, 0
 
         except KeyboardInterrupt:
             raise
@@ -562,7 +577,7 @@ class NoaaDownloader:
     @staticmethod
     def _generate_prefix(date: datetime, hour: int) -> str:
         """
-        Generates the prefix for the AWS big data files
+        Generates the prefix for the AWS big data files.
 
         Args:
             date (datetime): date of the file
@@ -580,7 +595,7 @@ class NoaaDownloader:
     @staticmethod
     def _filename_to_hour(filename: str) -> int:
         """
-        Converts the filename to the hour of the file
+        Converts the filename to the hour of the file.
 
         Args:
             filename (str): filename of the file
@@ -589,19 +604,21 @@ class NoaaDownloader:
             int: hour of the file
 
         This method is meant to be overridden by the child classes
+
         """
         msg = "Override method not implemented"
         raise NotImplementedError(msg)
 
-    def list_objects(self, prefix: str):
+    def list_objects(self, prefix: str) -> Generator[dict, None, None]:
         """
-        Returns a paginator for the objects in the bucket
+        Returns a paginator for the objects in the bucket.
 
         Args:
             prefix (str): The prefix to search for
 
         Returns:
             paginator: The paginator for the objects in the bucket
+
         """
         paginator = self.__client.get_paginator("list_objects_v2")
         response_iterator = paginator.paginate(
@@ -614,12 +631,12 @@ class NoaaDownloader:
 
     def _download_aws_big_data(self) -> int:
         """
-        Downloads data from the AWS big data service
+        Downloads data from the AWS big data service.
 
         Returns:
             int: number of files downloaded
-        """
 
+        """
         begin = datetime(
             self.begin_date().year,
             self.begin_date().month,
@@ -686,44 +703,40 @@ class NoaaDownloader:
 
     def download(self) -> int:
         """
-        Downloads the data from the NOAA server
+        Downloads the data from the NOAA server.
 
         Returns:
             int: number of files downloaded
+
         """
         if self.__use_aws_big_data:
             return self._download_aws_big_data()
-        else:
-            msg = "Override method not implemented"
-            raise NotImplementedError(msg)
+        msg = "Override method not implemented"
+        raise NotImplementedError(msg)
 
     @staticmethod
-    def link_to_time(t):
+    def link_to_time(t: str) -> datetime:
         """
-        Converts a link in NOAA format to a datetime
+        Converts a link in NOAA format to a datetime.
 
         Args:
             t (str): Link to convert
 
         Returns:
             datetime: datetime object
-        """
 
-        if t[-1] == "/":
-            dstr = t[1:-1].rsplit("/", 1)[-1]
-        else:
-            dstr = t.rsplit("/", 1)[-1]
+        """
+        dstr = t[1:-1].rsplit("/", 1)[-1] if t[-1] == "/" else t.rsplit("/", 1)[-1]
 
         if len(dstr) == 4:
             return datetime(int(dstr), 1, 1)
-        elif len(dstr) == 6:
+        if len(dstr) == 6:
             return datetime(int(dstr[0:4]), int(dstr[4:6]), 1)
-        elif len(dstr) == 8:
+        if len(dstr) == 8:
             return datetime(int(dstr[0:4]), int(dstr[4:6]), int(dstr[6:8]))
-        elif len(dstr) == 10:
+        if len(dstr) == 10:
             return datetime(
                 int(dstr[0:4]), int(dstr[4:6]), int(dstr[6:8]), int(dstr[8:10]), 0, 0
             )
-        else:
-            msg = "Could not convert link to a datetime"
-            raise Exception(msg)
+        msg = "Could not convert link to a datetime"
+        raise Exception(msg)

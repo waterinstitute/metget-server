@@ -41,7 +41,7 @@ class CtcxDomain:
     Class to hold the data for a single domain of a CTCX snapshot.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         cycle_time: datetime,
         forecast_time: datetime,
@@ -62,6 +62,7 @@ class CtcxDomain:
             pressure: The pressure metadata.
             uwind: The u-wind metadata.
             vwind: The v-wind metadata.
+
         """
         self.__cycle_time = cycle_time
         self.__forecast_time = forecast_time
@@ -99,10 +100,11 @@ class CtcxDomain:
 
     def get(self, metadata: Dict[str, any]) -> np.ndarray:
         """
-        Return the data for the given metadata in a 2D array
+        Return the data for the given metadata in a 2D array.
 
         Args:
             metadata: The metadata for the variable to return.
+
         """
         if metadata["raw_name"] not in self.__fid:
             msg = "Variable {:s} not found in file {:s}".format(
@@ -115,38 +117,38 @@ class CtcxDomain:
 
     def lon(self) -> Dict[str, any]:
         """
-        Return the longitude metadata
+        Return the longitude metadata.
         """
         return self.__lon
 
     def lat(self) -> Dict[str, any]:
         """
-        Return the latitude metadata
+        Return the latitude metadata.
         """
         return self.__lat
 
     def pressure(self) -> Dict[str, any]:
         """
-        Return the pressure metadata
+        Return the pressure metadata.
         """
         return self.__pressure
 
     def uwind(self) -> Dict[str, any]:
         """
-        Return the u-wind metadata
+        Return the u-wind metadata.
         """
         return self.__uwind
 
     def vwind(self) -> Dict[str, any]:
         """
-        Return the v-wind metadata
+        Return the v-wind metadata.
         """
         return self.__vwind
 
 
 class CtcxSnapshot:
     """
-    Class to hold the data for a single CTCX snapshot
+    Class to hold the data for a single CTCX snapshot.
     """
 
     def __init__(
@@ -159,6 +161,7 @@ class CtcxSnapshot:
             domain0: The domain 0 data.
             domain1: The domain 1 data.
             domain2: The domain 2 data.
+
         """
         self.__domains = [domain0, domain1, domain2]
 
@@ -171,6 +174,7 @@ class CtcxSnapshot:
 
         Returns:
             The data for the given domain.
+
         """
         return self.__domains[domain_id]
 
@@ -188,7 +192,7 @@ class CtcxSnapshot:
 
     def write(self, prefix: str, output_directory: str) -> Dict[str, any]:
         """
-        Write the snapshot to a set of NetCDF files (one per domain)
+        Write the snapshot to a set of NetCDF files (one per domain).
 
         Args:
             prefix: The prefix to use for the output files.
@@ -198,7 +202,6 @@ class CtcxSnapshot:
             A dictionary containing the files written.
 
         """
-
         coldstart_str = self.cycle_time().strftime("%Y%m%d%H")
         tau_str = f"{self.domain(0).tau():03d}"
 
@@ -220,9 +223,8 @@ class CtcxSnapshot:
 
     def __write_domain(self, filename: str, domain: CtcxDomain) -> None:
         """
-        Write the given domain to a NetCDF file
+        Write the given domain to a NetCDF file.
         """
-
         ds = Dataset(filename, "w", format="NETCDF4")
         ds.createDimension("lon", domain.pressure()["nx"])
         ds.createDimension("lat", domain.pressure()["ny"])
@@ -319,7 +321,7 @@ class CtcxSnapshot:
 
 class CtcxFormatter:
     """
-    A class for formatting CTCX data into netCDF data as expected by the MetGet system
+    A class for formatting CTCX data into netCDF data as expected by the MetGet system.
     """
 
     def __init__(self, filename: str, output_directory: str) -> None:
@@ -329,6 +331,7 @@ class CtcxFormatter:
         Args:
             filename: The filename to format.
             output_directory: The directory to write the formatted data to.
+
         """
         self.__filename = filename
         self.__output_directory = output_directory
@@ -350,7 +353,6 @@ class CtcxFormatter:
         Since there are no attributes in the hdf5, the variable name is used to
         get the metadata.
         """
-
         variable_split = raw_variable_name.split("_")
 
         variable_name = variable_split[0]
@@ -382,7 +384,6 @@ class CtcxFormatter:
         """
         Initialize the file by reading the metadata.
         """
-
         longitude = [{}, {}, {}]
         latitude = [{}, {}, {}]
         pressure = [{}, {}, {}]
@@ -431,13 +432,14 @@ class CtcxFormatter:
 
     def write(self, prefix: str = "ctcx") -> List[Dict[str, any]]:
         """
-        Write the data to netCDF files
+        Write the data to netCDF files.
 
         Args:
             prefix: The prefix to use for the output files.
 
         Returns:
             A list of the files written.
+
         """
         files_written = []
         for i in range(self.__n_time_steps):

@@ -35,15 +35,16 @@ from libmetget.database.tables import NhcBtkTable, NhcFcstTable
 
 class StormTrackQueryStringParameters:
     """
-    This class is used to parse the query string parameters for the storm track endpoint
+    This class is used to parse the query string parameters for the storm track endpoint.
     """
 
-    def __init__(self, request: flask.Request):
+    def __init__(self, request: flask.Request) -> None:
         """
-        Constructor for StormTrackQuery class
+        Constructor for StormTrackQuery class.
 
         Args:
             request: A flask request object
+
         """
         self.__year = None
         self.__basin = None
@@ -56,55 +57,61 @@ class StormTrackQueryStringParameters:
 
     def valid(self) -> bool:
         """
-        Checks if the query string parameters are valid
+        Checks if the query string parameters are valid.
 
         Returns:
             True if the query string parameters are valid, False otherwise
+
         """
         return self.__valid
 
     def error_message(self) -> str:
         """
-        Returns the error message if the query string parameters are invalid
+        Returns the error message if the query string parameters are invalid.
 
         Returns:
             The error message if the query string parameters are invalid
+
         """
         return self.__error_message
 
     def year(self) -> str:
         """
-        Returns the year query string parameter
+        Returns the year query string parameter.
 
         Returns:
             The year query string parameter
+
         """
         return self.__year
 
     def basin(self) -> str:
         """
-        Returns the basin query string parameter
+        Returns the basin query string parameter.
 
         Returns:
             The basin query string parameter
+
         """
         return self.__basin
 
     def storm(self) -> str:
         """
-        Returns the storm query string parameter
+        Returns the storm query string parameter.
 
         Returns:
             The storm query string parameter
+
         """
         return self.__storm
 
     def advisory(self) -> Union[str, None]:
         """
-        Returns the advisory query string parameter if the track type is forecast
+        Returns the advisory query string parameter if the track type is forecast.
 
         Returns:
             The advisory query string parameter or None if the track type is best
+
         """
         if self.__type == "best":
             return None
@@ -112,22 +119,24 @@ class StormTrackQueryStringParameters:
 
     def type(self) -> str:
         """
-        Returns the type query string parameter
+        Returns the type query string parameter.
 
         Returns:
             The type query string parameter
+
         """
         return self.__type
 
-    def __parse_request(self, request: flask.Request):  # noqa: PLR0912
+    def __parse_request(self, request: flask.Request) -> None:  # noqa: PLR0912
         """
-        Parses the query string parameters from the request
+        Parses the query string parameters from the request.
 
         Args:
             request: A flask request object
 
         Returns:
             None
+
         """
         if "year" in request.args:
             self.__year = request.args["year"]
@@ -168,26 +177,26 @@ class StormTrackQueryStringParameters:
 
 class StormTrack:
     """
-    This class is used to query the NHC storm track data from MetGet
+    This class is used to query the NHC storm track data from MetGet.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
-        Constructor for StormTrack class
+        Constructor for StormTrack class.
         """
 
     @staticmethod
     def get(request: flask.Request) -> Tuple[dict, int]:
         """
-        This method is used to query the NHC storm track data from MetGet
+        This method is used to query the NHC storm track data from MetGet.
 
         Args:
             request: A flask request object
 
         Returns:
             A tuple containing the response message and status code
-        """
 
+        """
         query = StormTrackQueryStringParameters(request)
 
         return_message = {
@@ -229,17 +238,17 @@ class StormTrack:
         return return_message, status_code
 
     @staticmethod
-    def __get_best_track(query: StormTrackQueryStringParameters):
+    def __get_best_track(query: StormTrackQueryStringParameters) -> list:
         """
-        This method is used to query the NHC best track data from MetGet
+        This method is used to query the NHC best track data from MetGet.
 
         Args:
             query: A StormTrackQuery object
 
         Returns:
             GEOJSON data for the best track
-        """
 
+        """
         with Database() as db, db.session() as session:
             query = session.query(NhcBtkTable.geometry_data).filter(
                 NhcBtkTable.storm_year == query.year(),
@@ -249,17 +258,17 @@ class StormTrack:
         return query.all()
 
     @staticmethod
-    def __get_forecast_track(query: StormTrackQueryStringParameters):
+    def __get_forecast_track(query: StormTrackQueryStringParameters) -> list:
         """
-        This method is used to query the NHC forecast track data from MetGet
+        This method is used to query the NHC forecast track data from MetGet.
 
         Args:
             query: A StormTrackQuery object
 
         Returns:
             GEOJSON data for the forecast track
-        """
 
+        """
         with Database() as db, db.session() as session:
             query = session.query(NhcFcstTable.geometry_data).filter(
                 NhcFcstTable.storm_year == query.year(),

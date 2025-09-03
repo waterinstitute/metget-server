@@ -72,7 +72,7 @@ class OwiNetcdfDomain(OutputDomain):
         },
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
         Construct an OWI NetCDF output domain.
 
@@ -88,6 +88,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
         required_args = [
             "grid_obj",
@@ -156,6 +157,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
         self.__initialize_dataset()
 
@@ -165,6 +167,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
 
     @staticmethod
@@ -174,6 +177,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             dict: A dictionary mapping variable types to their metadata.
+
         """
         u_var_metadata = {
             "name": "U10",
@@ -258,6 +262,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
         grid = self.grid_obj()
 
@@ -299,7 +304,7 @@ class OwiNetcdfDomain(OutputDomain):
         self.__is_open = True
 
     @staticmethod
-    def __create_variable(group_ds: netCDF4.Group, var_info: dict):
+    def __create_variable(group_ds: netCDF4.Group, var_info: dict) -> netCDF4.Variable:
         """
         Creates a netCDF variable using the provided group and variable info dictionary.
 
@@ -309,6 +314,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             The created netCDF variable.
+
         """
         this_var = group_ds.createVariable(
             var_info["name"],
@@ -324,7 +330,9 @@ class OwiNetcdfDomain(OutputDomain):
 
         return this_var
 
-    def __write_record(self, var: Any, index: int, values: np.ndarray):
+    def __write_record(
+        self, var: netCDF4.Variable, index: int, values: np.ndarray
+    ) -> None:
         """
         Write the record to the file in OWI ASCII format (4 decimal places and 8 records per line).
         The array is padded to ensure that each line has exactly 8 values, but only the original values
@@ -337,6 +345,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
         if not self.__is_open:
             msg = "The file must be open before writing the record"
@@ -355,7 +364,9 @@ class OwiNetcdfDomain(OutputDomain):
 
         var[index, :, :] = values.T
 
-    def write(self, data: xr.Dataset, variable_type: VariableType, **kwargs) -> None:
+    def write(
+        self, data: xr.Dataset, variable_type: VariableType, **kwargs: Any
+    ) -> None:
         """
         Write the meteorological output domain.
 
@@ -366,6 +377,7 @@ class OwiNetcdfDomain(OutputDomain):
 
         Returns:
             None
+
         """
         if not self.__is_open:
             msg = "The file must be open before writing the record"

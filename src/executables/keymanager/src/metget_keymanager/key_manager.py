@@ -41,9 +41,9 @@ CREDIT_MULTIPLIER = 100000.0
 
 def add_key(
     key: str, user: str, description: str, api_credits: int, expiration_date: datetime
-):
+) -> None:
     """
-    Add a new key to the database
+    Add a new key to the database.
 
     Args:
         key (str): The key to add. If not provided, a key will be generated
@@ -54,13 +54,11 @@ def add_key(
 
     Returns:
         None
+
     """
     # Generate a url safe token 40 characters long without any special characters
     # if a key was not provided
-    if key:
-        token = key
-    else:
-        token = secrets.token_urlsafe(80).replace("-", "").replace("_", "")[:40]
+    token = key or secrets.token_urlsafe(80).replace("-", "").replace("_", "")[:40]
 
     if len(token) != 40:
         msg = "Token is not 40 characters long"
@@ -102,9 +100,9 @@ def add_key(
 
 def update_key(
     key: str, user: str, description: str, api_credits: int, expiration_date: datetime
-):
+) -> None:
     """
-    Update an existing key in the database
+    Update an existing key in the database.
 
     Args:
         key (str): The key to update
@@ -115,8 +113,8 @@ def update_key(
 
     Returns:
         None
-    """
 
+    """
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
 
@@ -135,9 +133,9 @@ def update_key(
         session.commit()
 
 
-def enable_disable_key(key: str, enabled: bool):
+def enable_disable_key(key: str, enabled: bool) -> None:
     """
-    Enable or disable an existing key in the database
+    Enable or disable an existing key in the database.
 
     Args:
         key (str): The key to enable or disable
@@ -145,8 +143,8 @@ def enable_disable_key(key: str, enabled: bool):
 
     Returns:
         None
-    """
 
+    """
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
 
@@ -159,14 +157,14 @@ def enable_disable_key(key: str, enabled: bool):
         session.commit()
 
 
-def remove_key(key: str):
+def remove_key(key: str) -> None:
     """
-    Remove an existing key from the database
+    Remove an existing key from the database.
 
     Args:
         key (str): The key to remove
-    """
 
+    """
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
 
@@ -178,9 +176,9 @@ def remove_key(key: str):
         session.commit()
 
 
-def list_keys():
+def list_keys() -> None:
     """
-    List all keys in the database
+    List all keys in the database.
     """
     with Database() as db, db.session() as session:
         table = prettytable.PrettyTable()
@@ -219,10 +217,7 @@ def list_keys():
                 .first()[0]
             )
 
-            if credit_used:
-                credit_used = float(credit_used) / CREDIT_MULTIPLIER
-            else:
-                credit_used = 0.0
+            credit_used = float(credit_used) / CREDIT_MULTIPLIER if credit_used else 0.0
 
             if key.credit_limit == 0:
                 credit_limit = "Unlimited"
@@ -247,11 +242,10 @@ def list_keys():
     print(table)
 
 
-def key_manager():
+def key_manager() -> None:
     """
-    Main function
+    Main function.
     """
-
     parser = argparse.ArgumentParser(description="MetGet APIKey Manager")
     parser.add_argument(
         "command",

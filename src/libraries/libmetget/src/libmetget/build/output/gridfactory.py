@@ -66,8 +66,8 @@ def grid_factory(json_data: dict) -> OutputGrid:
 
     Returns:
         OutputGrid: The meteorological output grid.
-    """
 
+    """
     if "predefined_domain" in json_data:
         domain_data = PREDEFINED_DOMAINS[json_data["predefined_domain"]]
         x_init = domain_data["x_init"]

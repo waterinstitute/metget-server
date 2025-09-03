@@ -40,23 +40,24 @@ from loguru import logger
 
 class S3file:
     """
-    Class to handle S3 file operations
+    Class to handle S3 file operations.
     """
 
-    def __init__(self, bucket_name: str):
+    def __init__(self, bucket_name: str) -> None:
         """
-        Constructor
+        Constructor.
 
         Args:
             bucket_name (str): Name of the S3 bucket
+
         """
         self.__bucket = bucket_name
         self.__client = boto3.client("s3")
         self.__resource = boto3.resource("s3")
 
-    def upload_file(self, local_file, remote_path) -> bool:
+    def upload_file(self, local_file: str, remote_path: str) -> bool:
         """
-        Upload a file to an S3 bucket
+        Upload a file to an S3 bucket.
 
         Args:
             local_file (str): local path to file for upload
@@ -64,6 +65,7 @@ class S3file:
 
         Returns:
             bool: True if file was uploaded, else False
+
         """
         try:
             logger.info(
@@ -80,7 +82,7 @@ class S3file:
         self, remote_path: str, service: str, time: Optional[datetime] = None
     ) -> str:
         """
-        Download a file from Amazon S3
+        Download a file from Amazon S3.
 
         Args:
             remote_path: remote path to the file
@@ -89,6 +91,7 @@ class S3file:
 
         Returns:
             Returns the path to the downloaded file
+
         """
         tempdir = tempfile.gettempdir()
         fn = os.path.split(remote_path)[1]
@@ -109,10 +112,11 @@ class S3file:
 
     def exists(self, path: str) -> bool:
         """
-        Check if a file exists in the S3 bucket
+        Check if a file exists in the S3 bucket.
 
         Args:
             path (str): path to the file in the S3 bucket
+
         """
         try:
             self.__resource.Object(self.__bucket, path).load()
@@ -120,20 +124,20 @@ class S3file:
             # Check for 404 error which means the object does not exist
             if e.response["Error"]["Code"] == "404":
                 return False
-            else:
-                logger.error(e)
-                raise
+            logger.error(e)
+            raise
         return True
 
     def check_glacier_status(self, path: str) -> bool:
         """
-        Check if a file currently exists in the S3 bucket or is in glacier storage
+        Check if a file currently exists in the S3 bucket or is in glacier storage.
 
         Args:
             path (str): path to the file in the S3 bucket
 
         Returns:
             bool: True if file exists in S3 or is in glacier storage, else False
+
         """
         logger.info(f"Checking glacier status for {path:s} in bucket {self.__bucket:s}")
         metadata = self.__client.head_object(Bucket=self.__bucket, Key=path)
@@ -142,35 +146,35 @@ class S3file:
                 f"File {path:s} in bucket {self.__bucket:s} was found in Amazon Glacier"
             )
             return True
-        else:
-            return False
+        return False
 
     def check_ongoing_glacier_restore(self, path: str) -> bool:
         """
-        Check if a file is currently being restored from glacier storage
+        Check if a file is currently being restored from glacier storage.
 
         Args:
             path (str): path to the file in the S3 bucket
 
         Returns:
             bool: True if file is currently being restored, else False
+
         """
         metadata = self.__client.head_object(Bucket=self.__bucket, Key=path)
         if "x-amz-restore" in metadata["ResponseMetadata"]["HTTPHeaders"]:
             ongoing = metadata["ResponseMetadata"]["HTTPHeaders"]["x-amz-restore"]
             return ongoing == 'ongoing-request="true"'
-        else:
-            return False
+        return False
 
     def initiate_restore(self, path: str) -> bool:
         """
-        Initiate a restore request for a file in glacier storage
+        Initiate a restore request for a file in glacier storage.
 
         Args:
             path (str): path to the file in the S3 bucket
 
         Returns:
             bool: True if restore request was successful, else False
+
         """
         if not self.check_ongoing_glacier_restore(path):
             self.__client.restore_object(
@@ -184,17 +188,17 @@ class S3file:
     def check_archive_initiate_restore(self, path: str) -> bool:
         """
         Check if a file is currently being restored from glacier storage
-        and initiate a restore request if not
+        and initiate a restore request if not.
 
         Args:
             path (str): path to the file in the S3 bucket
 
         Returns:
             bool: True if file is currently being restored, else False
+
         """
         if self.check_glacier_status(path):
             if not self.check_ongoing_glacier_restore(path):
                 self.initiate_restore(path)
             return True
-        else:
-            return False
+        return False

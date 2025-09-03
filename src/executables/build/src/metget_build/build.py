@@ -33,6 +33,7 @@ import os
 import time
 import traceback
 from datetime import datetime, timedelta
+from typing import Any, Dict
 
 import libmetget.version
 from libmetget.database.tables import RequestEnum, RequestTable
@@ -44,11 +45,10 @@ MAX_REQUEST_TIME = timedelta(hours=48)
 REQUEST_SLEEP_TIME = timedelta(minutes=10)
 
 
-def run():
+def run() -> None:
     """
-    Main entry point for the script
+    Main entry point for the script.
     """
-
     p = argparse.ArgumentParser(description="Process a metget request")
     p.add_argument(
         "--request-json",
@@ -154,7 +154,7 @@ def run():
     logger.info("Exiting script with status 0")
 
 
-def get_request_data(args):
+def get_request_data(args: argparse.Namespace) -> Dict[str, Any]:
     if args.request_json:
         with open(args.request_json) as f:
             message = f.read()
@@ -172,7 +172,7 @@ def get_request_data(args):
     return json_data
 
 
-def apply_development_data_keys(json_data):
+def apply_development_data_keys(json_data: Dict[str, Any]) -> None:
     if "request_id" not in json_data:
         json_data["request_id"] = "development"
     if "api_key" not in json_data:

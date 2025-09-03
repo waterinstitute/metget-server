@@ -37,18 +37,21 @@ from .build_request import BuildRequest
 
 class MetBuildRequest:
     """
-    This class is used to build a new MetGet request into a 2d wind field
+    This class is used to build a new MetGet request into a 2d wind field.
     """
 
-    def __init__(self, api_key: str, source_ip: str, request_id: str, json_data: dict):
+    def __init__(
+        self, api_key: str, source_ip: str, request_id: str, json_data: dict
+    ) -> None:
         """
-        Constructor for BuildRequest
+        Constructor for BuildRequest.
 
         Args:
             request_id: A string containing the request id
             api_key: A string containing the api key
             source_ip: A string containing the source ip
             json_data: A dictionary containing the json data for the request
+
         """
         self.__json_data = json_data
         self.__api_key = api_key
@@ -71,10 +74,11 @@ class MetBuildRequest:
     def generate_request(self) -> Tuple[dict, int]:
         """
         This method is used to add a new request to the database and initiate
-        the k8s process within argo
+        the k8s process within argo.
 
         Returns:
             A tuple containing the response message and status code
+
         """
         self.__build_request = BuildRequest(
             self.__request_id, self.__api_key, self.__source_ip, self.__json_data, True
@@ -148,7 +152,7 @@ class MetBuildRequest:
     ) -> Tuple[dict, bool]:
         """
         This method is used to generate the credit information for the request
-        and check if the request is authorized based on the credit balance
+        and check if the request is authorized based on the credit balance.
 
         Args:
             api_key: A string containing the api key
@@ -156,6 +160,7 @@ class MetBuildRequest:
 
         Returns:
             A tuple containing the credit information and a boolean indicating if the request is authorized
+
         """
         credit_dict = AccessControl.get_credit_balance(api_key)
 

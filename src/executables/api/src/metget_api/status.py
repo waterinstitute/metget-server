@@ -88,17 +88,17 @@ class Status:
     """
     This class is used to generate the status of the various models in the database
     for the user. The status is returned as a dictionary which is converted to JSON
-    by the api
+    by the api.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @staticmethod
     def d2s(dt: datetime) -> Union[str, None]:
         """
         This method is used to convert a datetime object to a string so that it can
-        be returned to the user in the JSON response
+        be returned to the user in the JSON response.
 
         Args:
             dt: Datetime object to convert to a string
@@ -109,13 +109,12 @@ class Status:
         """
         if not dt:
             return None
-        else:
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
     @staticmethod
-    def get_status(request) -> Tuple[dict, int]:
+    def get_status(request: flask.Request) -> Tuple[dict, int]:
         """
-        This method is used to generate the status from the various sources
+        This method is used to generate the status from the various sources.
 
         The types of status value that are valid are:
             - gfs
@@ -136,8 +135,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         status_type = request.args.get("model", "all")
         basin = request.args.get("basin", "all")
         storm = request.args.get("storm", "all")
@@ -264,7 +263,7 @@ class Status:
             return {
                 "message": f"ERROR: Unknown model requested: '{status_type:s}'"
             }, 400
-        elif status_type == "all":
+        if status_type == "all":
             s = {}
             for key, (func, args) in status_map.items():
                 result = func(*args)
@@ -280,13 +279,14 @@ class Status:
         request: flask.Request,
     ) -> Tuple[datetime, datetime, timedelta]:
         """
-        This method is used to get the date limits for the status request
+        This method is used to get the date limits for the status request.
 
         Args:
             request: A flask request object
 
         Returns:
             Tuple containing the start and end dates and the time limit
+
         """
         if "limit" in request.args:
             limit_days = request.args["limit"]
@@ -308,7 +308,7 @@ class Status:
         return start_dt, end_dt, time_limit
 
     @staticmethod
-    def __get_status_generic(  # noqa: PLR0913
+    def __get_status_generic(
         met_source: str,
         table_type: any,
         cycle_duration: int,
@@ -317,7 +317,7 @@ class Status:
         end: datetime,
     ) -> dict:
         """
-        This method is used to generate the status for the generic models (i.e. GFS, NAM, WPC, etc.)
+        This method is used to generate the status for the generic models (i.e. GFS, NAM, WPC, etc.).
 
         Args:
             met_source: The name of the meteorological source
@@ -329,8 +329,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
@@ -430,7 +430,7 @@ class Status:
         end: datetime,
     ) -> dict:
         """
-        This method is used to compute the time limits for the status
+        This method is used to compute the time limits for the status.
 
         Args:
             limit: The limit in days to use when generating the status
@@ -439,8 +439,8 @@ class Status:
 
         Returns:
             Tuple containing the time limits
-        """
 
+        """
         if limit is not None:
             limit_time = datetime.now(tz=timezone.utc) - limit
             start = limit_time
@@ -468,8 +468,8 @@ class Status:
         }
 
     @staticmethod
-    def __get_status_generic_ensemble(  # noqa: PLR0913, PLR0912
-        table_type: any,
+    def __get_status_generic_ensemble(  # noqa: PLR0912
+        table_type: object,
         cycle_duration: int,
         limit: timedelta,
         start: datetime,
@@ -477,7 +477,7 @@ class Status:
         ensemble_member: str,
     ) -> dict:
         """
-        This method is used to generate the status for the generic models which have ensemble members (i.e. GEFS)
+        This method is used to generate the status for the generic models which have ensemble members (i.e. GEFS).
 
         Args:
             table_type: The table type to use when querying the database
@@ -489,8 +489,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
@@ -625,7 +625,7 @@ class Status:
         cycle_length: int, limit: timedelta, start: datetime, end: datetime
     ) -> dict:
         """
-        This method is used to generate the status for the GFS model
+        This method is used to generate the status for the GFS model.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -635,8 +635,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         return Status.__get_status_generic(
             "gfs", GfsTable, cycle_length, limit, start, end
         )
@@ -650,7 +650,7 @@ class Status:
         member: str,
     ) -> dict:
         """
-        This method is used to generate the status for the GEFS model
+        This method is used to generate the status for the GEFS model.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -658,8 +658,11 @@ class Status:
             start: The start date to use when generating the status
             end: The end date to use when generating the status
             member: The ensemble member to use when generating the status
-        """
 
+        Returns:
+            Dictionary containing the status information
+
+        """
         return Status.__get_status_generic_ensemble(
             GefsTable,
             cycle_length,
@@ -678,7 +681,7 @@ class Status:
         member: str,
     ) -> dict:
         """
-        This method is used to generate the status for the GEFS model
+        This method is used to generate the status for the REFS model.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -686,8 +689,11 @@ class Status:
             start: The start date to use when generating the status
             end: The end date to use when generating the status
             member: The ensemble member to use when generating the status
-        """
 
+        Returns:
+            Dictionary containing the status information
+
+        """
         return Status.__get_status_generic_ensemble(
             RefsTable,
             cycle_length,
@@ -702,7 +708,7 @@ class Status:
         cycle_length: int, limit: timedelta, start: datetime, end: datetime
     ) -> dict:
         """
-        This method is used to generate the status for the NAM model
+        This method is used to generate the status for the NAM model.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -710,11 +716,10 @@ class Status:
             start: The start date to use when generating the status
             end: The end date to use when generating the status
 
-
         Returns:
-            Dictionary containing the status information and the HTTP status code
-        """
+            Dictionary containing the status information
 
+        """
         return Status.__get_status_generic(
             "nam", NamTable, cycle_length, limit, start, end
         )
@@ -724,7 +729,7 @@ class Status:
         cycle_length: int, limit: timedelta, start: datetime, end: datetime
     ) -> dict:
         """
-        This method is used to generate the status for the HRRR model
+        This method is used to generate the status for the HRRR model.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -734,8 +739,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         return Status.__get_status_generic(
             "hrrr", HrrrTable, cycle_length, limit, start, end
         )
@@ -745,7 +750,7 @@ class Status:
         cycle_length: int, limit: timedelta, start: datetime, end: datetime
     ) -> dict:
         """
-        This method is used to generate the status for the HRRR model
+        This method is used to generate the status for the RRFS model.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -754,9 +759,9 @@ class Status:
             end: The end date to use when generating the status
 
         Returns:
-            Dictionary containing the status information and the HTTP status code
-        """
+            Dictionary containing the status information
 
+        """
         return Status.__get_status_generic(
             "rrfs", RrfsTable, cycle_length, limit, start, end
         )
@@ -766,7 +771,7 @@ class Status:
         cycle_length: int, limit: timedelta, start: datetime, end: datetime
     ) -> dict:
         """
-        This method is used to generate the status for the HRRR Alaska model
+        This method is used to generate the status for the HRRR Alaska model.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -775,9 +780,9 @@ class Status:
             end: The end date to use when generating the status
 
         Returns:
-            Dictionary containing the status information and the HTTP status code
-        """
+            Dictionary containing the status information
 
+        """
         return Status.__get_status_generic(
             "hrrr-alaska", HrrrAlaskaTable, cycle_length, limit, start, end
         )
@@ -787,7 +792,7 @@ class Status:
         cycle_length: int, limit: timedelta, start: datetime, end: datetime
     ) -> dict:
         """
-        This method is used to generate the status for the WPC QPF data
+        This method is used to generate the status for the WPC QPF data.
 
         Args:
             cycle_length: The duration of the cycle in hours
@@ -796,7 +801,8 @@ class Status:
             end: The end date to use when generating the status
 
         Returns:
-            Dictionary containing the status information and the HTTP status code
+            Dictionary containing the status information
+
         """
         return Status.__get_status_generic(
             "wpc", WpcTable, cycle_length, limit, start, end
@@ -811,7 +817,7 @@ class Status:
         storm: str,
     ) -> dict:
         """
-        This method is used to generate the status for the HWRF model
+        This method is used to generate the status for the HWRF model.
 
         Args:
             cycle_duration: The duration of the cycle in hours
@@ -822,6 +828,7 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
+
         """
         return Status.__get_status_deterministic_storm_type(
             HwrfTable,
@@ -833,7 +840,7 @@ class Status:
         )
 
     @staticmethod
-    def __get_status_hafs(  # noqa: PLR0913
+    def __get_status_hafs(
         cycle_duration: int,
         hafs_type: str,
         limit: timedelta,
@@ -842,7 +849,7 @@ class Status:
         storm: str,
     ) -> Union[dict, None]:
         """
-        This method is used to generate the status for the HAFS model
+        This method is used to generate the status for the HAFS model.
 
         Args:
             cycle_duration: The duration of the cycle in hours
@@ -854,6 +861,7 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
+
         """
         if hafs_type == "a":
             return Status.__get_status_deterministic_storm_type(
@@ -864,7 +872,7 @@ class Status:
                 end,
                 storm,
             )
-        elif hafs_type == "b":
+        if hafs_type == "b":
             return Status.__get_status_deterministic_storm_type(
                 HafsBTable,
                 cycle_duration,
@@ -884,7 +892,7 @@ class Status:
         storm: str,
     ) -> dict:
         """
-        This method is used to generate the status for the COAMPS-TC model
+        This method is used to generate the status for the COAMPS-TC model.
 
         Args:
             cycle_duration: The duration of the cycle in hours
@@ -895,8 +903,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         return Status.__get_status_deterministic_storm_type(
             CoampsTable,
             cycle_duration,
@@ -907,7 +915,7 @@ class Status:
         )
 
     @staticmethod
-    def __get_status_ctcx(  # noqa: PLR0913
+    def __get_status_ctcx(
         cycle_duration: int,
         limit: timedelta,
         start: datetime,
@@ -916,7 +924,7 @@ class Status:
         member: str,
     ) -> dict:
         """
-        This method is used to generate the status for the CTCX model
+        This method is used to generate the status for the CTCX model.
 
         Args:
             cycle_duration: The duration of the cycle in hours
@@ -928,8 +936,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         return Status.__get_status_ensemble_storm_type(
             CtcxTable,
             cycle_duration,
@@ -941,8 +949,8 @@ class Status:
         )
 
     @staticmethod
-    def __get_status_ensemble_storm_type(  # noqa: PLR0913, PLR0915, PLR0912
-        table_type: any,
+    def __get_status_ensemble_storm_type(  # noqa: PLR0915, PLR0912
+        table_type: object,
         cycle_duration: int,
         limit: timedelta,
         start: datetime,
@@ -952,7 +960,7 @@ class Status:
     ) -> dict:
         """
         This method is used to generate the status for the deterministic storm type models
-        such as COAMPS-CTCX
+        such as COAMPS-CTCX.
 
         Args:
             table_type: The table type to use when generating the status
@@ -965,8 +973,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
@@ -1101,8 +1109,8 @@ class Status:
         return storms
 
     @staticmethod
-    def __get_status_deterministic_storm_type(  # noqa: PLR0913, PLR0915
-        table_type: any,
+    def __get_status_deterministic_storm_type(  # noqa: PLR0915
+        table_type: object,
         cycle_duration: int,
         limit: timedelta,
         start: datetime,
@@ -1111,7 +1119,7 @@ class Status:
     ) -> dict:
         """
         This method is used to generate the status for the deterministic storm type models
-        such as HWRF and COAMPS-TC
+        such as HWRF and COAMPS-TC.
 
         Args:
             table_type: The table type to use when generating the status
@@ -1123,8 +1131,8 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
-        """
 
+        """
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
@@ -1236,7 +1244,7 @@ class Status:
         limit: timedelta, start: datetime, end: datetime, basin: str, storm: str
     ) -> dict:
         """
-        This method is used to generate the status for the NHC model
+        This method is used to generate the status for the NHC model.
 
         Args:
             limit: The limit in days to use when generating the status
@@ -1247,6 +1255,7 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
+
         """
         best_track = Status.__get_status_nhc_besttrack(limit, start, end, basin, storm)
         forecast = Status.__get_status_nhc_forecast(limit, start, end, basin, storm)
@@ -1258,7 +1267,7 @@ class Status:
     ) -> dict:
         """
         This method is used to generate the status information for the
-        NHC best track data
+        NHC best track data.
 
         Args:
             limit: The limit in days to use when generating the status
@@ -1269,6 +1278,7 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
+
         """
         time_limits = Status.__compute_time_limits(limit, start, end)
 
@@ -1337,7 +1347,7 @@ class Status:
         limit: timedelta, start: datetime, end: datetime, basin: str, storm: str
     ) -> dict:
         """
-        Method to generate the status data for NHC forecast data
+        Method to generate the status data for NHC forecast data.
 
         Args:
             limit: The limit in days to use when generating the status
@@ -1348,6 +1358,7 @@ class Status:
 
         Returns:
             Dictionary containing the status information and the HTTP status code
+
         """
         time_limits = Status.__compute_time_limits(limit, start, end)
 

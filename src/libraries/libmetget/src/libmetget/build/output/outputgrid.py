@@ -27,16 +27,16 @@
 #
 ###################################################################################################
 
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 import numpy as np
 from geopandas import GeoSeries, points_from_xy
 
 
 class OutputGrid:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
-        A class to represent a meteorological grid
+        A class to represent a meteorological grid.
 
         Args:
             x_lower_left (float): The x coordinate of the lower left corner of the grid.
@@ -49,6 +49,7 @@ class OutputGrid:
 
         Returns:
             None
+
         """
         required_args = [
             "x_lower_left",
@@ -130,6 +131,7 @@ class OutputGrid:
 
         Returns:
             float: The x coordinate of the lower left corner of the grid.
+
         """
         return self.__x_lower_left
 
@@ -139,6 +141,7 @@ class OutputGrid:
 
         Returns:
             float: The y coordinate of the lower left corner of the grid.
+
         """
         return self.__y_lower_left
 
@@ -148,6 +151,7 @@ class OutputGrid:
 
         Returns:
             float: The x coordinate of the upper right corner of the grid.
+
         """
         return self.__x_upper_right
 
@@ -157,6 +161,7 @@ class OutputGrid:
 
         Returns:
             float: The y coordinate of the upper right corner of the grid.
+
         """
         return self.__y_upper_right
 
@@ -166,6 +171,7 @@ class OutputGrid:
 
         Returns:
             float: The x resolution of the grid.
+
         """
         return self.__x_resolution
 
@@ -175,6 +181,7 @@ class OutputGrid:
 
         Returns:
             float: The y resolution of the grid.
+
         """
         return self.__y_resolution
 
@@ -184,6 +191,7 @@ class OutputGrid:
 
         Returns:
             int: The EPSG code of the grid.
+
         """
         return self.__epsg
 
@@ -193,6 +201,7 @@ class OutputGrid:
 
         Returns:
             np.ndarray: The grid points of the grid.
+
         """
         return self.__grid_points
 
@@ -202,6 +211,7 @@ class OutputGrid:
 
         Returns:
             None
+
         """
         x = np.arange(
             self.__x_lower_left,
@@ -230,6 +240,7 @@ class OutputGrid:
 
         Returns:
             np.ndarray: The x coordinates of the grid.
+
         """
         return self.__grid_points[0]
 
@@ -239,6 +250,7 @@ class OutputGrid:
 
         Returns:
             np.ndarray: The y coordinates of the grid.
+
         """
         return self.__grid_points[1]
 
@@ -251,6 +263,7 @@ class OutputGrid:
 
         Returns:
             np.ndarray: The x coordinates of the grid.
+
         """
         if convert_360:
             x = self.__x_points.copy()
@@ -265,6 +278,7 @@ class OutputGrid:
 
         Returns:
             np.ndarray: The y coordinates of the grid.
+
         """
         return self.__y_points
 
@@ -278,6 +292,7 @@ class OutputGrid:
 
         Returns:
             Tuple[float, float]: The corner of the grid.
+
         """
         if i < 0 or i >= self.__grid_points[0].shape[0]:
             msg = f"i index out of bounds: {i:d}"
@@ -299,6 +314,7 @@ class OutputGrid:
 
         Returns:
             Tuple[float, float]: The center of the grid.
+
         """
         if i < 0 or i >= self.__grid_points[0].shape[0]:
             msg = f"i index out of bounds: {i:d}"
@@ -322,6 +338,7 @@ class OutputGrid:
 
         Returns:
             int: The i index of the grid.
+
         """
         return int((x - self.__x_lower_left) / self.__x_resolution)
 
@@ -334,6 +351,7 @@ class OutputGrid:
 
         Returns:
             int: The j index of the grid.
+
         """
         return int((y - self.__y_lower_left) / self.__y_resolution)
 
@@ -347,6 +365,7 @@ class OutputGrid:
 
         Returns:
             Tuple[int, int]: The i and j indices of the grid.
+
         """
         return self.i(x), self.j(y)
 
@@ -356,6 +375,7 @@ class OutputGrid:
 
         Returns:
             int: The number of i indices of the grid.
+
         """
         return self.__grid_points[0].shape[0]
 
@@ -365,6 +385,7 @@ class OutputGrid:
 
         Returns:
             int: The number of j indices of the grid.
+
         """
         return self.__grid_points[0].shape[1]
 
@@ -374,6 +395,7 @@ class OutputGrid:
 
         Returns:
             int: The number of grid points of the grid.
+
         """
         return self.ni() * self.nj()
 
@@ -383,6 +405,7 @@ class OutputGrid:
 
         Returns:
             float: The width of the grid.
+
         """
         return self.__x_upper_right - self.__x_lower_left
 
@@ -392,6 +415,7 @@ class OutputGrid:
 
         Returns:
             float: The height of the grid.
+
         """
         return self.__y_upper_right - self.__y_lower_left
 
@@ -401,6 +425,7 @@ class OutputGrid:
 
         Returns:
             Tuple[float, float]: The centroid of the grid.
+
         """
         return (
             self.__x_lower_left + self.width() / 2,
@@ -413,6 +438,7 @@ class OutputGrid:
 
         Returns:
             List[Tuple[float, float]]: The corners of the grid.
+
         """
         return [
             (self.__x_lower_left, self.__y_lower_left),
@@ -431,6 +457,7 @@ class OutputGrid:
 
         Returns:
             bool: True if the point is inside the grid, False otherwise.
+
         """
         return (
             self.__x_lower_left <= x <= self.__x_upper_right
@@ -443,5 +470,6 @@ class OutputGrid:
 
         Returns:
             GeoSeries: The GeoSeries of the grid.
+
         """
         return self.__geoseries

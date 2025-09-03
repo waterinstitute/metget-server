@@ -33,7 +33,7 @@ from ..sources.metdatatype import MetDataType
 
 
 class VariableType(Enum):
-    """Enum class for the type of meteorological variable"""
+    """Enum class for the type of meteorological variable."""
 
     UNKNOWN = 0
     ALL_VARIABLES = 1
@@ -47,15 +47,16 @@ class VariableType(Enum):
     PRECIPITATION_TYPE = 9
 
     @staticmethod
-    def from_string(data_type: str):
+    def from_string(data_type: str) -> "VariableType":
         """
-        Converts a string to a VariableType
+        Converts a string to a VariableType.
 
         Args:
             data_type: The string to convert to a VariableType
 
         Returns:
             The VariableType corresponding to the string
+
         """
         mapping = {
             "wind_pressure": VariableType.WIND_PRESSURE,
@@ -76,10 +77,11 @@ class VariableType(Enum):
 
     def select(self) -> List[MetDataType]:
         """
-        Get a list of the variables (MetDataType) for the type of meteorological data
+        Get a list of the variables (MetDataType) for the type of meteorological data.
 
         Returns:
             List[MetDataType]: The list of variables (MetDataType) for the type of meteorological data
+
         """
         mapping = {
             VariableType.WIND_PRESSURE: [

@@ -1,4 +1,4 @@
-"""FastTri - Fast triangulation library using CGAL"""
+"""FastTri - Fast triangulation library using CGAL."""
 
 from .triangulation import InterpolationWeights, Triangulation
 

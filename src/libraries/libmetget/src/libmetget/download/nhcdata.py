@@ -4,7 +4,7 @@ import gzip
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import List, Optional, Union
 
 from loguru import logger
 
@@ -12,7 +12,7 @@ from loguru import logger
 @dataclass
 class NhcLine:
     """
-    A class to represent a line from the NHC file
+    A class to represent a line from the NHC file.
     """
 
     line: str
@@ -54,7 +54,7 @@ class NhcLine:
 
     def __post_init__(self) -> None:
         """
-        Parse the NHC line which is in ATCF format
+        Parse the NHC line which is in ATCF format.
         """
         self.__set_default_values()
 
@@ -118,9 +118,9 @@ class NhcLine:
             pass
 
     @staticmethod
-    def __parse_as_type(value: str, as_type: type) -> Any:
+    def __parse_as_type(value: str, as_type: type) -> Union[str, int, float]:
         """
-        Parse a value as a specific type
+        Parse a value as a specific type.
 
         Args:
             value: The value to parse
@@ -128,6 +128,7 @@ class NhcLine:
 
         Returns:
             The parsed value as the specified type or None if the value cannot be parsed
+
         """
         try:
             return as_type(value)
@@ -136,7 +137,7 @@ class NhcLine:
 
     def __set_default_values(self) -> None:
         """
-        Set default values for the NHC line
+        Set default values for the NHC line.
         """
         self.basin = ""
         self.cyclone_number = 0
@@ -176,7 +177,7 @@ class NhcLine:
 
     def __str__(self) -> str:
         """
-        Write the data back as a string as it was found in the ATCF file
+        Write the data back as a string as it was found in the ATCF file.
         """
         lon = (
             f"{abs(self.longitude * 10):4.0f}W"
@@ -204,13 +205,13 @@ class NhcLine:
 
 
 class NhcProcessArchive:
-    def __init__(self, year: int, track_type: str):
+    def __init__(self, year: int, track_type: str) -> None:
         self.__year = year
         self.__track_type = track_type
 
     def process(self) -> None:
         """
-        Process the NHC archive for a specific year
+        Process the NHC archive for a specific year.
         """
         # Make the directory path
         track_path = "besttrack" if self.__track_type == "best" else "forecast"
@@ -225,11 +226,12 @@ class NhcProcessArchive:
 
     def __process_file(self, filename: str, output_dir: str) -> None:
         """
-        Process the file. Keep only the NHC (OFCL) data and write to disk
+        Process the file. Keep only the NHC (OFCL) data and write to disk.
 
         Args:
             filename: The filename to process
             output_dir: The output directory to write the files to
+
         """
         if self.__track_type == "forecast":
             self.__process_file_forecast(filename, output_dir)
@@ -238,9 +240,8 @@ class NhcProcessArchive:
 
     def __process_file_best(self, filename: str, output_dir: str) -> None:
         """
-        Process the best track file. Keep only the NHC (BEST) data and write to disk
+        Process the best track file. Keep only the NHC (BEST) data and write to disk.
         """
-
         fid = None
         with gzip.open(filename, "rt") as f:
             for line in f:
@@ -259,13 +260,13 @@ class NhcProcessArchive:
 
     def __process_file_forecast(self, filename: str, output_dir: str) -> None:
         """
-        Process the forecast file. Keep only the NHC (OFCL) data and write to disk
+        Process the forecast file. Keep only the NHC (OFCL) data and write to disk.
 
         Args:
             filename: The filename to process
             output_dir: The output directory to write the files to
-        """
 
+        """
         with gzip.open(filename, "rt") as f:
             last_nhc_cycle_date = None
             current_nhc_cycle_id = 0
@@ -293,12 +294,12 @@ class NhcProcessArchive:
 
     def __get_file(self, file: str) -> None:
         """
-        Get the file from the nhc archive ftp server
+        Get the file from the nhc archive ftp server.
 
         Args:
             file: The file to get
-        """
 
+        """
         with ftplib.FTP("ftp.nhc.noaa.gov") as ftp:
             ftp.login()
             ftp.cwd(f"/atcf/archive/{self.__year}")
@@ -307,19 +308,19 @@ class NhcProcessArchive:
 
     def __get_filelist(self) -> Optional[List[str]]:
         """
-        Get the list of *.gz files from the nhc archive
+        Get the list of *.gz files from the nhc archive.
 
         Returns:
             The list of *.gz files
-        """
 
+        """
         with ftplib.FTP("ftp.nhc.noaa.gov") as ftp:
             ftp.login()
             ftp.cwd(f"/atcf/archive/{self.__year}")
             files = ftp.nlst()
             if self.__track_type == "best":
                 return [f for f in files if f.endswith(".gz") and f.startswith("b")]
-            elif self.__track_type == "forecast":
+            if self.__track_type == "forecast":
                 return [f for f in files if f.endswith(".gz") and f.startswith("a")]
             return None
 

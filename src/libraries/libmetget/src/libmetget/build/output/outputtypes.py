@@ -26,12 +26,14 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from __future__ import annotations
+
 from enum import Enum
 
 
 class OutputTypes(Enum):
     """
-    Enumerated type for output formats
+    Enumerated type for output formats.
     """
 
     OWI_ASCII = 1
@@ -41,7 +43,7 @@ class OutputTypes(Enum):
     RAW = 5
 
     @staticmethod
-    def from_string(s: str):
+    def from_string(s: str) -> OutputTypes:
         """
         Get the output type from a string.
 
@@ -50,6 +52,7 @@ class OutputTypes(Enum):
 
         Returns:
             OutputTypes: The output type.
+
         """
         mapping = {
             "ascii": OutputTypes.OWI_ASCII,

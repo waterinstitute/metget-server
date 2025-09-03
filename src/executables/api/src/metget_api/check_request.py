@@ -29,23 +29,25 @@
 import os
 from typing import Tuple
 
+from flask import Request
 from libmetget.database.database import Database
 from libmetget.database.tables import RequestTable
 
 
 class CheckRequest:
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def get(self, request) -> Tuple[dict, int]:
+    def get(self, request: Request) -> Tuple[dict, int]:
         """
-        This method is used to check the status of a MetGet request
+        This method is used to check the status of a MetGet request.
 
         Args:
             request: A flask request object
 
         Returns:
             A tuple containing the response message and status code
+
         """
         if "request-id" in request.args:
             request_id = request.args["request-id"]
@@ -75,26 +77,23 @@ class CheckRequest:
                 "statusCode": 400,
                 "body": {"message": f"ERROR: Request '{request_id:s}' was not found"},
             }, 400
-        elif len(query_result) > 1:
+        if len(query_result) > 1:
             return {
                 "statusCode": 400,
                 "body": {"message": f"ERROR: Request '{request_id:s}' is ambiguous"},
             }, 400
-        else:
-            row = query_result[0]
-            bucket_name = os.environ["METGET_S3_BUCKET_UPLOAD"]
-            upload_destination = (
-                f"https://{bucket_name:s}.s3.amazonaws.com/{request_id:s}"
-            )
-            return {
-                "statusCode": 200,
-                "body": {
-                    "request-id": request_id,
-                    "status": row[1].name,
-                    "message": row[4],
-                    "try_count": row[0],
-                    "start": row[2].strftime("%Y-%m-%d %H:%M:%S"),
-                    "last_update": row[3].strftime("%Y-%m-%d %H:%M:%S"),
-                    "destination": upload_destination,
-                },
-            }, 200
+        row = query_result[0]
+        bucket_name = os.environ["METGET_S3_BUCKET_UPLOAD"]
+        upload_destination = f"https://{bucket_name:s}.s3.amazonaws.com/{request_id:s}"
+        return {
+            "statusCode": 200,
+            "body": {
+                "request-id": request_id,
+                "status": row[1].name,
+                "message": row[4],
+                "try_count": row[0],
+                "start": row[2].strftime("%Y-%m-%d %H:%M:%S"),
+                "last_update": row[3].strftime("%Y-%m-%d %H:%M:%S"),
+                "destination": upload_destination,
+            },
+        }, 200

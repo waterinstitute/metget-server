@@ -54,18 +54,19 @@ VALID_SERVICES = [
 class Domain:
     """
     Domain class. This class is used to store the domain information for a
-    request
+    request.
     """
 
-    def __init__(self, name: str, service: str, domain_level: int, json: dict):
+    def __init__(self, name: str, service: str, domain_level: int, json: dict) -> None:
         """
-        Constructor for the Domain class
+        Constructor for the Domain class.
 
         Args:
             name: The name of the domain
             service: The service used to generate the domain
             domain_level: The domain level
             json: The json object containing the domain information
+
         """
         self.__valid = True
         self.__name = name
@@ -105,123 +106,136 @@ class Domain:
     def storm(self) -> str:
         """
         Returns the storm name for the domain.
-        If the domain does not have a storm, this will return None
+        If the domain does not have a storm, this will return None.
 
         Returns:
             The storm name for the domain
+
         """
         return self.__storm
 
     def basin(self) -> str:
         """
         Returns the basin name for the domain.
-        If the domain does not have a storm, this will return None
+        If the domain does not have a storm, this will return None.
 
         Returns:
             The basin name for the domain
+
         """
         return self.__basin
 
     def advisory(self) -> str:
         """
         Returns the advisory name for the domain.
-        If the domain does not have a storm, this will return None
+        If the domain does not have a storm, this will return None.
 
         Returns:
             The advisory name for the domain
+
         """
         return self.__advisory
 
     def ensemble_member(self) -> str:
         """
         Returns the ensemble member for the domain.
-        If the domain does not have an ensemble member, this will return None
+        If the domain does not have an ensemble member, this will return None.
 
         Returns:
             The ensemble member for the domain
+
         """
         return self.__ensemble_member
 
     def tau(self) -> int:
         """
         Returns the tau (skipping time) for the domain.
-        If the domain does not have a tau, it will return 0
+        If the domain does not have a tau, it will return 0.
 
         Returns:
             The tau for the domain
+
         """
         return self.__tau
 
     def storm_year(self) -> int:
         """
         Returns the storm year for the domain.
-        If the domain does not have a storm, it will return None
+        If the domain does not have a storm, it will return None.
 
         Returns:
             The storm year for the domain
+
         """
         return self.__storm_year
 
     def name(self) -> str:
         """
-        Returns the name of the domain
+        Returns the name of the domain.
 
         Returns:
             The name of the domain
+
         """
         return self.__name
 
     def service(self) -> str:
         """
-        Returns the service used to generate the domain
+        Returns the service used to generate the domain.
 
         Returns:
             The service used to generate the domain
+
         """
         return self.__service
 
     def grid(self) -> OutputGrid:
         """
-        Returns the grid for the domain
+        Returns the grid for the domain.
 
         Returns:
             The grid for the domain
+
         """
         return self.__grid
 
     def json(self) -> dict:
         """
-        Returns the json object for the domain
+        Returns the json object for the domain.
 
         Returns:
             The json object for the domain
+
         """
         return self.__json
 
     def valid(self) -> bool:
         """
-        Returns whether the domain is valid
+        Returns whether the domain is valid.
 
         Returns:
             True if the domain is valid, False otherwise
+
         """
         return self.__valid
 
     def domain_level(self) -> int:
         """
-        Returns the domain level
+        Returns the domain level.
 
         Returns:
             The domain level
+
         """
         return self.__domain_level
 
     def __get_storm(self) -> None:
         """
-        Gets the storm name for the domain from the json object if the service is hwrf, coamps-tc, hafs-a/b, or nhc
+        Gets the storm name for the domain from the json object if the service is hwrf, coamps-tc, hafs-a/b, or nhc.
 
         Returns:
             None
+
         """
         if (
             self.service() == "hwrf"
@@ -239,10 +253,11 @@ class Domain:
 
     def __get_basin(self) -> None:
         """
-        Gets the basin name for the domain from the json object if the service is nhc
+        Gets the basin name for the domain from the json object if the service is nhc.
 
         Returns:
             None
+
         """
         if self.service() == "nhc":
             if "basin" in self.__json:
@@ -254,10 +269,11 @@ class Domain:
 
     def __get_advisory(self) -> None:
         """
-        Gets the advisory name for the domain from the json object if the service is nhc
+        Gets the advisory name for the domain from the json object if the service is nhc.
 
         Returns:
             None
+
         """
         if self.service() == "nhc":
             if "advisory" in self.__json:
@@ -269,10 +285,11 @@ class Domain:
 
     def __get_storm_year(self) -> None:
         """
-        Gets the storm year for the domain from the json object if the service is nhc
+        Gets the storm year for the domain from the json object if the service is nhc.
 
         Returns:
             None
+
         """
         if self.service() == "nhc":
             if "storm_year" in self.__json:
@@ -284,19 +301,21 @@ class Domain:
 
     def __get_tau(self) -> None:
         """
-        Gets the tau for the domain from the json object if the service is nhc
+        Gets the tau for the domain from the json object if the service is nhc.
 
         Returns:
             None
+
         """
         self.__tau = self.__json.get("tau", 0)
 
     def __get_ensemble_member(self) -> None:
         """
-        Gets the ensemble member for the domain from the json object if the service is gefs-ncep
+        Gets the ensemble member for the domain from the json object if the service is gefs-ncep.
 
         Returns:
             None
+
         """
         if self.service() == "gefs-ncep" or self.service() == "coamps-ctcx":
             if "ensemble_member" in self.__json:

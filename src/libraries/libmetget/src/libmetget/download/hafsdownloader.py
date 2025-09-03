@@ -29,7 +29,7 @@
 import os
 import tempfile
 from datetime import datetime, timedelta
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import boto3
 import requests
@@ -42,7 +42,9 @@ from .spyder import Spyder
 
 
 class HafsDownloader(NoaaDownloader):
-    def __init__(self, begin: datetime, end: datetime, hafs_type: MetFileAttributes):
+    def __init__(
+        self, begin: datetime, end: datetime, hafs_type: MetFileAttributes
+    ) -> None:
         address = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/"
 
         if hafs_type == NCEP_HAFS_A:
@@ -74,8 +76,7 @@ class HafsDownloader(NoaaDownloader):
     def download(self) -> int:
         if self.use_big_data():
             return self.__download_s3()
-        else:
-            return self.__download_http()
+        return self.__download_http()
 
     def __download_s3(self) -> int:
         s3 = boto3.resource("s3")
@@ -160,7 +161,9 @@ class HafsDownloader(NoaaDownloader):
         return n
 
     @staticmethod
-    def __check_s3_for_hafs_file(bucket, filenames: list) -> bool:
+    def __check_s3_for_hafs_file(
+        bucket: boto3.resources.base.ServiceResource, filenames: list
+    ) -> bool:
         for filename in filenames:
             check_objs = list(bucket.objects.filter(Prefix=filename))
             check_keys = [o.key for o in check_objs]
@@ -204,7 +207,7 @@ class HafsDownloader(NoaaDownloader):
         return num_download
 
     def get_grib_files(
-        self, info: dict, client=None
+        self, info: dict, client: Optional[boto3.client] = None
     ) -> Tuple[Union[list, None], int, int]:
         adapter = requests.adapters.HTTPAdapter(
             max_retries=NoaaDownloader.http_retry_strategy()

@@ -27,7 +27,7 @@
 #
 ###################################################################################################
 
-from typing import Union
+from typing import Any, Union
 
 from sqlalchemy import func
 
@@ -37,12 +37,12 @@ from .filelist_base import FilelistBase
 
 class FileListStorm(FilelistBase):
     """
-    Class for handling storm based synoptic forecasts and their list of input files
+    Class for handling storm based synoptic forecasts and their list of input files.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
-        Constructor
+        Constructor.
         """
         super().__init__(**kwargs)
         if "storm" not in kwargs:
@@ -52,10 +52,11 @@ class FileListStorm(FilelistBase):
 
     def storm(self) -> str:
         """
-        Returns the storm identifier
+        Returns the storm identifier.
 
         Returns:
             str: storm identifier
+
         """
         return self.__storm
 
@@ -64,10 +65,11 @@ class FileListStorm(FilelistBase):
         This method is used to query the database for the files that will be used to
         generate the requested forcing data. It is used for "generic" services that
         do not have a specific query method, such as GFS-NCEP, NAM-NCEP, HRRR, etc.
-        This method is used for nowcasts, i.e. tau = 0
+        This method is used for nowcasts, i.e. tau = 0.
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
+
         """
         with Database() as db, db.session() as session:
             return FilelistBase._rows2dicts(
@@ -132,12 +134,11 @@ class FileListStorm(FilelistBase):
         # If tau is 0, we don't need to query the fallback data
         if self.tau() == 0:
             return pure_forecast
-        else:
-            # Query the fallback data to fill in when we select out the tau
-            # forecasts
-            return FilelistBase._merge_tau_excluded_data(
-                pure_forecast, self._query_multiple_forecasts()
-            )
+        # Query the fallback data to fill in when we select out the tau
+        # forecasts
+        return FilelistBase._merge_tau_excluded_data(
+            pure_forecast, self._query_multiple_forecasts()
+        )
 
     def _query_multiple_forecasts(self) -> list:
         """

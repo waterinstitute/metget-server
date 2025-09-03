@@ -25,7 +25,7 @@ class ADeckDownloader:
 
     def __init__(self) -> None:
         """
-        Constructor for ADeckDownloader class
+        Constructor for ADeckDownloader class.
         """
         self.__db = Database()
         self.__session = self.__db.session()
@@ -48,6 +48,7 @@ class ADeckDownloader:
 
         Returns:
             dict: Dictionary of tracks currently in the database
+
         """
         logger.info("Getting tracks currently in the database")
 
@@ -76,7 +77,7 @@ class ADeckDownloader:
         return tracks_dict
 
     @staticmethod
-    def __dict_has_track(  # noqa: PLR0913
+    def __dict_has_track(
         db_tracks: Dict[str, Dict[int, Dict[int, List[datetime]]]],
         model: int,
         year: int,
@@ -92,6 +93,7 @@ class ADeckDownloader:
 
         Returns:
             bool: True if the track is in the dictionary, False otherwise
+
         """
         if year != datetime.now().year:
             return False
@@ -114,7 +116,7 @@ class ADeckDownloader:
         """
         Check if the database has the track. This is an approximately
         safe check to see if the track is already in the database. This
-        is run second after the quick check
+        is run second after the quick check.
 
         Args:
             model (int): Model number
@@ -125,6 +127,7 @@ class ADeckDownloader:
 
         Returns:
             bool: True if the track is in the database, False otherwise
+
         """
         return (
             self.__session.query(NhcAdeck)
@@ -139,7 +142,7 @@ class ADeckDownloader:
             > 0
         )
 
-    def __db_add_track(  # noqa: PLR0913
+    def __db_add_track(
         self,
         db_tracks: Dict[str, Dict[int, Dict[int, List[datetime]]]],
         model: int,
@@ -152,7 +155,7 @@ class ADeckDownloader:
         """
         Add the track to the database if it is not already there. The
         method will check if the track exists in the database before
-        adding it
+        adding it.
 
         Args:
             db_tracks (dict): Dictionary of tracks currently in the database
@@ -165,6 +168,7 @@ class ADeckDownloader:
 
         Returns:
             bool: True if the track was added, False otherwise
+
         """
         # Check the dictionary (first - fast) and if found, then check the database
         if not ADeckDownloader.__dict_has_track(
@@ -191,7 +195,7 @@ class ADeckDownloader:
 
     def download(self, current_year: int = datetime.now().year) -> int:
         """
-        Download the A-Deck tracks from the NHC website and store them in the database
+        Download the A-Deck tracks from the NHC website and store them in the database.
         """
         track_count = 0
 

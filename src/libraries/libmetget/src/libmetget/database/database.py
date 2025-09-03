@@ -28,20 +28,21 @@
 ###################################################################################################
 
 import os
+from typing import Optional
 
 from loguru import logger
-from sqlalchemy import URL, create_engine
+from sqlalchemy import URL, Engine, create_engine
 from sqlalchemy.orm import Session
 
 
 class Database:
     """
-    Database class for interacting with the database
+    Database class for interacting with the database.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
-        Constructor for Database class
+        Constructor for Database class.
 
         Initialize the database engine and session
         """
@@ -50,13 +51,18 @@ class Database:
         self.__engine = self.__init_database_engine()
         self.__session = Session(self.__engine)
 
-    def __enter__(self):
+    def __enter__(self) -> "Database":
         """
-        Enter method for Database class for use with context managers
+        Enter method for Database class for use with context managers.
         """
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[Exception],
+        exc_tb: Optional[object],
+    ) -> None:
         """
         Exit method for Database class for use with context managers. Note that
         this method will roll back any uncommitted transactions and close the
@@ -69,7 +75,7 @@ class Database:
             self.__session.close()
             self.__engine.dispose()
 
-    def __del__(self):
+    def __del__(self) -> None:
         """
         Destructor for Database class. Note that this method will rollback any
         uncommitted transactions and close the database connection. This method
@@ -81,14 +87,14 @@ class Database:
             self.__session.close()
             self.__engine.dispose()
 
-    def session(self):
+    def session(self) -> Session:
         """
-        Return the database session
+        Return the database session.
         """
         return self.__session
 
     @staticmethod
-    def __init_database_engine():
+    def __init_database_engine() -> Engine:
         """
         Initialize the database engine and return it.
         """

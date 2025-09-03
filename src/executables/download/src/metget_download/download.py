@@ -29,6 +29,7 @@
 ###################################################################################################
 import argparse
 from datetime import datetime, timedelta, timezone
+from typing import Tuple
 
 from libmetget.download.adeckdownloader import ADeckDownloader
 from libmetget.download.coampsdownloader import CoampsDownloader
@@ -49,14 +50,14 @@ from libmetget.version import get_metget_version
 from loguru import logger
 
 
-def generate_default_date_range():
+def generate_default_date_range() -> Tuple[datetime, datetime]:
     start = datetime.now(timezone.utc)
     start = datetime(start.year, start.month, start.day, 0, 0, 0) - timedelta(days=1)
     end = start + timedelta(days=2)
     return start, end
 
 
-def nam_download():
+def nam_download() -> int:
     start, end = generate_default_date_range()
     nam = NcepNamdownloader(start, end)
     logger.info(
@@ -67,7 +68,7 @@ def nam_download():
     return n
 
 
-def gfs_download():
+def gfs_download() -> int:
     start, end = generate_default_date_range()
     gfs = NcepGfsdownloader(start, end)
     logger.info(
@@ -78,7 +79,7 @@ def gfs_download():
     return n
 
 
-def gefs_download():
+def gefs_download() -> int:
     start, end = generate_default_date_range()
     gefs = NcepGefsdownloader(start, end)
     logger.info(
@@ -89,7 +90,7 @@ def gefs_download():
     return n
 
 
-def hwrf_download():
+def hwrf_download() -> int:
     start, end = generate_default_date_range()
     hwrf = HwrfDownloader(start, end)
     logger.info(
@@ -100,7 +101,7 @@ def hwrf_download():
     return n
 
 
-def hafs_download():
+def hafs_download() -> int:
     start, end = generate_default_date_range()
     hafs_a = HafsDownloader(start, end, NCEP_HAFS_A)
     hafs_b = HafsDownloader(start, end, NCEP_HAFS_B)
@@ -123,7 +124,7 @@ def hafs_download():
     return n
 
 
-def nhc_download():
+def nhc_download() -> int:
     nhc = NhcDownloader()
     logger.info("Beginning downloading NHC data")
     n = nhc.download()
@@ -131,7 +132,7 @@ def nhc_download():
     return n
 
 
-def coamps_download():
+def coamps_download() -> int:
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
     n = coamps.download()
@@ -139,14 +140,14 @@ def coamps_download():
     return n
 
 
-def ctcx_download():
+def ctcx_download() -> int:
     ctcx = CtcxDownloader()
     n = ctcx.download()
     logger.info(f"CTCX complete. {n:d} files downloaded")
     return n
 
 
-def hrrr_download():
+def hrrr_download() -> int:
     start, end = generate_default_date_range()
     hrrr = NcepHrrrdownloader(start, end)
     logger.info("Beginning downloading HRRR data")
@@ -156,7 +157,7 @@ def hrrr_download():
     return n
 
 
-def hrrr_alaska_download():
+def hrrr_alaska_download() -> int:
     start, end = generate_default_date_range()
     hrrr = NcepHrrrAlaskadownloader(start, end)
     logger.info("Beginning downloading HRRR-Alaska data")
@@ -165,7 +166,7 @@ def hrrr_alaska_download():
     return n
 
 
-def rrfs_download():
+def rrfs_download() -> int:
     start, end = generate_default_date_range()
     rrfs = NcepRrfsDownloader(start, end)
     logger.info("Beginning downloading RRFS data")
@@ -174,7 +175,7 @@ def rrfs_download():
     return n
 
 
-def refs_download():
+def refs_download() -> int:
     start, end = generate_default_date_range()
     refs = NcepRefsDownloader(start, end)
     logger.info("Beginning downloading REFS data")
@@ -183,7 +184,7 @@ def refs_download():
     return n
 
 
-def wpc_download():
+def wpc_download() -> int:
     logger.info("Beginning downloading WPC data")
     n = WpcDownloader.download()
     logger.info(f"WPC complete. {n:d} files downloaded")
@@ -200,7 +201,7 @@ def adeck_download() -> int:
     return n
 
 
-def metget_download():
+def metget_download() -> None:
     p = argparse.ArgumentParser(description="MetGet Download Function")
     p.add_argument(
         "--service",

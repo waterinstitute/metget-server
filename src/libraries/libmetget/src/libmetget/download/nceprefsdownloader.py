@@ -73,7 +73,7 @@ class NcepRefsDownloader(NoaaDownloader):
         )
 
     @staticmethod
-    def _filename_to_hour(filename) -> int:
+    def _filename_to_hour(filename: str) -> int:
         return int(filename[-12:-9])
 
     # ...In the case of REFS, we need to reimplement this function because we have to deal with ensemble members

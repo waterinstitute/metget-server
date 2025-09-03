@@ -55,7 +55,7 @@ class ADeckNames:
 
     def __init__(self) -> None:
         """
-        Constructor
+        Constructor.
         """
         self.__url = "https://ftp.nhc.noaa.gov/atcf/docs/nhc_techlist.dat"
         self.__names = self.__download_names()
@@ -73,8 +73,8 @@ class ADeckNames:
         Returns:
             A dictionary containing the abbreviation as the key
             and the long name as the value.
-        """
 
+        """
         response = requests.get(self.__url)
         if response.status_code != 200:
             msg = "Failed to download the A-Deck names."
@@ -95,6 +95,7 @@ class ADeckNames:
         Returns:
             A dictionary containing the abbreviation as the key
             and the long name as the value.
+
         """
         return self.__names
 
@@ -104,8 +105,8 @@ class ADeckNames:
 
         Args:
             filename: The name of the JSON file.
-        """
 
+        """
         with open(filename, "w") as f:
             f.write(json.dumps(self.__names, indent=2))
 
@@ -131,13 +132,14 @@ class DeckSnapshot:
 class Track:
     def __init__(self, basin: str, model: str, storm: int, year: int) -> None:
         """
-        Constructor
+        Constructor.
 
         Args:
             basin: The basin of the storm.
             model: The model used to forecast the storm.
             storm: The storm number.
             year: The year of the storm.
+
         """
         self.__basin = basin
         self.__model = model
@@ -172,6 +174,7 @@ class Track:
 
         Raises:
             RuntimeError: If the snapshot is not from the same basin and model.
+
         """
         if snapshot.basin == self.__basin and snapshot.model == self.__model:
             if snapshot not in self.__snapshots:
@@ -204,7 +207,6 @@ class Track:
         """
         Returns the track as a GeoJSON FeatureCollection.
         """
-
         return FeatureCollection(
             [
                 Feature(
@@ -229,10 +231,11 @@ class ModelDeck:
 
     def __init__(self, model: str) -> None:
         """
-        Constructor
+        Constructor.
 
         Args:
             model: The name of the model.
+
         """
         self.__model = model
         self.__decks: Dict[datetime, Track] = {}
@@ -248,6 +251,7 @@ class ModelDeck:
             snapshot: The snapshot to add.
             storm: The storm number.
             year: The year of the storm.
+
         """
         if cycle not in self.__decks:
             self.__decks[cycle] = Track(snapshot.basin, snapshot.model, storm, year)
@@ -260,6 +264,7 @@ class ModelDeck:
         Args:
             model_deck: The model deck to add.
             cycle: The cycle time of the deck.
+
         """
         if model_deck is not None and cycle is not None and cycle not in self.__decks:
             self.__decks[cycle] = model_deck
@@ -269,10 +274,11 @@ class ModelDeck:
 
     def cycles(self) -> List[datetime]:
         """
-        Returns the cycles in the model
+        Returns the cycles in the model.
 
         Returns:
             A list of cycles in the model.
+
         """
         return list(self.__decks.keys())
 
@@ -285,6 +291,7 @@ class ModelDeck:
 
         Returns:
             The track for the given cycle.
+
         """
         return self.__decks[cycle]
 
@@ -294,6 +301,7 @@ class ModelDeck:
 
         Returns:
             A string representation of the model deck.
+
         """
         first_cycle = next(iter(self.__decks.keys()))
         last_cycle = list(self.__decks.keys())[-1]
@@ -324,8 +332,7 @@ class ADeckStorms:
 
         if year != datetime.now().year:
             return f"{ADeckStorms.BASE_URL_ARCHIVE}/{year:4d}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
-        else:
-            return f"{ADeckStorms.BASE_URL}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
+        return f"{ADeckStorms.BASE_URL}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
 
     def download_storm(self, basin: str, year: int, storm: int) -> Dict[str, ModelDeck]:
         """
@@ -338,8 +345,8 @@ class ADeckStorms:
 
         Returns:
             A dictionary containing the parsed data from the A-Deck.
-        """
 
+        """
         url = self.__generate_url(basin, year, storm)
         response = requests.get(url)
         if response.status_code != 200:
@@ -373,10 +380,7 @@ class ADeckStorms:
             max_wind = int(split_line[8])
             min_pressure = int(split_line[9])
 
-            if len(split_line) > 20:
-                radius_to_max_wind = int(split_line[20])
-            else:
-                radius_to_max_wind = 0.0
+            radius_to_max_wind = int(split_line[20]) if len(split_line) > 20 else 0.0
 
             snapshot = DeckSnapshot(
                 basin=basin,

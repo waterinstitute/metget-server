@@ -26,7 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-from typing import Union
+from typing import Any, Union
 
 from ..database import Database
 from ..tables import NhcBtkTable, NhcFcstTable
@@ -34,17 +34,16 @@ from ..tables import NhcBtkTable, NhcFcstTable
 
 class FilelistNHC:
     """
-    Class to handle querying NHC track data
+    Class to handle querying NHC track data.
 
     Note that this class does not inherit from the FilelistBase class since the NHC
     data is wholly different from the other data sources, but the concept is similar
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """
-        Constructor
+        Constructor.
         """
-
         # Check for required arguments
         required_args = ["storm", "basin", "storm_year", "advisory"]
         for arg in required_args:
@@ -81,6 +80,7 @@ class FilelistNHC:
 
         Returns:
             dict: A dictionary containing the best track and forecast track files
+
         """
         with Database() as db, db.session() as session:
             best_track_query = (
@@ -126,5 +126,4 @@ class FilelistNHC:
 
         if not best_track and not forecast_track:
             return None
-        else:
-            return {"best_track": best_track, "forecast_track": forecast_track}
+        return {"best_track": best_track, "forecast_track": forecast_track}
