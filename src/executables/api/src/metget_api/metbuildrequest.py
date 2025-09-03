@@ -26,7 +26,13 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import os
 from typing import Tuple
+
+from libmetget.database.tables import RequestEnum
+
+from .access_control import AccessControl
+from .build_request import BuildRequest
 
 
 class MetBuildRequest:
@@ -44,8 +50,6 @@ class MetBuildRequest:
             source_ip: A string containing the source ip
             json_data: A dictionary containing the json data for the request
         """
-        import os
-
         self.__json_data = json_data
         self.__api_key = api_key
         self.__source_ip = source_ip
@@ -72,10 +76,6 @@ class MetBuildRequest:
         Returns:
             A tuple containing the response message and status code
         """
-        from libmetget.database.tables import RequestEnum
-
-        from .build_request import BuildRequest
-
         self.__build_request = BuildRequest(
             self.__request_id, self.__api_key, self.__source_ip, self.__json_data, True
         )
@@ -111,10 +111,8 @@ class MetBuildRequest:
                 msg["body"]["status"] = "success"
                 msg["body"]["message"] = "Request added to queue"
                 msg["body"]["request_id"] = self.__build_request.request_id()
-                msg["body"][
-                    "request_url"
-                ] = "https://{:s}.s3.amazonaws.com/{:s}".format(
-                    self.__output_bucket, self.__build_request.request_id()
+                msg["body"]["request_url"] = (
+                    f"https://{self.__output_bucket:s}.s3.amazonaws.com/{self.__build_request.request_id():s}"
                 )
                 msg["body"]["credits"] = credit_dict
                 msg["body"]["error_text"] = []
@@ -159,8 +157,6 @@ class MetBuildRequest:
         Returns:
             A tuple containing the credit information and a boolean indicating if the request is authorized
         """
-        from .access_control import AccessControl
-
         credit_dict = AccessControl.get_credit_balance(api_key)
 
         credit_balance = credit_dict["credit_balance"] - credit_usage_request

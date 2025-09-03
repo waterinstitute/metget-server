@@ -27,10 +27,29 @@
 #
 ###################################################################################################
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Tuple, Union
 
 import flask
+from libmetget.database.database import Database
+from libmetget.database.tables import (
+    CoampsTable,
+    CtcxTable,
+    GefsTable,
+    GfsTable,
+    HafsATable,
+    HafsBTable,
+    HrrrAlaskaTable,
+    HrrrTable,
+    HwrfTable,
+    NamTable,
+    NhcBtkTable,
+    NhcFcstTable,
+    RefsTable,
+    RrfsTable,
+    WpcTable,
+)
+from sqlalchemy import or_
 
 AVAILABLE_MET_MODELS = [
     "gfs",
@@ -311,7 +330,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.database import Database
 
         time_limits = Status.__compute_time_limits(limit, start, end)
 
@@ -422,7 +440,6 @@ class Status:
         Returns:
             Tuple containing the time limits
         """
-        from datetime import timezone
 
         if limit is not None:
             limit_time = datetime.now(tz=timezone.utc) - limit
@@ -451,7 +468,7 @@ class Status:
         }
 
     @staticmethod
-    def __get_status_generic_ensemble(  # noqa: PLR0913
+    def __get_status_generic_ensemble(  # noqa: PLR0913, PLR0912
         table_type: any,
         cycle_duration: int,
         limit: timedelta,
@@ -473,7 +490,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.database import Database
 
         time_limits = Status.__compute_time_limits(limit, start, end)
 
@@ -620,7 +636,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import GfsTable
 
         return Status.__get_status_generic(
             "gfs", GfsTable, cycle_length, limit, start, end
@@ -644,7 +659,6 @@ class Status:
             end: The end date to use when generating the status
             member: The ensemble member to use when generating the status
         """
-        from libmetget.database.tables import GefsTable
 
         return Status.__get_status_generic_ensemble(
             GefsTable,
@@ -673,7 +687,6 @@ class Status:
             end: The end date to use when generating the status
             member: The ensemble member to use when generating the status
         """
-        from libmetget.database.tables import RefsTable
 
         return Status.__get_status_generic_ensemble(
             RefsTable,
@@ -701,7 +714,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import NamTable
 
         return Status.__get_status_generic(
             "nam", NamTable, cycle_length, limit, start, end
@@ -723,7 +735,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import HrrrTable
 
         return Status.__get_status_generic(
             "hrrr", HrrrTable, cycle_length, limit, start, end
@@ -745,7 +756,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import RrfsTable
 
         return Status.__get_status_generic(
             "rrfs", RrfsTable, cycle_length, limit, start, end
@@ -767,7 +777,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import HrrrAlaskaTable
 
         return Status.__get_status_generic(
             "hrrr-alaska", HrrrAlaskaTable, cycle_length, limit, start, end
@@ -789,8 +798,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import WpcTable
-
         return Status.__get_status_generic(
             "wpc", WpcTable, cycle_length, limit, start, end
         )
@@ -816,8 +823,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import HwrfTable
-
         return Status.__get_status_deterministic_storm_type(
             HwrfTable,
             cycle_duration,
@@ -850,8 +855,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import HafsATable, HafsBTable
-
         if hafs_type == "a":
             return Status.__get_status_deterministic_storm_type(
                 HafsATable,
@@ -893,7 +896,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import CoampsTable
 
         return Status.__get_status_deterministic_storm_type(
             CoampsTable,
@@ -927,7 +929,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.tables import CtcxTable
 
         return Status.__get_status_ensemble_storm_type(
             CtcxTable,
@@ -940,7 +941,7 @@ class Status:
         )
 
     @staticmethod
-    def __get_status_ensemble_storm_type(  # noqa: PLR0913, PLR0915
+    def __get_status_ensemble_storm_type(  # noqa: PLR0913, PLR0915, PLR0912
         table_type: any,
         cycle_duration: int,
         limit: timedelta,
@@ -965,7 +966,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.database import Database
 
         time_limits = Status.__compute_time_limits(limit, start, end)
 
@@ -990,8 +990,8 @@ class Status:
 
             storms = {}
 
-            for storm in unique_storms:
-                storm_name = storm[0]
+            for storm_it in unique_storms:
+                storm_name = storm_it[0]
 
                 if ensemble_member == "all":
                     query_filter_ensemble = [
@@ -1124,7 +1124,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.database import Database
 
         time_limits = Status.__compute_time_limits(limit, start, end)
 
@@ -1212,9 +1211,9 @@ class Status:
                     ]
 
                     if len(this_storm_complete_cycles) > 0:
-                        this_storm[
-                            "latest_complete_cycle"
-                        ] = this_storm_complete_cycles[-1]
+                        this_storm["latest_complete_cycle"] = (
+                            this_storm_complete_cycles[-1]
+                        )
                     else:
                         this_storm["latest_complete_cycle"] = None
 
@@ -1271,10 +1270,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.database import Database
-        from libmetget.database.tables import NhcBtkTable
-        from sqlalchemy import or_
-
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
@@ -1322,13 +1317,13 @@ class Status:
             for b in basins:
                 storm_data[y[0]][b[0]] = {}
 
-        for storm in storms:
-            b = storm[0]
-            y = storm[1]
-            n = storm[2]
-            start_btk = Status.d2s(storm[3])
-            end_btk = Status.d2s(storm[4])
-            duration = storm[5]
+        for storm_it in storms:
+            b = storm_it[0]
+            y = storm_it[1]
+            n = storm_it[2]
+            start_btk = Status.d2s(storm_it[3])
+            end_btk = Status.d2s(storm_it[4])
+            duration = storm_it[5]
             storm_data[y][b][n] = {
                 "best_track_start": start_btk,
                 "best_track_end": end_btk,
@@ -1354,10 +1349,6 @@ class Status:
         Returns:
             Dictionary containing the status information and the HTTP status code
         """
-        from libmetget.database.database import Database
-        from libmetget.database.tables import NhcFcstTable
-        from sqlalchemy import or_
-
         time_limits = Status.__compute_time_limits(limit, start, end)
 
         with Database() as db, db.session() as session:
@@ -1405,10 +1396,10 @@ class Status:
                 for b in basins:
                     storm_data[y[0]][b[0]] = {}
 
-            for storm in storms:
-                b = storm[0]
-                y = storm[1]
-                n = storm[2]
+            for storm_it in storms:
+                b = storm_it[0]
+                y = storm_it[1]
+                n = storm_it[2]
 
                 this_storm = (
                     session.query(

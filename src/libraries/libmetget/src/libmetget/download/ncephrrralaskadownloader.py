@@ -27,13 +27,16 @@
 #
 ###################################################################################################
 
+from datetime import datetime
+from typing import Optional
+
 from ..sources.metfiletype import HRRR_ALASKA
 from .noaadownloader import NoaaDownloader
 
 
 class NcepHrrrAlaskadownloader(NoaaDownloader):
-    def __init__(self, begin, end):
-        address = None
+    def __init__(self, begin: datetime, end: datetime) -> None:
+        address: Optional[str] = None
         NoaaDownloader.__init__(
             self,
             HRRR_ALASKA.table(),
@@ -54,9 +57,9 @@ class NcepHrrrAlaskadownloader(NoaaDownloader):
         self.set_cycles(HRRR_ALASKA.cycles())
 
     @staticmethod
-    def _generate_prefix(date, hour) -> str:
+    def _generate_prefix(date: datetime, hour: int) -> str:
         return "hrrr." + date.strftime("%Y%m%d") + f"/alaska/hrrr.t{hour:02d}z.wrfnatf"
 
     @staticmethod
-    def _filename_to_hour(filename) -> int:
+    def _filename_to_hour(filename: str) -> int:
         return int(filename[38:40])

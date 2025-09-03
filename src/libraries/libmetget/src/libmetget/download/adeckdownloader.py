@@ -1,15 +1,17 @@
-import logging
+import math
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, Dict, List
 
+from loguru import logger
+
+from libmetget.database.database import Database
+from libmetget.database.tables import NhcAdeck
 from libmetget.download.adeck import (
     ADeckDownloaderException,
     ADeckNames,
     ADeckStorms,
     Track,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class ADeckDownloader:
@@ -21,16 +23,16 @@ class ADeckDownloader:
     NHC_BASINS: ClassVar = ["AL", "EP", "CP"]
     STORM_IDS: ClassVar = list(range(1, 31)) + list(range(90, 100))
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Constructor for ADeckDownloader class
         """
-        from libmetget.database.database import Database
-
         self.__db = Database()
         self.__session = self.__db.session()
 
-    def __get_tracks_currently_in_db(self) -> dict:
+    def __get_tracks_currently_in_db(
+        self,
+    ) -> Dict[str, Dict[int, Dict[int, List[datetime]]]]:
         """
         Get the tracks currently in the database. This allows
         us to avoid a query to the database for each track we
@@ -47,8 +49,6 @@ class ADeckDownloader:
         Returns:
             dict: Dictionary of tracks currently in the database
         """
-        from libmetget.database.tables import NhcAdeck
-
         logger.info("Getting tracks currently in the database")
 
         rows = (
@@ -77,7 +77,7 @@ class ADeckDownloader:
 
     @staticmethod
     def __dict_has_track(  # noqa: PLR0913
-        db_tracks: dict,
+        db_tracks: Dict[str, Dict[int, Dict[int, List[datetime]]]],
         model: int,
         year: int,
         basin: str,
@@ -103,7 +103,7 @@ class ADeckDownloader:
             and cycle in db_tracks[basin][storm][model]
         )
 
-    def __db_has_track(  # noqa: PLR0913
+    def __db_has_track(
         self,
         model: int,
         year: int,
@@ -126,8 +126,6 @@ class ADeckDownloader:
         Returns:
             bool: True if the track is in the database, False otherwise
         """
-        from libmetget.database.tables import NhcAdeck
-
         return (
             self.__session.query(NhcAdeck)
             .filter(
@@ -143,7 +141,7 @@ class ADeckDownloader:
 
     def __db_add_track(  # noqa: PLR0913
         self,
-        db_tracks: dict,
+        db_tracks: Dict[str, Dict[int, Dict[int, List[datetime]]]],
         model: int,
         year: int,
         basin: str,
@@ -168,10 +166,6 @@ class ADeckDownloader:
         Returns:
             bool: True if the track was added, False otherwise
         """
-        import math
-
-        from libmetget.database.tables import NhcAdeck
-
         # Check the dictionary (first - fast) and if found, then check the database
         if not ADeckDownloader.__dict_has_track(
             db_tracks, model, year, basin, storm, cycle
@@ -195,7 +189,7 @@ class ADeckDownloader:
             return True
         return False
 
-    def download(self, current_year: datetime.now().year) -> int:
+    def download(self, current_year: int = datetime.now().year) -> int:
         """
         Download the A-Deck tracks from the NHC website and store them in the database
         """

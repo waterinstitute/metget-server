@@ -27,28 +27,27 @@
 #
 ###################################################################################################
 
+import os
+from typing import Any
+
 import boto3
 import botocore
 from botocore.exceptions import ClientError
+from loguru import logger
 
 
 class S3file:
-    def __init__(self):
-        import os
+    def __init__(self) -> None:
+        self.__bucket: str = os.environ["METGET_S3_BUCKET"]
+        self.__client: Any = boto3.client("s3")
+        self.__resource: Any = boto3.resource("s3")
 
-        self.__bucket = os.environ["METGET_S3_BUCKET"]
-        self.__client = boto3.client("s3")
-        self.__resource = boto3.resource("s3")
-
-    def upload_file(self, local_file, remote_path):
+    def upload_file(self, local_file: str, remote_path: str) -> bool:
         """Upload a file to an S3 bucket
         :param local_file: local path to file for upload
         :param remote_path: desired path to the remote file
         :return: True if file was uploaded, else False
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
         # Upload the file
         try:
             self.__client.upload_file(
@@ -63,10 +62,7 @@ class S3file:
 
         return True
 
-    def download_file(self, remote_path, local_path):
-        import logging
-
-        logger = logging.getLogger(__name__)
+    def download_file(self, remote_path: str, local_path: str) -> bool:
         try:
             self.__client.download_file(self.__bucket, remote_path, local_path)
         except ClientError as e:
@@ -74,10 +70,7 @@ class S3file:
             return False
         return True
 
-    def exists(self, path):
-        import logging
-
-        logger = logging.getLogger(__name__)
+    def exists(self, path: str) -> bool:
         try:
             self.__resource.Object(self.__bucket, path).load()
         except botocore.exceptions.ClientError as e:

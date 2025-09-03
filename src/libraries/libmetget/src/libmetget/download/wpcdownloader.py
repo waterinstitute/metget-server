@@ -26,9 +26,17 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import os
+import tempfile
+import time
 from datetime import datetime, timedelta
 from ftplib import FTP
 from typing import Optional
+
+from loguru import logger
+
+from .metdb import Metdb
+from .s3file import S3file
 
 
 class WpcDownloader:
@@ -38,23 +46,13 @@ class WpcDownloader:
 
     @staticmethod
     def download() -> int:  # noqa: PLR0915, PLR0912
-        import logging
-        import os
-        import tempfile
-        import time
-
-        from .metdb import Metdb
-        from .s3file import S3file
-
-        log = logging.getLogger(__name__)
-
         ftp_address = "ftp.wpc.ncep.noaa.gov"
         ftp_folder = "2p5km_qpf"
 
-        log.info(f"Connecting to {ftp_address:s}")
+        logger.info(f"Connecting to {ftp_address:s}")
         ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
         if ftp is None:
-            log.error("Could not connect to FTP server")
+            logger.error("Could not connect to FTP server")
             return 0
 
         max_retries = 10
@@ -64,19 +62,21 @@ class WpcDownloader:
                 filelist = ftp.nlst("p06m*.grb")
                 break
             except ConnectionResetError as e:
-                log.error(f"Connection reset error: {e}")
-                log.error(f"Retrying {i + 1} of {max_retries}")
+                logger.error(f"Connection reset error: {e}")
+                logger.error(f"Retrying {i + 1} of {max_retries}")
                 ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
             except TimeoutError as e:
-                log.error(f"Timeout error: {e}")
-                log.error(f"Retrying {i + 1} of {max_retries}")
+                logger.error(f"Timeout error: {e}")
+                logger.error(f"Retrying {i + 1} of {max_retries}")
                 ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
 
         if ftp is None:
-            log.error(f"Could not connect to FTP server after {max_retries} attempts")
+            logger.error(
+                f"Could not connect to FTP server after {max_retries} attempts"
+            )
             return 0
 
-        log.info("Got filelist from FTP")
+        logger.info("Got filelist from FTP")
 
         num_downloads = 0
 
@@ -109,7 +109,7 @@ class WpcDownloader:
             if not exists:
                 temp_file_path = os.path.join(tempfile.gettempdir(), f)
 
-                log.info(
+                logger.info(
                     "Downloading File: {:s} (F: {:s}, T: {:s})".format(
                         f,
                         forecast_cycle.strftime("%Y-%m-%d %H:%M:%S"),
@@ -125,23 +125,23 @@ class WpcDownloader:
                             ftp.retrbinary(f"RETR {f:s}", out_file.write)
                         break
                     except ConnectionResetError:
-                        log.error(
+                        logger.error(
                             f"Connection reset error, retrying... (retry {i + 1} of {max_retries})"
                         )
                         ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
                         if ftp is None:
-                            log.error(
+                            logger.error(
                                 f"Could not connect to FTP server after {max_retries} attempts"
                             )
                             return 0
                     except TimeoutError:
                         time.sleep(30)
-                        log.error(
+                        logger.error(
                             f"Timeout error, retrying... (retry {i + 1} of {max_retries})"
                         )
                         ftp = WpcDownloader.__initialize_ftp(ftp_address, ftp_folder)
                         if ftp is None:
-                            log.error(
+                            logger.error(
                                 f"Could not connect to FTP server after {max_retries} attempts"
                             )
                             return 0
@@ -169,9 +169,6 @@ class WpcDownloader:
         Returns:
             FTP: An FTP object connected to the server
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
         try:
             ftp = FTP(ftp_address, timeout=10)
             ftp.login()

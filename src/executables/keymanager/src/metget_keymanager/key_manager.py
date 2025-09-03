@@ -26,7 +26,15 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-from datetime import datetime
+import argparse
+import secrets
+from datetime import datetime, timedelta
+
+import prettytable
+from libmetget.database.database import Database
+from libmetget.database.tables import AuthTable, RequestTable
+from libmetget.version import get_metget_version
+from sqlalchemy import func, or_
 
 CREDIT_MULTIPLIER = 100000.0
 
@@ -47,11 +55,6 @@ def add_key(
     Returns:
         None
     """
-    import secrets
-
-    from libmetget.database.database import Database
-    from libmetget.database.tables import AuthTable
-
     # Generate a url safe token 40 characters long without any special characters
     # if a key was not provided
     if key:
@@ -113,8 +116,6 @@ def update_key(
     Returns:
         None
     """
-    from libmetget.database.database import Database
-    from libmetget.database.tables import AuthTable
 
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
@@ -145,8 +146,6 @@ def enable_disable_key(key: str, enabled: bool):
     Returns:
         None
     """
-    from libmetget.database.database import Database
-    from libmetget.database.tables import AuthTable
 
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
@@ -168,9 +167,6 @@ def remove_key(key: str):
         key (str): The key to remove
     """
 
-    from libmetget.database.database import Database
-    from libmetget.database.tables import AuthTable
-
     with Database() as db, db.session() as session:
         current_key = session.query(AuthTable).filter_by(key=key).first()
 
@@ -186,13 +182,6 @@ def list_keys():
     """
     List all keys in the database
     """
-    from datetime import datetime, timedelta
-
-    import prettytable
-    from libmetget.database.database import Database
-    from libmetget.database.tables import AuthTable, RequestTable
-    from sqlalchemy import func, or_
-
     with Database() as db, db.session() as session:
         table = prettytable.PrettyTable()
         table.field_names = [
@@ -262,9 +251,6 @@ def key_manager():
     """
     Main function
     """
-    import argparse
-
-    from libmetget.version import get_metget_version
 
     parser = argparse.ArgumentParser(description="MetGet APIKey Manager")
     parser.add_argument(

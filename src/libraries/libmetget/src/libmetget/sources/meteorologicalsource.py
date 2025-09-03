@@ -55,32 +55,25 @@ class MeteorologicalSource(Enum):
         Returns:
             The MeteorologicalSource corresponding to the string
         """
-        if data_type == "gfs-ncep":
-            result = MeteorologicalSource.GFS
-        elif data_type == "gefs-ncep":
-            result = MeteorologicalSource.GEFS
-        elif data_type == "nam-ncep":
-            result = MeteorologicalSource.NAM
-        elif data_type == "hwrf":
-            result = MeteorologicalSource.HWRF
-        elif data_type == "hrrr-conus":
-            result = MeteorologicalSource.HRRR_CONUS
-        elif data_type == "hrrr-alaska":
-            result = MeteorologicalSource.HRRR_ALASKA
-        elif data_type == "wpc-ncep":
-            result = MeteorologicalSource.WPC
-        elif data_type in ("coamps-tc", "coamps-ctcx"):
-            result = MeteorologicalSource.COAMPS
-        elif data_type in ("ncep-hafs-a", "ncep-hafs-b"):
-            result = MeteorologicalSource.HAFS
-        elif data_type == "rrfs":
-            result = MeteorologicalSource.RRFS
-        elif data_type == "refs":
-            result = MeteorologicalSource.REFS
-        else:
+        mapping = {
+            "gfs-ncep": MeteorologicalSource.GFS,
+            "gefs-ncep": MeteorologicalSource.GEFS,
+            "nam-ncep": MeteorologicalSource.NAM,
+            "hwrf": MeteorologicalSource.HWRF,
+            "hrrr-conus": MeteorologicalSource.HRRR_CONUS,
+            "hrrr-alaska": MeteorologicalSource.HRRR_ALASKA,
+            "wpc-ncep": MeteorologicalSource.WPC,
+            "coamps-tc": MeteorologicalSource.COAMPS,
+            "coamps-ctcx": MeteorologicalSource.COAMPS,
+            "ncep-hafs-a": MeteorologicalSource.HAFS,
+            "ncep-hafs-b": MeteorologicalSource.HAFS,
+            "rrfs": MeteorologicalSource.RRFS,
+            "refs": MeteorologicalSource.REFS,
+        }
+        if data_type not in mapping:
             msg = f"Invalid meteorological source: {data_type:s}"
             raise ValueError(msg)
-        return result
+        return mapping[data_type]
 
     def __str__(self):
         """
@@ -89,29 +82,20 @@ class MeteorologicalSource(Enum):
         Returns:
             The string representation of the MeteorologicalSource
         """
-        if self == MeteorologicalSource.GFS:
-            result = "gfs-ncep"
-        elif self == MeteorologicalSource.GEFS:
-            result = "gefs-ncep"
-        elif self == MeteorologicalSource.NAM:
-            result = "nam-ncep"
-        elif self == MeteorologicalSource.HWRF:
-            result = "hwrf"
-        elif self == MeteorologicalSource.HRRR_CONUS:
-            result = "hrrr-conus"
-        elif self == MeteorologicalSource.HRRR_ALASKA:
-            result = "hrrr-alaska"
-        elif self == MeteorologicalSource.WPC:
-            result = "wpc-ncep"
-        elif self == MeteorologicalSource.COAMPS:
-            result = "coamps-tc"
-        elif self == MeteorologicalSource.HAFS:
-            result = "ncep-hafs-a"
-        elif self == MeteorologicalSource.RRFS:
-            result = "rrfs"
-        elif self == MeteorologicalSource.REFS:
-            result = "refs"
-        else:
+        mapping = {
+            MeteorologicalSource.GFS: "gfs-ncep",
+            MeteorologicalSource.GEFS: "gefs-ncep",
+            MeteorologicalSource.NAM: "nam-ncep",
+            MeteorologicalSource.HWRF: "hwrf",
+            MeteorologicalSource.HRRR_CONUS: "hrrr-conus",
+            MeteorologicalSource.HRRR_ALASKA: "hrrr-alaska",
+            MeteorologicalSource.WPC: "wpc-ncep",
+            MeteorologicalSource.COAMPS: "coamps-tc",
+            MeteorologicalSource.HAFS: "ncep-hafs-a",
+            MeteorologicalSource.RRFS: "rrfs",
+            MeteorologicalSource.REFS: "refs",
+        }
+        if self not in mapping:
             msg = f"Invalid meteorological source: {self:s}"
             raise ValueError(msg)
-        return result
+        return mapping[self]

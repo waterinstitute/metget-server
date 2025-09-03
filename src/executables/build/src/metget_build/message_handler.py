@@ -26,9 +26,11 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
+import json
 import os
+import tempfile
 from datetime import datetime, timedelta
+from os.path import exists
 from typing import List, Tuple, Union
 
 from libmetget.build.domain import Domain
@@ -36,12 +38,31 @@ from libmetget.build.fileobj import FileObj
 from libmetget.build.input import Input
 from libmetget.build.meteorology import Meteorology
 from libmetget.build.output.outputfile import OutputFile
+from libmetget.build.output.outputfilefactory import OutputFileFactory
 from libmetget.build.s3file import S3file
 from libmetget.build.s3gribio import S3GribIO
 from libmetget.database.filelist import Filelist
-from libmetget.database.tables import RequestTable
+from libmetget.database.tables import RequestEnum, RequestTable
 from libmetget.sources.meteorologicalsource import MeteorologicalSource
+from libmetget.sources.metfileformat import MetFileFormat
+from libmetget.sources.metfiletype import (
+    COAMPS_TC,
+    HRRR_ALASKA,
+    HRRR_CONUS,
+    NCEP_GEFS,
+    NCEP_GFS,
+    NCEP_HAFS_A,
+    NCEP_HAFS_B,
+    NCEP_HWRF,
+    NCEP_NAM,
+    NCEP_REFS,
+    NCEP_RRFS,
+    NCEP_WPC,
+    attributes_from_name,
+)
 from libmetget.sources.variabletype import VariableType
+from libmetget.version import get_metget_version
+from loguru import logger
 
 
 class MessageHandler:
@@ -78,22 +99,19 @@ class MessageHandler:
         Returns:
             True if the message was processed successfully, False otherwise
         """
-        import json
 
         pre_download_files = False
 
         filelist_name = "filelist.json"
 
-        log = logging.getLogger(__name__)
+        logger.info("Processing message")
+        logger.info(json.dumps(self.input().json()))
 
-        log.info("Processing message")
-        log.info(json.dumps(self.input().json()))
-
-        log.info(f"Found {self.input().num_domains():d} domains in input request")
+        logger.info(f"Found {self.input().num_domains():d} domains in input request")
 
         output_obj = MessageHandler.__generate_output_field(self.input())
 
-        log.info(f"Generating type key for {self.input().data_type():s}")
+        logger.info(f"Generating type key for {self.input().data_type():s}")
         data_type_key = MessageHandler.__generate_datatype_key(self.input().data_type())
 
         # ...Take a first pass on the data and check for restore status
@@ -153,7 +171,6 @@ class MessageHandler:
         Returns:
             dict: The version information
         """
-        from libmetget.version import get_metget_version
 
         return {
             "metget-server": get_metget_version(),
@@ -176,10 +193,6 @@ class MessageHandler:
         Returns:
             None
         """
-        import json
-
-        log = logging.getLogger(__name__)
-
         s3up = S3file(os.environ["METGET_S3_BUCKET_UPLOAD"])
 
         for domain_files in output_file_list:
@@ -198,7 +211,9 @@ class MessageHandler:
 
         filelist_path = os.path.join(self.input().request_id(), filelist_name)
         s3up.upload_file(filelist_name, filelist_path)
-        log.info(f"Finished processing message with id '{self.input().request_id():s}'")
+        logger.info(
+            f"Finished processing message with id '{self.input().request_id():s}'"
+        )
         os.remove(filelist_name)
 
     def __handle_ongoing_restore(self, met_field: OutputFile) -> None:
@@ -211,11 +226,7 @@ class MessageHandler:
         Returns:
             None
         """
-        from libmetget.database.tables import RequestEnum
-
-        log = logging.getLogger(__name__)
-
-        log.info("Request is currently in restore status")
+        logger.info("Request is currently in restore status")
         RequestTable.update_request(
             request_id=self.input().request_id(),
             request_status=RequestEnum.restore,
@@ -245,25 +256,23 @@ class MessageHandler:
         nhc_data = {}
         ongoing_restore = False
 
-        log = logging.getLogger(__name__)
-
         for i in range(input_data.num_domains()):
             if met_field is not None:
-                log.info(f"Generating met domain object for domain {i:d}")
+                logger.info(f"Generating met domain object for domain {i:d}")
                 MessageHandler.__generate_met_domain(input_data, met_field, i)
 
-            log.info("Querying database for available data")
+            logger.info("Querying database for available data")
             filelist = MessageHandler.__generate_filelist_obj(
                 input_data.domain(i), input_data
             )
-            log.info(f"Selected {len(filelist.files()):d} files for interpolation")
+            logger.info(f"Selected {len(filelist.files()):d} files for interpolation")
 
             if input_data.domain(i).service() == "nhc":
                 nhc_data[i] = filelist.files()
             else:
                 db_files.append(filelist.files())
                 if len(filelist.files()) < 2:
-                    log.error("No data found for domain " + str(i) + ". Giving up.")
+                    logger.error("No data found for domain " + str(i) + ". Giving up.")
                     msg = "No data found for domain"
                     raise RuntimeError(msg)
                 ongoing_restore = MessageHandler.__check_glacier_restore(
@@ -358,7 +367,6 @@ class MessageHandler:
         Returns:
             The output file object
         """
-        from libmetget.build.output.outputfilefactory import OutputFileFactory
 
         return OutputFileFactory.create_output_file(
             input_data.format(),
@@ -381,9 +389,6 @@ class MessageHandler:
         Returns:
             The met domain object
         """
-
-        log = logging.getLogger(__name__)
-
         d = input_data.domain(index)
         output_format = input_data.format()
         if output_format in ("ascii", "owi-ascii", "adcirc-ascii"):
@@ -430,7 +435,7 @@ class MessageHandler:
         else:
             raise RuntimeError("Invalid output format selected: " + output_format)
 
-        log.info(f"Adding domain {index + 1:d} to output object")
+        logger.info(f"Adding domain {index + 1:d} to output object")
         met_object.add_domain(
             grid=d.grid(),
             filename=fns,
@@ -453,8 +458,6 @@ class MessageHandler:
         Returns:
             The output file
         """
-
-        from datetime import datetime, timedelta
 
         btk_lines = []
         fcst_lines = []
@@ -520,21 +523,6 @@ class MessageHandler:
             service (str): The service
             time (datetime): The time
         """
-        from libmetget.sources.metfiletype import (
-            COAMPS_TC,
-            HRRR_ALASKA,
-            HRRR_CONUS,
-            NCEP_GEFS,
-            NCEP_GFS,
-            NCEP_HAFS_A,
-            NCEP_HAFS_B,
-            NCEP_HWRF,
-            NCEP_NAM,
-            NCEP_REFS,
-            NCEP_RRFS,
-            NCEP_WPC,
-        )
-
         if service == "gfs-ncep":
             file_type = NCEP_GFS
         elif service == "nam-ncep":
@@ -589,10 +577,7 @@ class MessageHandler:
         Returns:
             Dict: The list of output files and the list of files used
         """
-
-        log = logging.getLogger(__name__)
-
-        log.info("Starting to interpolate meteorological fields")
+        logger.info("Starting to interpolate meteorological fields")
 
         files_used_list = {}
 
@@ -622,11 +607,13 @@ class MessageHandler:
             if len(list(set(output_file_list))) != len(output_file_list):
                 output_file_list = list(set(output_file_list))
 
-            log.info("Generated output files: {:s}".format(", ".join(output_file_list)))
+            logger.info(
+                "Generated output files: {:s}".format(", ".join(output_file_list))
+            )
         else:
-            log.info(f"Generated output file: {output_file_list:s}")
+            logger.info(f"Generated output file: {output_file_list:s}")
 
-        log.info("Finished interpolating meteorological fields")
+        logger.info("Finished interpolating meteorological fields")
 
         return {"output_files": output_file_list, "files_used": files_used_list}
 
@@ -653,24 +640,21 @@ class MessageHandler:
             None
 
         """
-
-        log = logging.getLogger(__name__)
-
-        log.info(
+        logger.info(
             f"Processing domain {domain_index + 1:d} of {input_data.num_domains():d}"
         )
 
         if input_data.domain(domain_index).service() == "nhc":
-            log.error("NHC to gridded data not implemented")
+            logger.error("NHC to gridded data not implemented")
             msg = "NHC to gridded data no implemented"
             raise RuntimeError(msg)
 
-        log.debug(f"Generating source key for domain {domain_index + 1:d}")
+        logger.debug(f"Generating source key for domain {domain_index + 1:d}")
         source_key = MessageHandler.__generate_data_source_key(
             input_data.domain(domain_index).service()
         )
 
-        log.debug(f"Generating meteorology object for domain {domain_index + 1:d}")
+        logger.debug(f"Generating meteorology object for domain {domain_index + 1:d}")
         meteo_obj = Meteorology(
             grid=input_data.domain(domain_index).grid(),
             source_key=source_key,
@@ -680,10 +664,10 @@ class MessageHandler:
             epsg=input_data.epsg(),
         )
 
-        log.debug(f"Opening the output file(s) for domain {domain_index + 1:d}")
+        logger.debug(f"Opening the output file(s) for domain {domain_index + 1:d}")
         output_file.domain(domain_index).open()
 
-        log.debug(f"Processing initial data for domain {domain_index + 1:d}")
+        logger.debug(f"Processing initial data for domain {domain_index + 1:d}")
         domain_files_used = MessageHandler.__process_initial_domain_data(
             domain_data, domain_index, input_data, output_file, meteo_obj
         )
@@ -694,10 +678,8 @@ class MessageHandler:
             timedelta(seconds=input_data.time_step()),
         ):
             if time_now > meteo_obj.f2().time():
-                log.debug(
-                    "Processing next domain time step: {:s} > {:s}".format(
-                        time_now, meteo_obj.f2().time()
-                    )
+                logger.debug(
+                    f"Processing next domain time step: {time_now:s} > {meteo_obj.f2().time():s}"
                 )
                 domain_files_used = MessageHandler.__process_next_domain_time_step(
                     domain_data,
@@ -710,20 +692,20 @@ class MessageHandler:
                 )
 
             weight = meteo_obj.time_weight(time_now)
-            log.info(
+            logger.info(
                 "Processing time {:s}, weight = {:f}".format(
                     time_now.strftime("%Y-%m-%d %H:%M"), weight
                 )
             )
 
-            log.info(
+            logger.info(
                 "Interpolating domain {:d}, snap {:s} to grid".format(
                     domain_index + 1, time_now.strftime("%Y-%m-%d %H:%M")
                 )
             )
             dataset = meteo_obj.get(time_now)
 
-            log.info(
+            logger.info(
                 "Writing domain {:d}, snap {:s} to disk".format(
                     domain_index + 1, time_now.strftime("%Y-%m-%d %H:%M")
                 )
@@ -732,7 +714,7 @@ class MessageHandler:
                 dataset, data_type_key, time=time_now
             )
 
-        log.debug(f"Closing the output file(s) for domain {domain_index + 1:d}")
+        logger.debug(f"Closing the output file(s) for domain {domain_index + 1:d}")
         output_file.domain(domain_index).close()
 
         files_used_list[input_data.domain(domain_index).name()] = domain_files_used
@@ -812,7 +794,6 @@ class MessageHandler:
         Returns:
             None
         """
-        from libmetget.sources.metfileformat import MetFileFormat
 
         def remover(file_obj: FileObj) -> None:
             for file, att in file_obj.files():
@@ -883,14 +864,11 @@ class MessageHandler:
         Returns:
             Tuple[str, list, int, datetime]: The list of domain files used, the index, and the next time
         """
-
-        log = logging.getLogger(__name__)
-
         current_time = domain_data[domain_index][0]["time"]
         domain_files_used = []
         next_time = input_data.start_date() + timedelta(seconds=input_data.time_step())
 
-        log.debug(
+        logger.debug(
             "Processing initial domain data at time {:s}".format(
                 current_time.strftime("%Y-%m-%d %H:%M")
             )
@@ -1134,8 +1112,6 @@ class MessageHandler:
         Returns:
             S3GribIO: The remote s3 grib instance
         """
-        from libmetget.sources.metfileformat import MetFileFormat
-        from libmetget.sources.metfiletype import attributes_from_name
 
         attributes = attributes_from_name(data_type)
         if attributes.file_format() is MetFileFormat.GRIB:
@@ -1169,14 +1145,12 @@ class MessageHandler:
             None
 
         """
-        log = logging.getLogger(__name__)
-
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
         s3_remote = MessageHandler.__generate_noaa_s3_remote_instance(domain.service())
 
         f = db_files[index]
         if len(f) < 2:
-            log.error(f"No data found for domain {index:d}. Giving up.")
+            logger.error(f"No data found for domain {index:d}. Giving up.")
             msg = f"No data found for domain {index:d}. Giving up."
             raise RuntimeError(msg)
         for item in f:
@@ -1244,8 +1218,6 @@ class MessageHandler:
             Tuple[str, bool]: The local file and whether the download was successful
         """
 
-        import tempfile
-
         if "s3://" in item["filepath"]:
             tempdir = tempfile.gettempdir()
             fn = os.path.split(item["filepath"])[1]
@@ -1307,9 +1279,6 @@ class MessageHandler:
             filepath: The file being processed
             time: The time of the file being processed
         """
-
-        log = logging.getLogger(__name__)
-
         if isinstance(filepath, list):
             fnames = ""
             for fff in filepath:
@@ -1319,7 +1288,7 @@ class MessageHandler:
                     fnames += ", " + os.path.basename(fff)
         else:
             fnames = filepath
-        log.info(
+        logger.info(
             "Processing next file: {:s} ({:s})".format(
                 fnames, time.strftime("%Y-%m-%d %H:%M")
             )
@@ -1356,13 +1325,10 @@ class MessageHandler:
         Returns:
             None
         """
-
-        log = logging.getLogger(__name__)
-
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
 
         if not nhc_data[index]["best_track"] and not nhc_data[index]["forecast_track"]:
-            log.error(f"No data found for domain {index:d}. Giving up")
+            logger.error(f"No data found for domain {index:d}. Giving up")
             msg = f"No data found for domain {index:d}. Giving up"
             raise RuntimeError(msg)
         local_file_besttrack = None
@@ -1426,8 +1392,6 @@ class MessageHandler:
             bool: True if any files are currently being restored from Glacier
 
         """
-        log = logging.getLogger(__name__)
-
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
         ongoing_restore = False
         glacier_count = 0
@@ -1448,7 +1412,7 @@ class MessageHandler:
                         glacier_count += 1
                         ongoing_restore = True
 
-        log.info(f"Found {glacier_count:d} files currently in Glacier storage")
+        logger.info(f"Found {glacier_count:d} files currently in Glacier storage")
 
         return ongoing_restore
 
@@ -1460,7 +1424,6 @@ class MessageHandler:
         Args:
             data (list): List of dictionaries containing the filepaths of the
         """
-        from os.path import exists
 
         for domain in data:
             for f in domain:

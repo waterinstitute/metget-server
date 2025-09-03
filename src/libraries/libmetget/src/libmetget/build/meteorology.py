@@ -27,21 +27,20 @@
 #
 ###################################################################################################
 import copy
-import logging
 from datetime import datetime
 from typing import Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
+from loguru import logger
 
 from ..sources.meteorologicalsource import MeteorologicalSource
+from ..sources.metfiletype import attributes_from_service
 from ..sources.variabletype import VariableType
 from .datainterpolator import DataInterpolator
 from .fileobj import FileObj
 from .output.outputgrid import OutputGrid
 from .triangulation import Triangulation
-
-log = logging.getLogger(__name__)
 
 
 class Meteorology:
@@ -114,15 +113,13 @@ class Meteorology:
         Returns:
             bool: Whether the variable type is an accumulated variable
         """
-        from ..sources.metfiletype import attributes_from_service
-
         service_att = attributes_from_service(str(self.__source_key))
         var = self.__data_type_key.select()[0]
         is_accumulated = service_att.variable(var).get("is_accumulated", False)
         accumulation_time = service_att.variable(var).get("accumulation_time", None)
 
-        log.info(f"Variable {var} is accumulated: {is_accumulated}")
-        log.info(f"Accumulation time: {accumulation_time}")
+        logger.info(f"Variable {var} is accumulated: {is_accumulated}")
+        logger.info(f"Accumulation time: {accumulation_time}")
 
         return is_accumulated, accumulation_time
 

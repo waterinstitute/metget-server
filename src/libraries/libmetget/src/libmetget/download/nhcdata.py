@@ -1,9 +1,12 @@
-import logging
+import argparse
+import ftplib
+import gzip
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List
+from typing import Any, List, Optional
 
-log = logging.getLogger(__name__)
+from loguru import logger
 
 
 @dataclass
@@ -49,7 +52,7 @@ class NhcLine:
     seas_3: float = field(init=False)
     seas_4: float = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """
         Parse the NHC line which is in ATCF format
         """
@@ -176,14 +179,14 @@ class NhcLine:
         Write the data back as a string as it was found in the ATCF file
         """
         lon = (
-            f"{abs(self.longitude*10):4.0f}W"
+            f"{abs(self.longitude * 10):4.0f}W"
             if self.longitude < 0
-            else f"{abs(self.longitude*10):4.0f}E"
+            else f"{abs(self.longitude * 10):4.0f}E"
         )
         lat = (
-            f"{abs(self.latitude*10):4.0f}S"
+            f"{abs(self.latitude * 10):4.0f}S"
             if self.latitude < 0
-            else f"{abs(self.latitude*10):4.0f}N"
+            else f"{abs(self.latitude * 10):4.0f}N"
         )
 
         return (
@@ -205,19 +208,17 @@ class NhcProcessArchive:
         self.__year = year
         self.__track_type = track_type
 
-    def process(self):
+    def process(self) -> None:
         """
         Process the NHC archive for a specific year
         """
-        import os
-
         # Make the directory path
         track_path = "besttrack" if self.__track_type == "best" else "forecast"
         output_dir = os.path.join(track_path, str(self.__year))
         os.makedirs(output_dir, exist_ok=True)
 
         for file in self.__get_filelist():
-            log.info(f"Processing file {file}")
+            logger.info(f"Processing file {file}")
             self.__get_file(file)
             self.__process_file(file, output_dir)
             os.remove(file)
@@ -239,8 +240,6 @@ class NhcProcessArchive:
         """
         Process the best track file. Keep only the NHC (BEST) data and write to disk
         """
-        import gzip
-        import os
 
         fid = None
         with gzip.open(filename, "rt") as f:
@@ -250,11 +249,7 @@ class NhcProcessArchive:
                     if fid is None:
                         outfile = os.path.join(
                             output_dir,
-                            "nhc_btk_{:d}_{:s}_{:02d}.btk".format(
-                                self.__year,
-                                nhc_line.basin.lower(),
-                                nhc_line.cyclone_number,
-                            ),
+                            f"nhc_btk_{self.__year:d}_{nhc_line.basin.lower():s}_{nhc_line.cyclone_number:02d}.btk",
                         )
                         fid = open(outfile, "w")  # noqa: SIM115
                     # fid.write(str(nhc_line) + "\n") # Are we fancy? Lets not chance it
@@ -270,8 +265,6 @@ class NhcProcessArchive:
             filename: The filename to process
             output_dir: The output directory to write the files to
         """
-        import gzip
-        import os
 
         with gzip.open(filename, "rt") as f:
             last_nhc_cycle_date = None
@@ -288,12 +281,7 @@ class NhcProcessArchive:
                         last_nhc_cycle_date = nhc_line.cycle_date
                         if fid is not None:
                             fid.close()
-                        filename = "nhc_fcst_{:d}_{:s}_{:02d}_{:03d}.fcst".format(
-                            self.__year,
-                            nhc_line.basin.lower(),
-                            nhc_line.cyclone_number,
-                            current_nhc_cycle_id,
-                        )
+                        filename = f"nhc_fcst_{self.__year:d}_{nhc_line.basin.lower():s}_{nhc_line.cyclone_number:02d}_{current_nhc_cycle_id:03d}.fcst"
                         fid = open(  # noqa: SIM115
                             os.path.join(output_dir, filename), "w"
                         )
@@ -310,7 +298,6 @@ class NhcProcessArchive:
         Args:
             file: The file to get
         """
-        import ftplib
 
         with ftplib.FTP("ftp.nhc.noaa.gov") as ftp:
             ftp.login()
@@ -318,15 +305,13 @@ class NhcProcessArchive:
             with open(file, "wb") as f:
                 ftp.retrbinary(f"RETR {file}", f.write)
 
-    def __get_filelist(self) -> List[str]:
+    def __get_filelist(self) -> Optional[List[str]]:
         """
         Get the list of *.gz files from the nhc archive
 
         Returns:
             The list of *.gz files
         """
-
-        import ftplib
 
         with ftplib.FTP("ftp.nhc.noaa.gov") as ftp:
             ftp.login()
@@ -343,12 +328,6 @@ if __name__ == "__main__":
     """
     Process the NHC archive for a specific year and write to disk
     """
-    import argparse
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
 
     parser = argparse.ArgumentParser(
         description="Process the NHC archive for a specific year and write to disk"
@@ -371,13 +350,13 @@ if __name__ == "__main__":
     years = list(range(args.start_year, args.end_year + 1))
 
     for year in years:
-        log.info(f"Processing year {year}")
+        logger.info(f"Processing year {year}")
         if args.best:
-            log.info(f"Processing NHC best track archive for year {year}")
+            logger.info(f"Processing NHC best track archive for year {year}")
             nhc_best = NhcProcessArchive(year, "best")
             nhc_best.process()
 
         if args.forecast:
-            log.info(f"Processing NHC forecast archive for year {year}")
+            logger.info(f"Processing NHC forecast archive for year {year}")
             nhc_fcst = NhcProcessArchive(year, "forecast")
             nhc_fcst.process()

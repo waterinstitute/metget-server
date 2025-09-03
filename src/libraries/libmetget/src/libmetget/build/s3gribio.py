@@ -26,9 +26,14 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-
-import logging
+import os
+from time import sleep
 from typing import Dict, Optional, Tuple, Union
+from urllib.parse import urlparse
+
+import boto3
+from botocore.exceptions import ClientError
+from loguru import logger
 
 
 class S3GribIO:
@@ -45,8 +50,6 @@ class S3GribIO:
             s3_bucket (str): The s3 bucket to download from
             variable_dict (dict): The list of variables to download
         """
-        import boto3
-
         self.__s3_bucket = s3_bucket
         self.__variable_dict = variable_dict
         self.__s3_client = boto3.client("s3")
@@ -83,8 +86,6 @@ class S3GribIO:
         Returns:
             Tuple containing the bucket name and the file path
         """
-        from urllib.parse import urlparse
-
         result = urlparse(path)
         return result.netloc, result.path.lstrip("/")
 
@@ -102,10 +103,6 @@ class S3GribIO:
         Returns:
             The object from the bucket
         """
-        from time import sleep
-
-        from botocore.exceptions import ClientError
-
         max_tries = 5
         sleep_interval = 5
         tries = 0
@@ -260,13 +257,9 @@ class S3GribIO:
         Returns:
             bool: True if the download was successful, False otherwise
         """
-        import os
-
-        log = logging.getLogger(__name__)
-
         bucket, path = self.__parse_path(s3_file)
         if bucket != self.__s3_bucket:
-            log.error(
+            logger.error(
                 f"Bucket {bucket} does not match expected bucket {self.__s3_bucket}"
             )
             return False, True
@@ -275,11 +268,11 @@ class S3GribIO:
         inventory = self.__get_grib_inventory(path)
 
         if os.path.exists(local_file):
-            log.warning(f"File '{local_file}' already exists, removing")
+            logger.warning(f"File '{local_file}' already exists, removing")
             os.remove(local_file)
 
         if inventory is None:
-            log.info(f"Downloading full file for {s3_file} to {local_file}")
+            logger.info(f"Downloading full file for {s3_file} to {local_file}")
             obj = self.__try_get_object(path)
             with open(local_file, "wb") as f:
                 f.write(obj["Body"].read())
@@ -293,26 +286,26 @@ class S3GribIO:
             )
 
             if len(inventory_subset) == 0:
-                log.warning(f"No inventory found for file {path}")
+                logger.warning(f"No inventory found for file {path}")
                 download_subset = False
             elif (
                 len(inventory_subset)
                 < S3GribIO.__get_variable_candidates(variable_type)["length"]
             ):
-                log.warning("Inventory length does not match variable list length")
+                logger.warning("Inventory length does not match variable list length")
                 download_subset = False
             else:
                 download_subset = True
 
             if download_subset:
-                log.info(f"Downloading subset for {s3_file} to {local_file}")
+                logger.info(f"Downloading subset for {s3_file} to {local_file}")
                 for var in inventory_subset:
                     byte_range = "bytes={}-{}".format(var["start"], var["end"])
                     obj = self.__try_get_object(path, byte_range)
                     with open(local_file, "ab") as f:
                         f.write(obj["Body"].read())
             else:
-                log.warning(f"Downloading full file for {s3_file} to {local_file}")
+                logger.warning(f"Downloading full file for {s3_file} to {local_file}")
                 obj = self.__try_get_object(path)
                 with open(local_file, "wb") as f:
                     f.write(obj["Body"].read())

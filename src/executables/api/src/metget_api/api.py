@@ -27,20 +27,28 @@
 #
 ###################################################################################################
 
-import logging
+import os
+import uuid
 from datetime import datetime
 from typing import ClassVar
 
 import libmetget.version
 import sqlalchemy
-from flask import Flask, jsonify, make_response, redirect, request
+from flask import Flask, Response, jsonify, make_response, redirect, request
 from flask_cors import CORS
 from flask_healthz import HealthError, healthz
 from flask_limiter import Limiter, RequestLimit
 from flask_limiter.util import get_remote_address
 from flask_restful import Api, Resource
+from libmetget.database.database import Database
+from loguru import logger
 
 from .access_control import AccessControl
+from .adeck import ADeck
+from .check_request import CheckRequest
+from .metbuildrequest import MetBuildRequest
+from .status import Status
+from .stormtrack import StormTrack
 
 application = Flask(__name__)
 api = Api(application)
@@ -52,7 +60,7 @@ limiter = Limiter(
 
 CORS(application)
 
-application.logger.setLevel(logging.INFO)
+# Loguru handles log levels automatically
 
 
 def ratelimit_error_responder(request_limit: RequestLimit):
@@ -101,8 +109,6 @@ class MetGetStatus(Resource):
         """
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
-            from .status import Status
-
             s = Status()
             status_data, status_code = s.get_status(request)
             return {"statusCode": status_code, "body": status_data}, status_code
@@ -137,10 +143,6 @@ class MetGetBuild(Resource):
         """
         This method is used to build a new MetGet request into a 2d wind field
         """
-        import uuid
-
-        from .metbuildrequest import MetBuildRequest
-
         request_uuid = str(uuid.uuid4())
         request_api_key = request.headers.get("x-api-key")
         request_source_ip = request.environ.get(
@@ -171,8 +173,6 @@ class MetGetCheckRequest(Resource):
     def get():
         authorized = AccessControl.check_authorization_token(request.headers)
         if authorized:
-            from .check_request import CheckRequest
-
             c = CheckRequest()
             message, status = c.get(request)
             return message, status
@@ -211,8 +211,6 @@ class MetGetADeck(Resource):
         Returns:
             The response for the ADeck endpoint
         """
-        from .adeck import ADeck
-
         authorized = AccessControl.check_authorization_token(
             request.headers, with_whitelist=True
         )
@@ -265,8 +263,6 @@ class MetGetTrack(Resource):
 
     @staticmethod
     def get():
-        from .stormtrack import StormTrack
-
         # authorized = AccessControl.check_authorization_token(request.headers)
         # if authorized:
         #    return self.__get_storm_track()
@@ -322,10 +318,6 @@ class MetGetDashboard(Resource):
     @staticmethod
     def _load_dashboard_html():
         """Load and return the dashboard HTML template."""
-        import os
-
-        from flask import Response
-
         template_path = os.path.join(
             os.path.dirname(__file__), "templates", "dashboard.html"
         )
@@ -346,14 +338,12 @@ def health_ready():
         - The database connection
         - More, to be added later
     """
-    from libmetget.database.database import Database
-
     try:
         db = Database()
         session = db.session()
         session.execute(sqlalchemy.text("SELECT 1"))
     except Exception as e:
-        application.logger.error("HealthCheck failed at database connection: " + str(e))
+        logger.error("HealthCheck failed at database connection: " + str(e))
         msg = "Database connection failed: " + str(e)
         raise HealthError(msg) from e
 
@@ -377,7 +367,7 @@ HEALTHZ = {
 }
 application.register_blueprint(healthz, url_prefix="/healthz")
 application.config.update(HEALTHZ=HEALTHZ)
-application.logger.info(
+logger.info(
     f"Running metget-server API version: {libmetget.version.get_metget_version():s}"
 )
 

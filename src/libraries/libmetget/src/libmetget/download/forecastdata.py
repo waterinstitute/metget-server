@@ -26,69 +26,78 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from datetime import datetime
+from typing import Dict, List, Tuple, Union
+
+from .isotach import Isotach
+
+
 class ForecastData:
-    def __init__(self, pressure_method):
-        from datetime import datetime
+    def __init__(self, pressure_method: str) -> None:
+        self.__x: float = 0.0
+        self.__y: float = 0.0
+        self.__maxwind: float = 0.0
+        self.__maxgust: float = 0.0
+        self.__pressure: Union[int, float] = -1
+        self.__time: datetime = datetime(2000, 1, 1)
+        self.__isotach: Dict[Union[int, float], Isotach] = {}
+        self.__forecastHours: Union[int, float] = 0
+        self.__heading: Union[int, float] = -999
+        self.__forward_speed: Union[int, float] = -999
+        self.__pressureMethod: str = pressure_method
 
-        self.__x = 0.0
-        self.__y = 0.0
-        self.__maxwind = 0.0
-        self.__maxgust = 0.0
-        self.__pressure = -1
-        self.__time = datetime(2000, 1, 1)
-        self.__isotach = {}
-        self.__forecastHours = 0
-        self.__heading = -999
-        self.__forward_speed = -999
-        self.__pressureMethod = pressure_method
-
-    def set_storm_center(self, x, y):
+    def set_storm_center(self, x: float, y: float) -> None:
         self.__x = x
         self.__y = y
 
-    def storm_center(self):
+    def storm_center(self) -> Tuple[float, float]:
         return self.__x, self.__y
 
-    def set_time(self, time):
+    def set_time(self, time: datetime) -> None:
         self.__time = time
 
-    def time(self):
+    def time(self) -> datetime:
         return self.__time
 
-    def set_forecast_hour(self, hour):
+    def set_forecast_hour(self, hour: Union[int, float]) -> None:
         self.__forecastHours = hour
 
-    def forecast_hour(self):
+    def forecast_hour(self) -> Union[int, float]:
         return self.__forecastHours
 
-    def set_max_wind(self, speed):
+    def set_max_wind(self, speed: float) -> None:
         self.__maxwind = speed
 
-    def max_wind(self):
+    def max_wind(self) -> float:
         return self.__maxwind
 
-    def set_max_gust(self, speed):
+    def set_max_gust(self, speed: float) -> None:
         self.__maxgust = speed
 
-    def max_gust(self):
+    def max_gust(self) -> float:
         return self.__maxgust
 
-    def set_pressure(self, pressure):
+    def set_pressure(self, pressure: Union[int, float]) -> None:
         self.__pressure = pressure
 
-    def set_forward_speed(self, speed):
+    def set_forward_speed(self, speed: Union[int, float]) -> None:
         self.__forward_speed = speed
 
-    def forward_speed(self):
+    def forward_speed(self) -> Union[int, float]:
         return self.__forward_speed
 
-    def set_heading(self, heading):
+    def set_heading(self, heading: Union[int, float]) -> None:
         self.__heading = heading
 
-    def heading(self):
+    def heading(self) -> Union[int, float]:
         return self.__heading
 
-    def compute_pressure(self, vmax_global=0, last_vmax=0, last_pressure=0):
+    def compute_pressure(
+        self,
+        vmax_global: Union[int, float] = 0,
+        last_vmax: Union[int, float] = 0,
+        last_pressure: Union[int, float] = 0,
+    ) -> None:
         if self.__pressureMethod == "knaffzehr":
             self.__pressure = self.compute_pressure_knaffzehr(self.__maxwind)
         elif self.__pressureMethod == "dvorak":
@@ -108,23 +117,29 @@ class ForecastData:
             raise RuntimeError(msg)
 
     @staticmethod
-    def compute_pressure_knaffzehr(wind):
+    def compute_pressure_knaffzehr(wind: Union[int, float]) -> float:
         return ForecastData.compute_pressure_curvefit(wind, 1010.0, 2.3, 0.760)
 
     @staticmethod
-    def compute_pressure_dvorak(wind):
+    def compute_pressure_dvorak(wind: Union[int, float]) -> float:
         return ForecastData.compute_pressure_curvefit(wind, 1015.0, 3.92, 0.644)
 
     @staticmethod
-    def compute_pressure_ah77(wind):
+    def compute_pressure_ah77(wind: Union[int, float]) -> float:
         return ForecastData.compute_pressure_curvefit(wind, 1010.0, 3.4, 0.644)
 
     @staticmethod
-    def compute_pressure_curvefit(wind_speed, a, b, c):
+    def compute_pressure_curvefit(
+        wind_speed: Union[int, float], a: float, b: float, c: float
+    ) -> float:
         return a - ((wind_speed * 0.514444) / b) ** (1.0 / c)
 
     @staticmethod
-    def compute_pressure_courtneyknaff(wind_speed, forward_speed, eye_latitude):
+    def compute_pressure_courtneyknaff(
+        wind_speed: Union[int, float],
+        forward_speed: Union[int, float],
+        eye_latitude: float,
+    ) -> float:
         background_pressure = 1013.0
 
         # Below from Courtney and Knaff 2009
@@ -166,7 +181,11 @@ class ForecastData:
         return dp + background_pressure
 
     @staticmethod
-    def compute_initial_pressure_estimate_asgs(wind, last_vmax, last_pressure):
+    def compute_initial_pressure_estimate_asgs(
+        wind: Union[int, float],
+        last_vmax: Union[int, float],
+        last_pressure: Union[int, float],
+    ) -> float:
         if last_pressure == 0:
             if last_vmax == 0:
                 msg = "No valid prior wind speed given"
@@ -189,7 +208,12 @@ class ForecastData:
         return p
 
     @staticmethod
-    def compute_pressure_asgs2012(wind, vmax_global, last_vmax, last_pressure):
+    def compute_pressure_asgs2012(
+        wind: Union[int, float],
+        vmax_global: Union[int, float],
+        last_vmax: Union[int, float],
+        last_pressure: Union[int, float],
+    ) -> float:
         p = ForecastData.compute_initial_pressure_estimate_asgs(
             wind, last_vmax, last_pressure
         )
@@ -202,7 +226,11 @@ class ForecastData:
         return p
 
     @staticmethod
-    def compute_pressure_twoslope(wind, last_vmax, last_pressure):
+    def compute_pressure_twoslope(
+        wind: Union[int, float],
+        last_vmax: Union[int, float],
+        last_pressure: Union[int, float],
+    ) -> float:
         p = ForecastData.compute_initial_pressure_estimate_asgs(
             wind, last_vmax, last_pressure
         )
@@ -211,27 +239,32 @@ class ForecastData:
 
         return p
 
-    def pressure(self):
+    def pressure(self) -> Union[int, float]:
         return self.__pressure
 
-    def set_isotach(self, speed, d1, d2, d3, d4):  # noqa: PLR0913
-        from .isotach import Isotach
-
+    def set_isotach(
+        self,
+        speed: Union[int, float],
+        d1: Union[int, float],
+        d2: Union[int, float],
+        d3: Union[int, float],
+        d4: Union[int, float],
+    ) -> None:
         self.__isotach[speed] = Isotach(speed, d1, d2, d3, d4)
 
-    def isotach(self, speed):
+    def isotach(self, speed: Union[int, float]) -> Isotach:
         return self.__isotach[speed]
 
-    def nisotachs(self):
+    def nisotachs(self) -> int:
         return len(self.__isotach)
 
-    def isotach_levels(self):
+    def isotach_levels(self) -> List[Union[int, float]]:
         levels = []
         for key in self.__isotach:
             levels.append(key)
         return levels
 
-    def print(self):
+    def print(self) -> None:
         print("Forecast Data for: " + self.__time.strftime("%Y-%m-%d %HZ"))
         print("          Storm Center: ", f"{self.__x:.2f}, {self.__y:.2f}")
         print("              Max Wind: ", f"{self.__maxwind:.1f}")

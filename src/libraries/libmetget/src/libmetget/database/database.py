@@ -27,7 +27,11 @@
 #
 ###################################################################################################
 
-import logging
+import os
+
+from loguru import logger
+from sqlalchemy import URL, create_engine
+from sqlalchemy.orm import Session
 
 
 class Database:
@@ -41,8 +45,6 @@ class Database:
 
         Initialize the database engine and session
         """
-        from sqlalchemy.orm import Session
-
         self.__engine = None
         self.__session = None
         self.__engine = self.__init_database_engine()
@@ -90,12 +92,6 @@ class Database:
         """
         Initialize the database engine and return it.
         """
-        import os
-
-        from sqlalchemy import URL, create_engine
-
-        log = logging.getLogger(__name__)
-
         if (
             "METGET_DATABASE_PASSWORD" not in os.environ
             or "METGET_DATABASE_USER" not in os.environ
@@ -103,13 +99,13 @@ class Database:
         ):
             # List the environment variables that are required for the database
             # connection
-            log.error("Database environment variables not set")
+            logger.error("Database environment variables not set")
             if "METGET_DATABASE_PASSWORD" not in os.environ:
-                log.error("METGET_DATABASE_PASSWORD not set")
+                logger.error("METGET_DATABASE_PASSWORD not set")
             if "METGET_DATABASE_USER" not in os.environ:
-                log.error("METGET_DATABASE_USER not set")
+                logger.error("METGET_DATABASE_USER not set")
             if "METGET_DATABASE" not in os.environ:
-                log.error("METGET_DATABASE not set")
+                logger.error("METGET_DATABASE not set")
 
             msg = "Database environment variables not set"
             raise RuntimeError(msg)

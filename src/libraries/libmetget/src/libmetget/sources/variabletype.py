@@ -57,28 +57,22 @@ class VariableType(Enum):
         Returns:
             The VariableType corresponding to the string
         """
-        if data_type == "wind_pressure":
-            ret_value = VariableType.WIND_PRESSURE
-        elif data_type == "pressure":
-            ret_value = VariableType.PRESSURE
-        elif data_type == "wind":
-            ret_value = VariableType.WIND
-        elif data_type in ("precipitation", "rain"):
-            ret_value = VariableType.PRECIPITATION
-        elif data_type == "temperature":
-            ret_value = VariableType.TEMPERATURE
-        elif data_type == "humidity":
-            ret_value = VariableType.HUMIDITY
-        elif data_type == "ice":
-            ret_value = VariableType.ICE
-        elif data_type == "all_variables":
-            ret_value = VariableType.ALL_VARIABLES
-        elif data_type == "precipitation_type":
-            ret_value = VariableType.PRECIPITATION_TYPE
-        else:
+        mapping = {
+            "wind_pressure": VariableType.WIND_PRESSURE,
+            "pressure": VariableType.PRESSURE,
+            "wind": VariableType.WIND,
+            "precipitation": VariableType.PRECIPITATION,
+            "rain": VariableType.PRECIPITATION,
+            "temperature": VariableType.TEMPERATURE,
+            "humidity": VariableType.HUMIDITY,
+            "ice": VariableType.ICE,
+            "all_variables": VariableType.ALL_VARIABLES,
+            "precipitation_type": VariableType.PRECIPITATION_TYPE,
+        }
+        if data_type not in mapping:
             msg = f"Invalid data type: {data_type:s}"
             raise ValueError(msg)
-        return ret_value
+        return mapping[data_type]
 
     def select(self) -> List[MetDataType]:
         """
@@ -87,34 +81,30 @@ class VariableType(Enum):
         Returns:
             List[MetDataType]: The list of variables (MetDataType) for the type of meteorological data
         """
-        if self == VariableType.WIND_PRESSURE:
-            selection = [MetDataType.PRESSURE, MetDataType.WIND_U, MetDataType.WIND_V]
-        elif self == VariableType.PRESSURE:
-            selection = [MetDataType.PRESSURE]
-        elif self == VariableType.WIND:
-            selection = [MetDataType.WIND_U, MetDataType.WIND_V]
-        elif self == VariableType.PRECIPITATION:
-            selection = [MetDataType.PRECIPITATION]
-        elif self == VariableType.TEMPERATURE:
-            selection = [MetDataType.TEMPERATURE]
-        elif self == VariableType.HUMIDITY:
-            selection = [MetDataType.HUMIDITY]
-        elif self == VariableType.ICE:
-            selection = [MetDataType.ICE]
-        elif self == VariableType.ALL_VARIABLES:
-            v = list(MetDataType)
-            v.remove(MetDataType.UNKNOWN)
-            selection = v
-        elif self == VariableType.PRECIPITATION_TYPE:
-            selection = [
+        mapping = {
+            VariableType.WIND_PRESSURE: [
+                MetDataType.PRESSURE,
+                MetDataType.WIND_U,
+                MetDataType.WIND_V,
+            ],
+            VariableType.PRESSURE: [MetDataType.PRESSURE],
+            VariableType.WIND: [MetDataType.WIND_U, MetDataType.WIND_V],
+            VariableType.PRECIPITATION: [MetDataType.PRECIPITATION],
+            VariableType.TEMPERATURE: [MetDataType.TEMPERATURE],
+            VariableType.HUMIDITY: [MetDataType.HUMIDITY],
+            VariableType.ICE: [MetDataType.ICE],
+            VariableType.ALL_VARIABLES: [
+                d for d in MetDataType if d != MetDataType.UNKNOWN
+            ],
+            VariableType.PRECIPITATION_TYPE: [
                 MetDataType.PRECIPITATION,
                 MetDataType.CATEGORICAL_RAIN,
                 MetDataType.CATEGORICAL_SNOW,
                 MetDataType.CATEGORICAL_ICE,
                 MetDataType.CATEGORICAL_FREEZING_RAIN,
-            ]
-        else:
+            ],
+        }
+        if self not in mapping:
             msg = f"Invalid data type: {self:s}"
             raise ValueError(msg)
-
-        return selection
+        return mapping[self]

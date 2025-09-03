@@ -29,14 +29,15 @@
 
 import os
 from datetime import datetime
+from typing import Optional
 
 from ..sources.metfiletype import NCEP_RRFS
 from .noaadownloader import NoaaDownloader
 
 
 class NcepRrfsDownloader(NoaaDownloader):
-    def __init__(self, begin: datetime, end: datetime):
-        address = None
+    def __init__(self, begin: datetime, end: datetime) -> None:
+        address: Optional[str] = None
         NoaaDownloader.__init__(
             self,
             NCEP_RRFS.table(),

@@ -27,25 +27,28 @@
 #
 ###################################################################################################
 
-import logging
+import os
+import os.path
+import tempfile
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple, Union
+from time import sleep
+from typing import Any, List, Optional, Tuple, Union
 
 import boto3
-from requests.adapters import Retry
+import requests
+from botocore.exceptions import ClientError
+from loguru import logger
 
 from .metdb import Metdb
 from .s3file import S3file
 
-logger = logging.getLogger(__name__)
 
-
-class RetryLogger(Retry):
+class RetryLogger(requests.adapters.Retry):
     """
     A retry class that logs the retries
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         # logger.warning(f"Request failed. Retrying...")
         super().__init__(*args, **kwargs)
 
@@ -65,7 +68,7 @@ class NoaaDownloader:
         use_aws_big_data: bool = False,
         do_archive: bool = True,
         verbose: bool = True,
-    ):
+    ) -> None:
         """
         Constructor for the NoaaDownloader class. Initializes the class variables
 
@@ -100,7 +103,7 @@ class NoaaDownloader:
             self.__s3file = None
 
     @staticmethod
-    def http_retry_strategy() -> Retry:
+    def http_retry_strategy() -> requests.adapters.Retry:
         # ...Note: Status 302 is NOAA speak for "chill out", not a redirect as in normal http
         return RetryLogger(
             total=10,
@@ -119,7 +122,7 @@ class NoaaDownloader:
         """
         return self.__verbose
 
-    def do_archive(self):
+    def do_archive(self) -> bool:
         """
         Returns whether to archive the downloaded data
 
@@ -332,10 +335,6 @@ class NoaaDownloader:
         Returns:
             The object from the bucket
         """
-        from time import sleep
-
-        from botocore.exceptions import ClientError
-
         max_tries = 5
         sleep_interval = 5
         tries = 0
@@ -389,9 +388,6 @@ class NoaaDownloader:
         Returns:
             str: The path to the grib file
         """
-        import os
-        import tempfile
-
         time = info["cycledate"]
         fn = info["grb"].rsplit("/")[-1]
         year = f"{time.year:04d}"
@@ -446,7 +442,7 @@ class NoaaDownloader:
         else:
             return None, 0, 0
 
-    def __get_grib_noaa_servers(  # noqa: PLR0915
+    def __get_grib_noaa_servers(  # noqa: PLR0915, PLR0912
         self, info: dict
     ) -> Tuple[Union[str, None], int, int]:
         """
@@ -461,13 +457,9 @@ class NoaaDownloader:
         Pain and suffering this way lies, use the AWS big data option whenever
         available
         """
-        import os.path
-        import tempfile
-
-        import requests
-        from requests.adapters import HTTPAdapter
-
-        adaptor = HTTPAdapter(max_retries=NoaaDownloader.http_retry_strategy())
+        adaptor = requests.adapters.HTTPAdapter(
+            max_retries=NoaaDownloader.http_retry_strategy()
+        )
 
         try:
             with requests.Session() as http:
@@ -627,10 +619,6 @@ class NoaaDownloader:
         Returns:
             int: number of files downloaded
         """
-        import boto3
-        from botocore.errorfactory import ClientError
-
-        log = logging.getLogger(__name__)
 
         begin = datetime(
             self.begin_date().year,
@@ -650,7 +638,7 @@ class NoaaDownloader:
         pairs = []
         for d in date_range:
             if self.verbose():
-                log.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+                logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
 
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)

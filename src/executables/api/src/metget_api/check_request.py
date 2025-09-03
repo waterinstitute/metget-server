@@ -26,7 +26,11 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import os
 from typing import Tuple
+
+from libmetget.database.database import Database
+from libmetget.database.tables import RequestTable
 
 
 class CheckRequest:
@@ -43,11 +47,6 @@ class CheckRequest:
         Returns:
             A tuple containing the response message and status code
         """
-        import os
-
-        from libmetget.database.database import Database
-        from libmetget.database.tables import RequestTable
-
         if "request-id" in request.args:
             request_id = request.args["request-id"]
         else:
@@ -84,8 +83,8 @@ class CheckRequest:
         else:
             row = query_result[0]
             bucket_name = os.environ["METGET_S3_BUCKET_UPLOAD"]
-            upload_destination = "https://{:s}.s3.amazonaws.com/{:s}".format(
-                bucket_name, request_id
+            upload_destination = (
+                f"https://{bucket_name:s}.s3.amazonaws.com/{request_id:s}"
             )
             return {
                 "statusCode": 200,

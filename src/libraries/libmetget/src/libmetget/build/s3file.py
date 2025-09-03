@@ -27,13 +27,15 @@
 #
 ###################################################################################################
 
-import logging
+import os
+import tempfile
 from datetime import datetime
 from typing import Optional
 
 import boto3
 import botocore
 from botocore.exceptions import ClientError
+from loguru import logger
 
 
 class S3file:
@@ -63,16 +65,13 @@ class S3file:
         Returns:
             bool: True if file was uploaded, else False
         """
-        log = logging.getLogger(__name__)
         try:
-            log.info(
-                "Uploading file {:s} to s3://{:s}/{:s}".format(
-                    local_file, self.__bucket, remote_path
-                )
+            logger.info(
+                f"Uploading file {local_file:s} to s3://{self.__bucket:s}/{remote_path:s}"
             )
             self.__client.upload_file(local_file, self.__bucket, remote_path)
         except ClientError as e:
-            log.error(e)
+            logger.error(e)
             return False
 
         return True
@@ -91,10 +90,6 @@ class S3file:
         Returns:
             Returns the path to the downloaded file
         """
-        import os
-        import tempfile
-
-        log = logging.getLogger(__name__)
         tempdir = tempfile.gettempdir()
         fn = os.path.split(remote_path)[1]
         if time:
@@ -105,7 +100,7 @@ class S3file:
         else:
             local_path = os.path.join(tempdir, fn)
 
-        log.info(
+        logger.info(
             f"Downloading from s3://{self.__bucket:s}/{remote_path:s} to {local_path:s}"
         )
         self.__client.download_file(self.__bucket, remote_path, local_path)
@@ -119,8 +114,6 @@ class S3file:
         Args:
             path (str): path to the file in the S3 bucket
         """
-        log = logging.getLogger(__name__)
-
         try:
             self.__resource.Object(self.__bucket, path).load()
         except botocore.exceptions.ClientError as e:
@@ -128,7 +121,7 @@ class S3file:
             if e.response["Error"]["Code"] == "404":
                 return False
             else:
-                log.error(e)
+                logger.error(e)
                 raise
         return True
 
@@ -142,11 +135,10 @@ class S3file:
         Returns:
             bool: True if file exists in S3 or is in glacier storage, else False
         """
-        log = logging.getLogger(__name__)
-        log.info(f"Checking glacier status for {path:s} in bucket {self.__bucket:s}")
+        logger.info(f"Checking glacier status for {path:s} in bucket {self.__bucket:s}")
         metadata = self.__client.head_object(Bucket=self.__bucket, Key=path)
         if "x-amz-archive-status" in metadata["ResponseMetadata"]["HTTPHeaders"]:
-            log.info(
+            logger.info(
                 f"File {path:s} in bucket {self.__bucket:s} was found in Amazon Glacier"
             )
             return True
@@ -180,14 +172,13 @@ class S3file:
         Returns:
             bool: True if restore request was successful, else False
         """
-        log = logging.getLogger(__name__)
         if not self.check_ongoing_glacier_restore(path):
             self.__client.restore_object(
                 Bucket=self.__bucket,
                 Key=path,
                 RestoreRequest={"GlacierJobParameters": {"Tier": "Standard"}},
             )
-            log.info(f"Restore request initiated for {path:s}")
+            logger.info(f"Restore request initiated for {path:s}")
         return True
 
     def check_archive_initiate_restore(self, path: str) -> bool:

@@ -26,33 +26,37 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from typing import Union
+
+
 class Isotach:
-    def __init__(self, speed, d1=0, d2=0, d3=0, d4=0):  # noqa: PLR0913
+    def __init__(
+        self,
+        speed: Union[int, float],
+        d1: Union[int, float] = 0,
+        d2: Union[int, float] = 0,
+        d3: Union[int, float] = 0,
+        d4: Union[int, float] = 0,
+    ) -> None:
         self.__speed = speed
         self.__distance = [d1, d2, d3, d4]
 
-    def set_speed(self, value):
+    def set_speed(self, value: Union[int, float]) -> None:
         self.__speed = value
 
-    def speed(self):
+    def speed(self) -> Union[int, float]:
         return self.__speed
 
-    def set_distance(self, quadrant, distance):
+    def set_distance(self, quadrant: int, distance: Union[int, float]) -> None:
         if 0 <= quadrant < 4:
             self.__distance[quadrant] = distance
 
-    def distance(self, quadrant):
+    def distance(self, quadrant: int) -> Union[int, float]:
         if 0 <= quadrant < 4:
             return self.__distance[quadrant]
         return 0
 
-    def print(self, n=0):
+    def print(self, n: int = 0) -> None:
         isoline = "Isotach".rjust(n)
-        line = "{:d}: {:.1f} {:.1f} {:.1f} {:.1f}".format(
-            self.__speed,
-            self.__distance[0],
-            self.__distance[1],
-            self.__distance[2],
-            self.__distance[3],
-        )
+        line = f"{self.__speed:d}: {self.__distance[0]:.1f} {self.__distance[1]:.1f} {self.__distance[2]:.1f} {self.__distance[3]:.1f}"
         print(isoline, line)

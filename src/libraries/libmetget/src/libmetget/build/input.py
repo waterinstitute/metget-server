@@ -26,10 +26,12 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
+import os
 from datetime import datetime
 from typing import List
 
+import dateutil.parser
+from loguru import logger
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
 from .domain import VALID_SERVICES, Domain
@@ -44,8 +46,6 @@ VALID_DATA_TYPES = [
     "precipitation_type",
     "all_variables",
 ]
-
-log = logging.getLogger(__name__)
 
 
 class Input:
@@ -116,16 +116,16 @@ class Input:
         """
 
         # ....Validate the input json data
-        log.info("Begin validating input JSON data with the schema")
+        logger.info("Begin validating input JSON data with the schema")
         try:
             self.__json = Input.METGET_SCHEMA.validate(json_data)
         except SchemaError as e:
-            log.error("JSON data has invalid schema: " + str(e))
+            logger.error("JSON data has invalid schema: " + str(e))
             self.__json = json_data
             self.__error = [str(e)]
             self.__valid = False
             return
-        log.info("Finished validating input JSON data with the schema")
+        logger.info("Finished validating input JSON data with the schema")
 
         self.__json = json_data
         self.__data_type = "wind_pressure"
@@ -369,13 +369,7 @@ class Input:
         """
         Parses the input data
         """
-        import os
-
-        import dateutil.parser
-
-        from .domain import Domain
-
-        log.info("Begin parsing input JSON data")
+        logger.info("Begin parsing input JSON data")
 
         try:
             self.__version = self.__json["version"]
@@ -398,7 +392,7 @@ class Input:
 
             self.__data_type = self.__json.get("data_type", self.__data_type)
             if self.__data_type and self.__data_type not in VALID_DATA_TYPES:
-                log.error("Invalid data type: " + self.__data_type)
+                logger.error("Invalid data type: " + self.__data_type)
                 msg = f"Invalid data type: {self.__data_type}"
                 raise RuntimeError(msg)
 
@@ -406,7 +400,7 @@ class Input:
                 "netcdf",
                 "hec-netcdf",
             ):
-                log.error(
+                logger.error(
                     f"Invalid output format {self.__format} for data "
                     f"type {self.__data_type}. All variables can only be supplied with netcdf-style output."
                 )
@@ -428,26 +422,26 @@ class Input:
 
             if self.__data_type is None and "data_type" in self.__json:
                 msg = "Missing required field: data_type"
-                log.error(msg)
+                logger.error(msg)
                 raise RuntimeError(msg)
 
             # ... Sanity check
             if self.__start_date >= self.__end_date:
                 self.__error.append("Request dates are not valid")
-                log.error("Request dates are not valid")
+                logger.error("Request dates are not valid")
                 self.__valid = False
 
             num_domains = len(self.__json["domains"])
             if num_domains == 0:
                 msg = "You must specify one or more domains"
-                log.error(msg)
+                logger.error(msg)
                 raise RuntimeError(msg)
             for i in range(num_domains):
                 name = self.__json["domains"][i]["name"]
                 service = self.__json["domains"][i]["service"]
 
                 if self.__data_type == "all_variables" and service != "coamps-tc":
-                    log.error(
+                    logger.error(
                         "The data type 'all_variables' is only supported for the 'coamps-tc' service"
                     )
                     self.__error.append(
@@ -466,15 +460,15 @@ class Input:
                     self.__domains.append(d)
                 else:
                     self.__valid = False
-                    log.error("Could not generate domain " + str(i))
+                    logger.error("Could not generate domain " + str(i))
                     self.__error.append("Could not generate domain " + str(i))
 
         except Exception as e:
-            log.error("Could not parse the input json dataset: " + str(e))
+            logger.error("Could not parse the input json dataset: " + str(e))
             self.__valid = False
             self.__error.append("Could not parse the input json dataset: " + str(e))
 
-        log.info("Finished parsing input JSON data")
+        logger.info("Finished parsing input JSON data")
 
     def __calculate_credit_usage(self) -> int:
         """
@@ -487,7 +481,7 @@ class Input:
             The credit usage of the request
         """
 
-        log.info("Calculating credit usage")
+        logger.info("Calculating credit usage")
 
         credit_usage = 0
         num_time_steps = int(
@@ -501,6 +495,6 @@ class Input:
             else:
                 credit_usage += 100 * 100 * 24 * num_time_steps
 
-        log.info("Credit usage calculated as: " + str(credit_usage))
+        logger.info("Credit usage calculated as: " + str(credit_usage))
 
         return credit_usage

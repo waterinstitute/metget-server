@@ -26,19 +26,38 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
+import argparse
+import gzip
+import hashlib
+import os
+import tempfile
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 
-from geojson import FeatureCollection
-
-logger = logging.getLogger(__name__)
+import boto3
+import requests
+from geojson import Feature, FeatureCollection, Point
+from libmetget.database.database import Database
+from libmetget.database.tables import (
+    NhcBtkTable,
+    NhcFcstTable,
+)
+from libmetget.download.coampsdownloader import CoampsDownloader
+from libmetget.download.ctcxdownloader import CtcxDownloader
+from libmetget.download.forecastdata import ForecastData
+from libmetget.download.hafsdownloader import HafsDownloader
+from libmetget.download.ncepgefsdownloader import NcepGefsdownloader
+from libmetget.download.ncepgfsdownloader import NcepGfsdownloader
+from libmetget.download.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
+from libmetget.download.ncephrrrdownloader import NcepHrrrdownloader
+from libmetget.download.ncepnamdownloader import NcepNamdownloader
+from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
+from libmetget.version import get_metget_version
+from loguru import logger
 
 
 def rebuild_gfs(start: datetime, end: datetime) -> int:
-    from libmetget.download.ncepgfsdownloader import NcepGfsdownloader
-
     gfs = NcepGfsdownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-GFS from {start.isoformat():s} to {end.isoformat():s}"
@@ -49,8 +68,6 @@ def rebuild_gfs(start: datetime, end: datetime) -> int:
 
 
 def rebuild_nam(start: datetime, end: datetime) -> int:
-    from libmetget.download.ncepnamdownloader import NcepNamdownloader
-
     nam = NcepNamdownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-NAM from {start.isoformat():s} to {end.isoformat():s}"
@@ -61,8 +78,6 @@ def rebuild_nam(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hrrr(start: datetime, end: datetime) -> int:
-    from libmetget.download.ncephrrrdownloader import NcepHrrrdownloader
-
     hrrr = NcepHrrrdownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-HRRR from {start.isoformat():s} to {end.isoformat():s}"
@@ -73,8 +88,6 @@ def rebuild_hrrr(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
-    from libmetget.download.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
-
     hrrr = NcepHrrrAlaskadownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-HRRR-AK from {start.isoformat():s} to {end.isoformat():s}"
@@ -85,8 +98,6 @@ def rebuild_hrrr_ak(start: datetime, end: datetime) -> int:
 
 
 def rebuild_gefs(start: datetime, end: datetime) -> int:
-    from libmetget.download.ncepgefsdownloader import NcepGefsdownloader
-
     gefs = NcepGefsdownloader(start, end)
     logger.info(
         f"Beginning to run NCEP-GEFS from {start.isoformat():s} to {end.isoformat():s}"
@@ -108,9 +119,6 @@ def rebuild_hafs(start: datetime, end: datetime) -> int:
 
 
 def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
-    from libmetget.download.hafsdownloader import HafsDownloader
-    from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
-
     if hafs_type == "a":
         hafs = HafsDownloader(start, end, NCEP_HAFS_A)
     elif hafs_type == "b":
@@ -129,10 +137,6 @@ def rebuild_hafs_subtype(hafs_type: str, start: datetime, end: datetime) -> int:
 
 
 def rebuild_coamps(start: datetime, end: datetime) -> int:
-    import os
-
-    from libmetget.download.coampsdownloader import CoampsDownloader
-
     if "COAMPS_S3_BUCKET" not in os.environ:
         msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
         raise ValueError(msg)
@@ -146,10 +150,6 @@ def rebuild_coamps(start: datetime, end: datetime) -> int:
 
 
 def rebuild_ctcx(start: datetime, end: datetime) -> int:
-    import os
-
-    from libmetget.download.ctcxdownloader import CtcxDownloader
-
     if "COAMPS_S3_BUCKET" not in os.environ:
         msg = "Environment variable 'COAMPS_S3_BUCKET' not set"
         raise ValueError(msg)
@@ -171,7 +171,6 @@ def read_nhc_data(filename: str) -> list:
     Returns:
         list: A list of dictionaries containing the data
     """
-    from datetime import datetime, timedelta
 
     # ...Keys for the zippered dictionary from the NHC file
     atcf_keys = [
@@ -227,7 +226,6 @@ def read_nhc_data(filename: str) -> list:
 
 def nhc_compute_pressure(self, filepath: str) -> None:
     nhc_data = self.read_nhc_data(filepath)
-    from libmetget.download.forecastdata import ForecastData
 
     last_vmax = None
     last_pressure = None
@@ -258,8 +256,6 @@ def nhc_compute_pressure(self, filepath: str) -> None:
 
 
 def nhc_compute_checksum(path):
-    import hashlib
-
     with open(path, "rb") as file:
         data = file.read()
         return hashlib.md5(data).hexdigest()
@@ -280,8 +276,6 @@ def nhc_position_to_float(position: str) -> float:
 
 
 def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
-    from geojson import Feature, Point
-
     KNOT_TO_MPH = 1.15078
 
     track_points = []
@@ -314,14 +308,7 @@ def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
     return FeatureCollection(features=points)
 
 
-def nhc_download_data(table) -> int:  # noqa: PLR0915
-    import os
-    import tempfile
-
-    import boto3
-    from libmetget.database.database import Database
-    from libmetget.database.tables import NhcBtkTable, NhcFcstTable
-
+def nhc_download_data(table) -> int:  # noqa: PLR0912
     bucket = os.environ["METGET_S3_BUCKET"]
     client = boto3.client("s3")
     paginator = client.get_paginator("list_objects_v2")
@@ -433,13 +420,6 @@ def nhc_download_data(table) -> int:  # noqa: PLR0915
 
 
 def nhc_obtain_best_tracks() -> None:
-    import gzip
-    import os
-    from datetime import datetime
-
-    import boto3
-    import requests
-
     year_start = 2005
     year_end = datetime.now().year - 1
     storm_start = 1
@@ -493,13 +473,6 @@ def nhc_obtain_best_tracks() -> None:
 
 
 def nhc_obtain_forecast_tracks() -> None:  # noqa: PLR0915, PLR0912
-    import gzip
-    import os
-    from datetime import datetime
-
-    import boto3
-    import requests
-
     year_start = 2005
     year_end = datetime.now().year - 1
     storm_start = 1
@@ -584,8 +557,6 @@ def nhc_obtain_forecast_tracks() -> None:  # noqa: PLR0915, PLR0912
 
 
 def rebuild_nhc() -> int:
-    from libmetget.database.tables import NhcBtkTable, NhcFcstTable
-
     logger.info("Beginning to run NHC rebuild")
     n = 0
 
@@ -599,8 +570,6 @@ def rebuild_nhc() -> int:
 
 
 def check_for_environment_variables():
-    import os
-
     required_env_vars = [
         "METGET_DATABASE_USER",
         "METGET_DATABASE_PASSWORD",
@@ -617,15 +586,6 @@ def check_for_environment_variables():
 
 
 def rebuilder():
-    import argparse
-
-    from libmetget.version import get_metget_version
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s :: %(levelname)s :: %(module)s :: %(message)s",
-    )
-
     p = argparse.ArgumentParser(
         description="Utility to rebuild the MetGet database from data that exists"
     )

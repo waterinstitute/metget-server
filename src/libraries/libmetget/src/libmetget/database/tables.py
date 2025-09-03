@@ -28,11 +28,15 @@
 ###################################################################################################
 
 import enum
+import os
+from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declarative_base
+
+from .database import Database
 
 # This is the base class for all the tables
 TableBase = declarative_base()
@@ -43,8 +47,6 @@ class AuthTable(TableBase):
     This class is used to create the table that holds the API keys
     which are used to authenticate users
     """
-
-    import os
 
     __tablename__ = os.environ["METGET_API_KEY_TABLE"]
     id = Column(Integer, primary_key=True)
@@ -75,8 +77,6 @@ class RequestTable(TableBase):
     This class is used to create the table that holds the requests which are currently
     being processed or have been fulfilled by the system
     """
-
-    import os
 
     __tablename__ = os.environ["METGET_REQUEST_TABLE"]
 
@@ -112,10 +112,6 @@ class RequestTable(TableBase):
         Returns:
             None
         """
-        from datetime import datetime
-
-        from .database import Database
-
         request_id = kwargs.get("request_id")
         request_status = kwargs.get("request_status")
         api_key = kwargs.get("api_key")
@@ -190,10 +186,6 @@ class RequestTable(TableBase):
         Returns:
             None
         """
-        from datetime import datetime
-
-        from .database import Database
-
         request_id = kwargs.get("request_id")
         request_status = kwargs.get("request_status")
         api_key = kwargs.get("api_key")
@@ -439,8 +431,6 @@ class NhcBtkTable(TableBase):
     downloaded from the NHC ftp server
     """
 
-    from sqlalchemy import Column, DateTime, Integer, String
-
     __tablename__ = "nhc_btk"
 
     index = Column("id", Integer, primary_key=True)
@@ -462,8 +452,6 @@ class NhcFcstTable(TableBase):
     processed from the NHC RSS feed
     """
 
-    from sqlalchemy import Column, DateTime, Integer, String
-
     __tablename__ = "nhc_fcst"
 
     index = Column("id", Integer, primary_key=True)
@@ -481,8 +469,6 @@ class NhcFcstTable(TableBase):
 
 
 class NhcAdeck(TableBase):
-    from sqlalchemy import Column, DateTime, Integer, String
-
     __tablename__ = "nhc_adeck"
 
     index = Column("id", Integer, primary_key=True)

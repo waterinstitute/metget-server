@@ -30,7 +30,7 @@
 from typing import List, Tuple
 
 import numpy as np
-from geopandas import GeoSeries
+from geopandas import GeoSeries, points_from_xy
 
 
 class OutputGrid:
@@ -203,8 +203,6 @@ class OutputGrid:
         Returns:
             None
         """
-        from geopandas import points_from_xy
-
         x = np.arange(
             self.__x_lower_left,
             self.__x_upper_right + self.__x_resolution,

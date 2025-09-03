@@ -31,6 +31,9 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import xarray as xr
+from loguru import logger
+from netCDF4 import Dataset as NetcdfDataset
+from scipy.ndimage import gaussian_filter
 from shapely import Polygon
 
 from ..sources.metfileattributes import MetFileAttributes
@@ -159,8 +162,8 @@ class DataInterpolator:
 
         # Type check
         if not isinstance(file_list, FileObj):
-            msg = "file_list must be of type FileObj and it is of type {}".format(
-                type(file_list)
+            msg = (
+                f"file_list must be of type FileObj and it is of type {type(file_list)}"
             )
             raise TypeError(msg)
 
@@ -257,7 +260,6 @@ class DataInterpolator:
         from .triangulation import Triangulation
 
         boundary, points = self.__get_dataset_points_and_edges(data_item)
-
         if self.__triangulation is None or not Triangulation.matches(
             self.__triangulation, points
         ):
@@ -398,7 +400,7 @@ class DataInterpolator:
                     break
         return check_outer_polygons
 
-    def __compute_smoothing_points(self, data: list, use_polygon: np.array) -> None:
+    def __compute_smoothing_points(self, data: list, use_polygon: np.ndarray) -> None:
         """
         Compute the smoothing points for each polygon. Computes the point in polygon
         information and stores in the data items
@@ -448,8 +450,6 @@ class DataInterpolator:
         Returns:
             None
         """
-        from scipy.ndimage import gaussian_filter
-
         for i, data_item in enumerate(data[:-1]):
             if not use_polygon[i]:
                 continue
@@ -472,7 +472,7 @@ class DataInterpolator:
         return out_array
 
     @staticmethod
-    def __order_points(point_list: np.array) -> np.array:
+    def __order_points(point_list: np.ndarray) -> np.ndarray:
         """
         Order the points in the list so that the polygon is closed.
 
@@ -574,14 +574,12 @@ class DataInterpolator:
         Returns:
             xr.Dataset: The dataset.
         """
-        from netCDF4 import Dataset
-
         # ...Some trickery is required for xarray to read the coamps-tc data
         # This is because of how xarray handles dimensions/coordinates/etc named
         # identically. Instead of using the xarray.open_dataset() method, we
         # use the netCDF4.Dataset() method and then create an xarray.Dataset()
         # from the netCDF4.Dataset() object
-        nc = Dataset(filename)
+        nc = NetcdfDataset(filename)
         lon = nc.variables["lon"][:]
         lat = nc.variables["lat"][:]
         lon = lon[0, :]
@@ -649,15 +647,10 @@ class DataInterpolator:
         Returns:
             InterpData: The dataset and associated information
         """
-        import logging
-
         dataset = None
-
-        log = logging.getLogger(__name__)
-
         for var in file_type.selected_variables(variable_type):
             grib_var_name = file_type.variable(var)["grib_name"]
-            log.info(f"Reading variable: {grib_var_name}")
+            logger.info(f"Reading variable: {grib_var_name}")
             ds = xr.open_dataset(
                 filename,
                 engine="cfgrib",

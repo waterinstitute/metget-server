@@ -26,11 +26,11 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-import logging
 from datetime import datetime
 from typing import List, Union
 
 import xarray as xr
+from loguru import logger
 
 from ...sources.variabletype import VariableType
 from .netcdfdomain import NetcdfDomain
@@ -97,28 +97,22 @@ class NetcdfOutput(OutputFile):
         Returns:
             None
         """
-        log = logging.getLogger(__name__)
-
         if isinstance(filename, list) and len(filename) > 1:
             msg = "NetCDF output files only support one output filename."
             raise RuntimeError(msg)
         elif isinstance(filename, list):
             filename = filename[0]
 
-        log.info(f"Adding output domain to NetCDF output file: {filename}")
+        logger.info(f"Adding output domain to NetCDF output file: {filename}")
 
         if self.num_domains() > 0:
-            msg = "NetCDF output files only support one output domain. ({} already added)".format(
-                self.num_domains()
-            )
+            msg = f"NetCDF output files only support one output domain. ({self.num_domains()} already added)"
             raise RuntimeError(msg)
 
         variable = kwargs.get("variable")
         if isinstance(variable, list):
             if len(variable) > 1:
-                msg = "NetCDF output files only support one output variable. ({} found)".format(
-                    len(variable)
-                )
+                msg = f"NetCDF output files only support one output variable. ({len(variable)} found)"
                 raise RuntimeError(msg)
 
             variable = variable[0]

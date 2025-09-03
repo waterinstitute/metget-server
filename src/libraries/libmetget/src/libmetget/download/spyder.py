@@ -26,54 +26,49 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+from typing import List, Optional
+
+import requests
+from bs4 import BeautifulSoup
+from loguru import logger
 
 
 class Spyder:
-    def __init__(self, url):
+    def __init__(self, url: str) -> None:
         """
         Initilaizes a spyder object which acts as a crawler
         through posted NOAA folders of grib/grib2 data
         """
-        self.__url = url
+        self.__url: str = url
 
-    def url(self):
+    def url(self) -> str:
         return self.__url
 
-    def filelist(self):
+    def filelist(self) -> List[str]:
         """
         Generates the file list at the given url
         :return: list of files
         """
-        import requests
-        from bs4 import BeautifulSoup
-
         try:
             r = requests.get(self.__url, timeout=30)
             if r.ok:
-                response_text = r.text
+                response_text: str = r.text
             else:
-                print(
-                    "[WARNING]: Error contacting server: "
-                    + self.__url
-                    + ", Status:"
-                    + str(r.status_code),
-                    flush=True,
+                logger.warning(
+                    f"Error contacting server: {self.__url}, Status: {r.status_code}"
                 )
                 return []
-        except KeyboardInterrupt:
-            raise
-        except:
-            print(
-                "[WARNING]: Exception occured while contacting server: " + self.__url,
-                flush=True,
-            )
-            raise
+        except KeyboardInterrupt as e:
+            raise e
+        except Exception as e:
+            logger.warning(f"Exception occurred while contacting server: {self.__url}")
+            raise e
 
         soup = BeautifulSoup(response_text, "html.parser")
 
-        links = []
+        links: List[str] = []
         for node in soup.find_all("a"):
-            linkaddr = node.get("href")
-            if not ("?" in linkaddr or not (linkaddr not in self.__url)):
+            linkaddr: Optional[str] = node.get("href")
+            if linkaddr and not ("?" in linkaddr or not (linkaddr not in self.__url)):
                 links.append(self.__url + linkaddr)
         return links

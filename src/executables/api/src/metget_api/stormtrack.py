@@ -29,6 +29,8 @@
 from typing import Tuple, Union
 
 import flask
+from libmetget.database.database import Database
+from libmetget.database.tables import NhcBtkTable, NhcFcstTable
 
 
 class StormTrackQueryStringParameters:
@@ -215,9 +217,9 @@ class StormTrack:
             return_message["body"]["message"] = "ERROR: No data found to match request"
         elif len(query_result) > 1:
             status_code = 400
-            return_message["body"][
-                "message"
-            ] = "ERROR: Too many records found matching request"
+            return_message["body"]["message"] = (
+                "ERROR: Too many records found matching request"
+            )
         else:
             status_code = 200
             return_message["body"]["message"] = "Success"
@@ -238,9 +240,6 @@ class StormTrack:
             GEOJSON data for the best track
         """
 
-        from libmetget.database.database import Database
-        from libmetget.database.tables import NhcBtkTable
-
         with Database() as db, db.session() as session:
             query = session.query(NhcBtkTable.geometry_data).filter(
                 NhcBtkTable.storm_year == query.year(),
@@ -260,9 +259,6 @@ class StormTrack:
         Returns:
             GEOJSON data for the forecast track
         """
-
-        from libmetget.database.database import Database
-        from libmetget.database.tables import NhcFcstTable
 
         with Database() as db, db.session() as session:
             query = session.query(NhcFcstTable.geometry_data).filter(
