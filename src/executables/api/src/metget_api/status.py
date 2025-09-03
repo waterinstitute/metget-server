@@ -80,7 +80,7 @@ MET_MODEL_FORECAST_DURATION = {
     "coamps": 126,
     "wpc": 162,
     "rrfs": 84,
-    "refs": 84,
+    "refs": 60,
 }
 
 
