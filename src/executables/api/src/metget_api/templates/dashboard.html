@@ -1493,13 +1493,14 @@
     </div>
 
     <script>
-        const MODELS = ['nhc', 'gfs', 'hrrr', 'wpc', 'hafsa', 'hafsb', 'hwrf', 'coamps', 'nam'];
+        const MODELS = ['nhc', 'gfs', 'rrfs', 'hrrr', 'wpc', 'hafsa', 'hafsb', 'hwrf', 'coamps', 'nam'];
         const MODEL_DISPLAY_NAMES = {
             'gfs': 'GFS',
             'nam': 'NAM',
             'hwrf': 'HWRF',
             'hafsa': 'HAFS-A',
             'hafsb': 'HAFS-B',
+            'rrfs': 'RRFS',
             'hrrr': 'HRRR',
             'wpc': 'WPC',
             'coamps': 'COAMPS-TC',
@@ -1718,6 +1719,7 @@
             'hwrf': 126,
             'hafsa': 126,
             'hafsb': 126,
+            'rrfs': [18, 84], // Variable based on cycle
             'hrrr': [18, 48], // Variable based on cycle
             'wpc': [162, 168],
             'coamps': 120
@@ -1975,6 +1977,12 @@
                 const hour = parseAsUTC(cycleTime).getUTCHours();
                 const isMainCycle = [0, 6, 12, 18].includes(hour);
                 return isMainCycle ? 48 : 18;
+            }
+            if (model === 'rrfs' && Array.isArray(duration)) {
+                // For RRFS: 84h for cycles at 00, 06, 12, or 18Z, 18h otherwise
+                const hour = parseAsUTC(cycleTime).getUTCHours();
+                const isMainCycle = [0, 6, 12, 18].includes(hour);
+                return isMainCycle ? 84 : 18;
             }
             return Array.isArray(duration) ? duration[0] : duration;
         }
