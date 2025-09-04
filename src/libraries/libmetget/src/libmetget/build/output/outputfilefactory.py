@@ -28,6 +28,7 @@
 ###################################################################################################
 
 from datetime import datetime
+from typing import Optional
 
 from .netcdfoutput import NetcdfOutput
 from .outputfile import OutputFile
@@ -51,7 +52,7 @@ class OutputFileFactory:
         end_time: datetime,
         time_step: int,
         compression: bool,
-    ) -> OutputFile:
+    ) -> Optional[OutputFile]:
         """
         Create an output file.
 
@@ -74,5 +75,7 @@ class OutputFileFactory:
             return OwiNetcdfOutput(start_time, end_time, time_step)
         if output_type == OutputTypes.CF_NETCDF:
             return NetcdfOutput(start_time, end_time, time_step)
+        if output_type == OutputTypes.RAW:
+            return None
         msg = "Invalid output format: " + output_format
         raise ValueError(msg)
