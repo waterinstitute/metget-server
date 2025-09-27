@@ -180,12 +180,13 @@ class DataInterpolator:
         apply_filter = kwargs.get("apply_filter", False)
         variable_type = kwargs.get("variable_type", VariableType.ALL_VARIABLES)
 
-        is_binary_variable = []
-        for var in variable_type.select():
-            is_binary_variable.append(var.is_binary_value())
-
         # Read the datasets from the various files into a list of InterpData objects
         data = self.__read_datasets(file_list, variable_type)
+
+        is_binary_variable = []
+        for _ in data:
+            for var in variable_type.select():
+                is_binary_variable.append(var.is_binary_value())
 
         # Sort the data by the resolution. The assumption is that the higher
         # resolution data has the highest priority. Since this is a stable sort
