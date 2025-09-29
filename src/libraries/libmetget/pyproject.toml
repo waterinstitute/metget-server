@@ -1,6 +1,6 @@
 [project]
 name = "libmetget"
-version = "0.5.2"
+version = "0.5.3"
 description = "Package for MetGet MetBuild library"
 authors = [
     { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
