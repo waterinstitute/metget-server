@@ -331,11 +331,23 @@ class NoaaDownloader:
         for i in range(len(inventory_data)):
             if variable["long_name"] in inventory_data[i]:
                 start_bits = inventory_data[i].split(":")[1]
-                if i + 1 == len(inventory_data):
-                    end_bits = ""
-                else:
-                    end_bits = inventory_data[i + 1].split(":")[1]
-                return {"name": variable["name"], "start": start_bits, "end": end_bits}
+                try:
+                    if i + 1 == len(inventory_data):
+                        end_bits = ""
+                    else:
+                        end_bits = inventory_data[i + 1].split(":")[1]
+                    return {
+                        "name": variable["name"],
+                        "start": start_bits,
+                        "end": end_bits,
+                    }
+                except IndexError as e:
+                    logger.error(
+                        "Error parsing inventory data for variable '{:s}': {:s}".format(
+                            variable["name"], str(e)
+                        )
+                    )
+                    return None
         return None
 
     def __try_get_object(
@@ -480,36 +492,36 @@ class NoaaDownloader:
 
         try:
             with requests.Session() as http:
-                http.mount("https://", adapter)
-                http.mount("http://", adapter)
+                if not self.__database.has(self.met_type(), info):
+                    http.mount("https://", adapter)
+                    http.mount("http://", adapter)
 
-                inv = http.get(info["inv"], timeout=30)
-                if inv.status_code in (302, 403, 404):
-                    logger.error("RESP: ".format())
-                    return None, 0, 0
-                inv.raise_for_status()
+                    inv = http.get(info["inv"], timeout=30)
+                    if inv.status_code in (302, 403, 404):
+                        logger.error("RESP: ".format())
+                        return None, 0, 0
+                    inv.raise_for_status()
 
-                inv_lines = str(inv.text).split("\n")
-                retlist = []
-                for v in self.variables():
-                    retlist.append(NoaaDownloader.get_inventory_byte_list(inv_lines, v))
+                    inv_lines = str(inv.text).split("\n")
+                    retlist = []
+                    for v in self.variables():
+                        retlist.append(
+                            NoaaDownloader.get_inventory_byte_list(inv_lines, v)
+                        )
 
-                if len(retlist) != len(self.__variables):
-                    logger.error(
-                        "Could not gather the inventory or missing variables detected. Trying again later."
-                    )
-                    return None, 0, 1
+                    if len(retlist) != len(self.__variables):
+                        logger.error(
+                            f"Could not gather the inventory for file {info['grb']}. Trying again later."
+                        )
+                        return None, 0, 1
 
-                fn = info["grb"].rsplit("/")[-1]
-                year = "{:04d}".format(info["cycledate"].year)
-                month = "{:02d}".format(info["cycledate"].month)
-                day = "{:02d}".format(info["cycledate"].day)
+                    fn = info["grb"].rsplit("/")[-1]
+                    year = "{:04d}".format(info["cycledate"].year)
+                    month = "{:02d}".format(info["cycledate"].month)
+                    day = "{:02d}".format(info["cycledate"].day)
 
-                dfolder = os.path.join(self.met_type(), year, month, day)
-                floc = os.path.join(tempfile.gettempdir(), fn)
-                pathfound = self.__database.has(self.met_type(), info)
-
-                if not pathfound:
+                    dfolder = os.path.join(self.met_type(), year, month, day)
+                    floc = os.path.join(tempfile.gettempdir(), fn)
                     logger.info(
                         "Downloading File: {:s} (F: {:s}, T: {:s})".format(
                             fn,
