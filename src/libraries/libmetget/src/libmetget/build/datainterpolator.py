@@ -34,7 +34,7 @@ import xarray as xr
 from loguru import logger
 from netCDF4 import Dataset as NetcdfDataset
 from scipy.ndimage import gaussian_filter
-from shapely import Polygon
+from shapely import MultiPoint, Polygon, concave_hull
 
 from ..sources.metfileattributes import MetFileAttributes
 from ..sources.metfileformat import MetFileFormat
@@ -486,33 +486,6 @@ class DataInterpolator:
 
         return out_array
 
-    @staticmethod
-    def __order_points(point_list: np.ndarray) -> np.ndarray:
-        """
-        Order the points in the list so that the polygon is closed.
-
-        Args:
-            point_list (list): The list of points to order.
-
-        Returns:
-            list: The ordered list of points.
-
-        """
-        ordered_points = np.zeros((len(point_list), 2))
-        ordered_points[0] = point_list[0]
-        point_list = np.delete(point_list, 0, axis=0)
-        for i in range(len(point_list)):
-            ordered_points[i + 1] = point_list[
-                np.argmin(np.linalg.norm(ordered_points[i] - point_list, axis=1))
-            ]
-            point_list = np.delete(
-                point_list,
-                np.argmin(np.linalg.norm(ordered_points[i] - point_list, axis=1)),
-                axis=0,
-            )
-
-        return ordered_points
-
     def __read_datasets(
         self,
         file_list: FileObj,
@@ -837,6 +810,10 @@ class DataInterpolator:
 
             # ... Generate the edge indexes as 1D indexes
             edge_indexes_1d = np.ravel_multi_index(edge_points, arr.shape)
+            ring_x = xy[0][edge_points].flatten()
+            ring_y = xy[1][edge_points].flatten()
+            ring = list(zip(ring_x, ring_y))
+            polygon = Polygon(ring)
 
         elif n_nan == 0:
             # ...This is the simple case where we can just grab the corners
@@ -849,6 +826,11 @@ class DataInterpolator:
                 ]
             )
             edge_points = (edge_points[:, 0], edge_points[:, 1])
+            ring_x = xy[0][edge_points].flatten()
+            ring_y = xy[1][edge_points].flatten()
+            ring = list(zip(ring_x, ring_y))
+            polygon = Polygon(ring)
+
         else:
             edge_points = np.where(
                 ~np.isnan(arr)
@@ -860,11 +842,12 @@ class DataInterpolator:
                 )
             )
 
-        # ... Generate a polygon which represents the boundary of the grid
-        ring_x = xy[0][edge_points].flatten()
-        ring_y = xy[1][edge_points].flatten()
-        ring = DataInterpolator.__order_points(list(zip(ring_x, ring_y)))
-        polygon = Polygon(ring)
+            ring_x = xy[0][edge_points].flatten()
+            ring_y = xy[1][edge_points].flatten()
+            valid_points = np.column_stack([ring_x, ring_y])
+            multipoint = MultiPoint(valid_points)
+            polygon = concave_hull(multipoint, ratio=0.3)
+
         if not polygon.is_valid:
             polygon = polygon.buffer(0.0)
             if not polygon.is_valid:
