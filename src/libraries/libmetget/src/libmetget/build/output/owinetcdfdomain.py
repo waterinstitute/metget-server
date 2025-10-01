@@ -267,21 +267,21 @@ class OwiNetcdfDomain(OutputDomain):
         grid = self.grid_obj()
 
         self.__group_ds = self.__ds_file.createGroup(self.__group_name)
-        self.__group_ds.createDimension("xi", grid.ni())
-        self.__group_ds.createDimension("yi", grid.nj())
+        self.__group_ds.createDimension("xi", grid.nj())
+        self.__group_ds.createDimension("yi", grid.ni())
         self.__group_ds.createDimension("time", None)
 
         lat_var = self.__group_ds.createVariable("lat", "f8", ("yi", "xi"))
         lat_var.units = "degrees_north"
         lat_var.long_name = "latitude"
         lat_var.axis = "Y"
-        lat_var.coordinates = "time lat lon"
+        lat_var.coordinates = "lat lon"
 
         lon_var = self.__group_ds.createVariable("lon", "f8", ("yi", "xi"))
         lon_var.units = "degrees_east"
         lon_var.long_name = "longitude"
         lon_var.axis = "X"
-        lon_var.coordinates = "time lat lon"
+        lon_var.coordinates = "lat lon"
 
         self.__time_var = self.__group_ds.createVariable("time", "i8", ("time",))
         self.__time_var.units = "minutes since 1990-01-01T00:00:00"
@@ -298,8 +298,8 @@ class OwiNetcdfDomain(OutputDomain):
             msg = f"Variable type {self.__variable_type} is not supported in OWI NetCDF"
             raise ValueError(msg)
 
-        lon_var[:, :] = grid.grid_points()[0].T
-        lat_var[:, :] = grid.grid_points()[1].T
+        lon_var[:, :] = grid.grid_points()[0]
+        lat_var[:, :] = grid.grid_points()[1]
 
         self.__is_open = True
 
@@ -355,14 +355,14 @@ class OwiNetcdfDomain(OutputDomain):
             msg = "Values must be a 2D array"
             raise ValueError(msg)
 
-        if values.T.shape != (self.grid_obj().nj(), self.grid_obj().ni()):
-            msg = f"Values shape {values.shape} does not match grid shape {(self.grid_obj().nj(), self.grid_obj().ni())}"
+        if values.shape != (self.grid_obj().ni(), self.grid_obj().nj()):
+            msg = f"Values shape {values.shape} does not match grid shape {(self.grid_obj().ni(), self.grid_obj().nj())}"
             raise ValueError(msg)
 
         if values.dtype != np.float32:
             values = values.astype(np.float32)
 
-        var[index, :, :] = values.T
+        var[index, :, :] = values
 
     def write(
         self, data: xr.Dataset, variable_type: VariableType, **kwargs: Any
