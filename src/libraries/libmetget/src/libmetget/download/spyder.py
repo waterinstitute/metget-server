@@ -32,6 +32,8 @@ import requests
 from bs4 import BeautifulSoup
 from loguru import logger
 
+from .httpretry import http_retry_strategy
+
 
 class Spyder:
     def __init__(self, url: str) -> None:
@@ -49,26 +51,36 @@ class Spyder:
         Generates the file list at the given url
         :return: list of files.
         """
-        try:
-            r = requests.get(self.__url, timeout=30)
-            if r.ok:
-                response_text: str = r.text
-            else:
+        adapter = requests.adapters.HTTPAdapter(max_retries=http_retry_strategy())
+
+        with requests.Session() as http:
+            http.mount("https://", adapter)
+            http.mount("http://", adapter)
+
+            try:
+                r = http.get(self.__url, timeout=30)
+                if r.ok:
+                    response_text: str = r.text
+                else:
+                    logger.warning(
+                        f"Error contacting server: {self.__url}, Status: {r.status_code}"
+                    )
+                    return []
+            except KeyboardInterrupt as e:
+                raise e
+            except Exception as e:
                 logger.warning(
-                    f"Error contacting server: {self.__url}, Status: {r.status_code}"
+                    f"Exception occurred while contacting server: {self.__url}"
                 )
-                return []
-        except KeyboardInterrupt as e:
-            raise e
-        except Exception as e:
-            logger.warning(f"Exception occurred while contacting server: {self.__url}")
-            raise e
+                raise e
 
-        soup = BeautifulSoup(response_text, "html.parser")
+            soup = BeautifulSoup(response_text, "html.parser")
 
-        links: List[str] = []
-        for node in soup.find_all("a"):
-            linkaddr: Optional[str] = node.get("href")
-            if linkaddr and not ("?" in linkaddr or not (linkaddr not in self.__url)):
-                links.append(self.__url + linkaddr)
-        return links
+            links: List[str] = []
+            for node in soup.find_all("a"):
+                linkaddr: Optional[str] = node.get("href")
+                if linkaddr and not (
+                    "?" in linkaddr or not (linkaddr not in self.__url)
+                ):
+                    links.append(self.__url + linkaddr)
+            return links

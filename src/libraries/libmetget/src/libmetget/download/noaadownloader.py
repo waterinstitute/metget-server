@@ -32,25 +32,16 @@ import os.path
 import tempfile
 from datetime import datetime, timedelta
 from time import sleep
-from typing import Any, Generator, List, Optional, Tuple, Union
+from typing import Generator, List, Optional, Tuple, Union
 
 import boto3
 import requests
 from botocore.exceptions import ClientError
 from loguru import logger
-from requests.adapters import Retry
 
+from .httpretry import http_retry_strategy
 from .metdb import Metdb
 from .s3file import S3file
-
-
-class RetryLogger(Retry):
-    """
-    A retry class that logs the retries.
-    """
-
-    def __init__(self, *args: tuple, **kwargs: dict[str, Any]) -> None:
-        super().__init__(*args, **kwargs)
 
 
 class NoaaDownloader:
@@ -101,17 +92,6 @@ class NoaaDownloader:
             self.__s3file = S3file()
         else:
             self.__s3file = None
-
-    @staticmethod
-    def http_retry_strategy() -> Retry:
-        # ...Note: Status 302 is NOAA speak for "chill out", not a redirect as in normal http
-        return RetryLogger(
-            total=10,
-            redirect=6,
-            backoff_factor=2,
-            status_forcelist=[302, 429, 500, 502, 503, 504],
-            allowed_methods=["HEAD", "GET", "OPTIONS"],
-        )
 
     def verbose(self) -> bool:
         """
@@ -486,9 +466,7 @@ class NoaaDownloader:
         available
 
         """
-        adapter = requests.adapters.HTTPAdapter(
-            max_retries=NoaaDownloader.http_retry_strategy()
-        )
+        adapter = requests.adapters.HTTPAdapter(max_retries=http_retry_strategy())
 
         try:
             with requests.Session() as http:
