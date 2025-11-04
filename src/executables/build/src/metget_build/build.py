@@ -39,6 +39,7 @@ import libmetget.version
 from libmetget.database.tables import RequestEnum, RequestTable
 from loguru import logger
 
+from .cleanup import cleanup_failed_request
 from .message_handler import MessageHandler
 
 MAX_REQUEST_TIME = timedelta(hours=48)
@@ -47,17 +48,40 @@ REQUEST_SLEEP_TIME = timedelta(minutes=10)
 
 def run() -> None:
     """
-    Main entry point for the script.
+    Main entry point for the script with subcommand routing.
     """
-    p = argparse.ArgumentParser(description="Process a metget request")
-    p.add_argument(
+    p = argparse.ArgumentParser(description="MetGet Build System")
+    subparsers = p.add_subparsers(dest="command", help="Available commands")
+
+    # Run subcommand (existing build behavior)
+    run_parser = subparsers.add_parser("run", help="Execute build process")
+    run_parser.add_argument(
         "--request-json",
         required=False,
         type=str,
         help="Override use of the METGET_REQUEST_JSON environment variable",
     )
+    run_parser.set_defaults(func=run_build)
+
+    # Cleanup subcommand (exit handler mode)
+    cleanup_parser = subparsers.add_parser(
+        "cleanup", help="Update database on workflow failure"
+    )
+    cleanup_parser.set_defaults(func=lambda args: cleanup_failed_request())
+
     args = p.parse_args()
 
+    # Default to 'run' for backward compatibility
+    if not hasattr(args, "func"):
+        run_build(args)
+    else:
+        args.func(args)
+
+
+def run_build(args: argparse.Namespace) -> None:
+    """
+    Execute the build process for a metget request.
+    """
     logger.info(
         f"Running MetGet-Server Version: {libmetget.version.get_metget_version():s}"
     )
