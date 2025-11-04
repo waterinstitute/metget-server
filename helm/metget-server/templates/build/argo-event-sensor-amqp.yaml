@@ -102,12 +102,11 @@ spec:
                       command: [ metget-build, run ]
                       resources:
                         requests:
-                          cpu: 1000m
                           memory: 4Gi
-                          ephemeral-storage: 4Gi
+                          ephemeral-storage: 12Gi
                         limits:
                           memory: 8Gi
-                          ephemeral-storage: 24Gi
+                          ephemeral-storage: 50Gi
                   - name: exit-handler
                     steps:
                       - - name: handle-failure
