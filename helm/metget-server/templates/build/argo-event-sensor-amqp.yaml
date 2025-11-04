@@ -22,6 +22,7 @@ spec:
                 generateName: build-
               spec:
                 entrypoint: build
+                onExit: exit-handler
                 serviceAccountName: operate-workflow-sa
                 ttlStrategy:
                   secondsAfterCompletion: 120    # Time to live after workflow is completed, replaces ttlSecondsAfterFinished
@@ -98,7 +99,7 @@ spec:
                               key: rabbit.queue
                         - name: METGET_REQUEST_JSON
                           value: '{{ "{{" }}inputs.parameters.message{{ "}}" }}'
-                      command: [ metget-build ]
+                      command: [ metget-build, run ]
                       resources:
                         requests:
                           cpu: 1000m
@@ -107,6 +108,52 @@ spec:
                         limits:
                           memory: 8Gi
                           ephemeral-storage: 24Gi
+                  - name: exit-handler
+                    steps:
+                      - - name: handle-failure
+                          template: cleanup-on-failure
+                          when: "{{ "{{" }}workflow.status{{ "}}" }} != Succeeded"
+                  - name: cleanup-on-failure
+                    container:
+                      image: {{ .Values.containers.build.image }}:{{ .Values.containers.version }}
+                      imagePullPolicy: Always
+                      command: [metget-build, cleanup]
+                      env:
+                        - name: METGET_REQUEST_JSON
+                          value: '{{ "{{" }}workflow.parameters.message{{ "}}" }}'
+                        - name: METGET_DATABASE_USER
+                          valueFrom:
+                            secretKeyRef:
+                              name: database-secret
+                              key: username
+                        - name: METGET_DATABASE_PASSWORD
+                          valueFrom:
+                            secretKeyRef:
+                              name: database-secret
+                              key: password
+                        - name: METGET_DATABASE
+                          valueFrom:
+                            configMapKeyRef:
+                              name: configmap
+                              key: database.name
+                        - name: METGET_REQUEST_TABLE
+                          valueFrom:
+                            configMapKeyRef:
+                              name: configmap
+                              key: database.request_table
+                        - name: METGET_API_KEY_TABLE
+                          valueFrom:
+                            configMapKeyRef:
+                              name: configmap
+                              key: database.apikey_table
+                        - name: WORKFLOW_FAILURES
+                          value: '{{ "{{" }}workflow.failures{{ "}}" }}'
+                        - name: WORKFLOW_STATUS
+                          value: '{{ "{{" }}workflow.status{{ "}}" }}'
+                        - name: WORKFLOW_DURATION
+                          value: '{{ "{{" }}workflow.duration{{ "}}" }}'
+                        - name: WORKFLOW_NAME
+                          value: '{{ "{{" }}workflow.name{{ "}}" }}'
           parameters:
             - src:
                 dependencyName: build-dependency
