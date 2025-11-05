@@ -1,6 +1,6 @@
 [project]
 name = "metget_rebuild"
-version = "0.6.0"
+version = "0.6.1"
 description = "Package for rebuilding metget databases"
 authors = [
     { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
