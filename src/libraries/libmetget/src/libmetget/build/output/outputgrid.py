@@ -114,6 +114,19 @@ class OutputGrid:
             msg = f"Grid resolution too coarse, must have at least {min_grid_cells} grid points in each direction"
             raise ValueError(msg)
 
+        # Calculate grid dimensions and validate maximum size
+        nx = int(np.ceil((x_upper_right - x_lower_left) / x_resolution)) + 1
+        ny = int(np.ceil((y_upper_right - y_lower_left) / y_resolution)) + 1
+        max_grid_points = 50_000_000  # 50 million points = ~4GB for meshgrid
+
+        if nx * ny > max_grid_points:
+            msg = (
+                f"Grid too large: {nx} x {ny} = {nx * ny:,} points exceeds "
+                f"maximum of {max_grid_points:,}. "
+                f"Reduce domain size or increase grid spacing (di/dj)."
+            )
+            raise ValueError(msg)
+
         self.__x_lower_left = x_lower_left
         self.__y_lower_left = y_lower_left
         self.__x_upper_right = x_upper_right
@@ -203,36 +216,62 @@ class OutputGrid:
             np.ndarray: The grid points of the grid.
 
         """
+        self.__ensure_meshgrid_constructed()
         return self.__grid_points
 
     def __construct_grid(self) -> None:
         """
-        Construct the grid points of the grid.
+        Construct the 1D coordinate arrays (cheap operation).
+        2D meshgrid and GeoSeries are created lazily when first accessed.
 
         Returns:
             None
 
         """
-        x = np.arange(
+        self.__x_points = np.arange(
             self.__x_lower_left,
             self.__x_upper_right + self.__x_resolution,
             self.__x_resolution,
             dtype=np.float64,
         ).round(11)
-        y = np.arange(
+        self.__y_points = np.arange(
             self.__y_lower_left,
             self.__y_upper_right + self.__y_resolution,
             self.__y_resolution,
             dtype=np.float64,
         ).round(11)
-        self.__x_points = x
-        self.__y_points = y
-        self.__grid_points = np.array(np.meshgrid(x, y))
-        self.__geoseries = GeoSeries(
-            points_from_xy(
-                self.__grid_points[0].flatten(), self.__grid_points[1].flatten()
+
+    def __ensure_meshgrid_constructed(self) -> None:
+        """
+        Lazily construct the 2D meshgrid if not already created.
+        This is an expensive operation deferred until first access.
+
+        Returns:
+            None
+
+        """
+        if self.__grid_points is None:
+            xx, yy = np.meshgrid(self.__x_points, self.__y_points)
+            self.__grid_points = np.array([xx, yy])
+
+    def __ensure_geoseries_constructed(self) -> None:
+        """
+        Lazily construct the GeoSeries if not already created.
+        Requires the meshgrid to be constructed first.
+
+        Returns:
+            None
+
+        """
+        if self.__geoseries is None:
+            self.__ensure_meshgrid_constructed()
+            self.__geoseries = GeoSeries(
+                points_from_xy(
+                    self.__grid_points[0].ravel(),
+                    self.__grid_points[1].ravel(),
+                ),
+                crs=f"EPSG:{self.__epsg}",
             )
-        )
 
     def x(self) -> np.ndarray:
         """
@@ -242,6 +281,7 @@ class OutputGrid:
             np.ndarray: The x coordinates of the grid.
 
         """
+        self.__ensure_meshgrid_constructed()
         return self.__grid_points[0]
 
     def y(self) -> np.ndarray:
@@ -252,6 +292,7 @@ class OutputGrid:
             np.ndarray: The y coordinates of the grid.
 
         """
+        self.__ensure_meshgrid_constructed()
         return self.__grid_points[1]
 
     def x_column(self, convert_360: bool = False) -> np.ndarray:
@@ -294,6 +335,7 @@ class OutputGrid:
             Tuple[float, float]: The corner of the grid.
 
         """
+        self.__ensure_meshgrid_constructed()
         if i < 0 or i >= self.__grid_points[0].shape[0]:
             msg = f"i index out of bounds: {i:d}"
             raise IndexError(msg)
@@ -316,6 +358,7 @@ class OutputGrid:
             Tuple[float, float]: The center of the grid.
 
         """
+        self.__ensure_meshgrid_constructed()
         if i < 0 or i >= self.__grid_points[0].shape[0]:
             msg = f"i index out of bounds: {i:d}"
             raise IndexError(msg)
@@ -377,7 +420,7 @@ class OutputGrid:
             int: The number of i indices of the grid.
 
         """
-        return self.__grid_points[0].shape[0]
+        return len(self.__y_points)
 
     def nj(self) -> int:
         """
@@ -387,7 +430,7 @@ class OutputGrid:
             int: The number of j indices of the grid.
 
         """
-        return self.__grid_points[0].shape[1]
+        return len(self.__x_points)
 
     def n(self) -> int:
         """
@@ -472,4 +515,5 @@ class OutputGrid:
             GeoSeries: The GeoSeries of the grid.
 
         """
+        self.__ensure_geoseries_constructed()
         return self.__geoseries
