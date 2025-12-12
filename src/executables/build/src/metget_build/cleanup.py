@@ -78,6 +78,9 @@ def cleanup_failed_request() -> None:
 
         workflow_failures = json.loads(workflow_failures_str)
 
+        if isinstance(workflow_failures, str):
+            workflow_failures = json.loads(workflow_failures)
+
         logger.info("=" * 60)
         logger.info("WORKFLOW FAILURE - DEBUG INFO")
         logger.info(f"  Workflow Name: {workflow_name}")
