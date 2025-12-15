@@ -25,7 +25,7 @@ containers:
   # tagged with semantic versioning, i.e.
   # "0.1.0-stable". The development tag should be
   # used at your own risk.
-  version: 0.6.1-stable
+  version: 0.6.2-stable
   database:
     image: thewaterinstitute/metget-database
   download:

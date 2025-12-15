@@ -1,6 +1,6 @@
 [project]
 name = "metget_build"
-version = "0.6.1"
+version = "0.6.2"
 description = "Package for building output data in metget-server"
 authors = [
     { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
