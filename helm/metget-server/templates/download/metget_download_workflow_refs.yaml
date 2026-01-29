@@ -4,7 +4,7 @@ kind: CronWorkflow
 metadata:
   name: {{ .Release.Name }}-download-refs
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "{{ .Values.config.schedules.refs }}"
   concurrencyPolicy: "Forbid"
   startingDeadlineSeconds: 0
   activeDeadlineSeconds: 3600

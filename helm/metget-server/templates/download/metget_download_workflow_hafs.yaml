@@ -4,7 +4,7 @@ kind: CronWorkflow
 metadata:
   name: {{ .Release.Name }}-download-hafs
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "{{ .Values.config.schedules.hafs }}"
   concurrencyPolicy: "Forbid"
   startingDeadlineSeconds: 0
   activeDeadlineSeconds: 3600

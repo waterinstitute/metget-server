@@ -4,7 +4,7 @@ kind: CronWorkflow
 metadata:
   name: {{ .Release.Name }}-download-hrrr-alaska
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "{{ .Values.config.schedules.hrrr_alaska }}"
   concurrencyPolicy: "Forbid"
   startingDeadlineSeconds: 0
   activeDeadlineSeconds: 3600
