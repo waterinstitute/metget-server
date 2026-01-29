@@ -96,6 +96,42 @@ config:
   #####################################################
     use_aws_ebs: True
   #####################################################
+  # Download Schedules
+  #
+  # Cron schedules for each download job. These are
+  # staggered across the 5-minute interval to avoid
+  # "thundering herd" resource spikes. Jobs are spread
+  # across minutes 0-4 of each 5-minute window.
+  #
+  # Format: "minute hour day month weekday"
+  # Default schedules run every 5 minutes, staggered:
+  #   Slot 0: minute 0,5,10,15,20,25,30,35,40,45,50,55
+  #   Slot 1: minute 1,6,11,16,21,26,31,36,41,46,51,56
+  #   Slot 2: minute 2,7,12,17,22,27,32,37,42,47,52,57
+  #   Slot 3: minute 3,8,13,18,23,28,33,38,43,48,53,58
+  #   Slot 4: minute 4,9,14,19,24,29,34,39,44,49,54,59
+  #
+  # Priority jobs (GEFS, RRFS, REFS, HWRF, HRRR) are each
+  # assigned to separate slots to avoid overlap.
+  #####################################################
+  schedules:
+    gefs: "0,5,10,15,20,25,30,35,40,45,50,55 * * * *"
+    rrfs: "1,6,11,16,21,26,31,36,41,46,51,56 * * * *"
+    refs: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    hwrf: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+    hrrr: "4,9,14,19,24,29,34,39,44,49,54,59 * * * *"
+    gfs: "0,5,10,15,20,25,30,35,40,45,50,55 * * * *"
+    nam: "1,6,11,16,21,26,31,36,41,46,51,56 * * * *"
+    hafs: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    hrrr_alaska: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+    coamps: "4,9,14,19,24,29,34,39,44,49,54,59 * * * *"
+    ctcx: "0,5,10,15,20,25,30,35,40,45,50,55 * * * *"
+    nhc: "1,6,11,16,21,26,31,36,41,46,51,56 * * * *"
+    wpc: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    adeck: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+    era5: "0 * * * *" # Not implemented
+
+  #####################################################
   # Enabled Meteorology Types
   #
   # The user may enable/disable different types of

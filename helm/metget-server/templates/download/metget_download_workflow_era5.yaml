@@ -4,7 +4,7 @@ kind: CronWorkflow
 metadata:
   name: {{ .Release.Name }}-download-era5
 spec:
-  schedule: "0 * * * *"
+  schedule: "{{ .Values.config.schedules.era5 }}"
   concurrencyPolicy: "Forbid"
   startingDeadlineSeconds: 0
   activeDeadlineSeconds: 3600

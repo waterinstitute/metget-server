@@ -4,7 +4,7 @@ kind: CronWorkflow
 metadata:
   name: {{ .Release.Name }}-download-adeck
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "{{ .Values.config.schedules.adeck }}"
   concurrencyPolicy: "Forbid"
   startingDeadlineSeconds: 0
   activeDeadlineSeconds: 3600
