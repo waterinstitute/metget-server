@@ -27,6 +27,7 @@
 #
 ###################################################################################################
 
+import math
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -114,18 +115,53 @@ class NcepGefsdownloader(NoaaDownloader):
                         }
                     )
 
-        nerror = 0
-        num_download = 0
         db = Metdb()
 
-        for p in pairs:
-            if self.do_archive():
+        if self.do_archive():
+            # Archive mode: download files individually
+            nerror = 0
+            num_download = 0
+            for p in pairs:
                 file_path, n, err = self.get_grib(p)
                 nerror += err
                 if file_path:
                     num_download += db.add(p, self.met_type(), file_path)
-            else:
-                filepath = "s3://{:s}/{:s}".format(self.big_data_bucket(), p["grb"])
-                num_download += db.add(p, self.met_type(), filepath)
+            return num_download
+
+        # Non-archive mode: use batch operations for performance
+        # Prefetch all existing records in a single query
+        existing_keys = db.get_existing_gefs_keys(begin, end + timedelta(days=1))
+        logger.info(f"Found {len(existing_keys)} existing GEFS records in database")
+
+        # Filter to only new records
+        new_records = []
+        for p in pairs:
+            key = (p["cycledate"], p["forecastdate"], str(p["ensemble_member"]))
+            if key not in existing_keys:
+                filepath = f"s3://{self.big_data_bucket()}/{p['grb']}"
+                tau = math.floor(
+                    (p["forecastdate"] - p["cycledate"]).total_seconds() / 3600.0
+                )
+                new_records.append(
+                    {
+                        "forecastcycle": p["cycledate"],
+                        "forecasttime": p["forecastdate"],
+                        "ensemble_member": str(p["ensemble_member"]),
+                        "tau": tau,
+                        "filepath": filepath,
+                        "url": p["grb"],
+                        "accessed": datetime.now(),
+                    }
+                )
+
+        if not new_records:
+            logger.info("No new GEFS records to insert")
+            return 0
+
+        logger.info(f"Inserting {len(new_records)} new GEFS records")
+
+        # Bulk insert all new records
+        num_download = db.add_gefs_batch(new_records)
+        logger.info(f"Successfully inserted {num_download} GEFS records")
 
         return num_download

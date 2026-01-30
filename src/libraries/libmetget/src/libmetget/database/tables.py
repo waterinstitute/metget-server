@@ -32,7 +32,17 @@ import os
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Integer, String
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declarative_base
@@ -262,6 +272,11 @@ class GfsTable(TableBase):
     url = Column(String)
     accessed = Column(DateTime)
 
+    __table_args__ = (
+        Index("idx_gfs_lookup", "forecastcycle", "forecasttime"),
+        UniqueConstraint("forecastcycle", "forecasttime", name="uq_gfs_cycle_forecast"),
+    )
+
 
 class NamTable(TableBase):
     """
@@ -277,6 +292,11 @@ class NamTable(TableBase):
     filepath = Column(String)
     url = Column(String)
     accessed = Column(DateTime)
+
+    __table_args__ = (
+        Index("idx_nam_lookup", "forecastcycle", "forecasttime"),
+        UniqueConstraint("forecastcycle", "forecasttime", name="uq_nam_cycle_forecast"),
+    )
 
 
 class HwrfTable(TableBase):
@@ -346,6 +366,18 @@ class GefsTable(TableBase):
     url = Column(String)
     accessed = Column(DateTime)
 
+    __table_args__ = (
+        # Composite index for fast lookups
+        Index("idx_gefs_lookup", "forecastcycle", "forecasttime", "ensemble_member"),
+        # Unique constraint for ON CONFLICT bulk inserts
+        UniqueConstraint(
+            "forecastcycle",
+            "forecasttime",
+            "ensemble_member",
+            name="uq_gefs_cycle_forecast_member",
+        ),
+    )
+
 
 class CoampsTable(TableBase):
     """
@@ -382,7 +414,7 @@ class CtcxTable(TableBase):
 
 class HrrrTable(TableBase):
     """
-    This class is used to create the table that holds the HRRR data which has beenq
+    This class is used to create the table that holds the HRRR data which has been
     downloaded from the NCEP server.
     """
 
@@ -394,6 +426,13 @@ class HrrrTable(TableBase):
     filepath = Column(String)
     url = Column(String)
     accessed = Column(DateTime)
+
+    __table_args__ = (
+        Index("idx_hrrr_lookup", "forecastcycle", "forecasttime"),
+        UniqueConstraint(
+            "forecastcycle", "forecasttime", name="uq_hrrr_cycle_forecast"
+        ),
+    )
 
 
 class HrrrAlaskaTable(TableBase):
@@ -411,6 +450,13 @@ class HrrrAlaskaTable(TableBase):
     url = Column(String)
     accessed = Column(DateTime)
 
+    __table_args__ = (
+        Index("idx_hrrr_alaska_lookup", "forecastcycle", "forecasttime"),
+        UniqueConstraint(
+            "forecastcycle", "forecasttime", name="uq_hrrr_alaska_cycle_forecast"
+        ),
+    )
+
 
 class WpcTable(TableBase):
     """
@@ -426,6 +472,11 @@ class WpcTable(TableBase):
     filepath = Column(String)
     url = Column(String)
     accessed = Column(DateTime)
+
+    __table_args__ = (
+        Index("idx_wpc_lookup", "forecastcycle", "forecasttime"),
+        UniqueConstraint("forecastcycle", "forecasttime", name="uq_wpc_cycle_forecast"),
+    )
 
 
 class NhcBtkTable(TableBase):
@@ -500,6 +551,13 @@ class RrfsTable(TableBase):
     filepath = Column(String)
     url = Column(String)
     accessed = Column(DateTime)
+
+    __table_args__ = (
+        Index("idx_rrfs_lookup", "forecastcycle", "forecasttime"),
+        UniqueConstraint(
+            "forecastcycle", "forecasttime", name="uq_rrfs_cycle_forecast"
+        ),
+    )
 
 
 class RefsTable(TableBase):
