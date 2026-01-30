@@ -200,6 +200,37 @@ CREATE TABLE requests(
 --
 CREATE INDEX gfs_ncep_forecastcycle_idx ON gfs_ncep USING brin (forecastcycle);
 CREATE INDEX gefs_fcst_forecastcycle_idx ON gefs_fcst USING brin (forecastcycle);
+--
+-- Performance optimization: composite indexes and unique constraints for batch operations
+--
+-- GFS
+CREATE INDEX idx_gfs_lookup ON gfs_ncep (forecastcycle, forecasttime);
+ALTER TABLE gfs_ncep ADD CONSTRAINT uq_gfs_cycle_forecast
+  UNIQUE (forecastcycle, forecasttime);
+-- NAM
+CREATE INDEX idx_nam_lookup ON nam_ncep (forecastcycle, forecasttime);
+ALTER TABLE nam_ncep ADD CONSTRAINT uq_nam_cycle_forecast
+  UNIQUE (forecastcycle, forecasttime);
+-- HRRR
+CREATE INDEX idx_hrrr_lookup ON hrrr_ncep (forecastcycle, forecasttime);
+ALTER TABLE hrrr_ncep ADD CONSTRAINT uq_hrrr_cycle_forecast
+  UNIQUE (forecastcycle, forecasttime);
+-- HRRR Alaska
+CREATE INDEX idx_hrrr_alaska_lookup ON hrrr_alaska_ncep (forecastcycle, forecasttime);
+ALTER TABLE hrrr_alaska_ncep ADD CONSTRAINT uq_hrrr_alaska_cycle_forecast
+  UNIQUE (forecastcycle, forecasttime);
+-- RRFS
+CREATE INDEX idx_rrfs_lookup ON rrfs_ncep (forecastcycle, forecasttime);
+ALTER TABLE rrfs_ncep ADD CONSTRAINT uq_rrfs_cycle_forecast
+  UNIQUE (forecastcycle, forecasttime);
+-- WPC
+CREATE INDEX idx_wpc_lookup ON wpc_ncep (forecastcycle, forecasttime);
+ALTER TABLE wpc_ncep ADD CONSTRAINT uq_wpc_cycle_forecast
+  UNIQUE (forecastcycle, forecasttime);
+-- GEFS (ensemble)
+CREATE INDEX idx_gefs_lookup ON gefs_fcst (forecastcycle, forecasttime, ensemble_member);
+ALTER TABLE gefs_fcst ADD CONSTRAINT uq_gefs_cycle_forecast_member
+  UNIQUE (forecastcycle, forecasttime, ensemble_member);
 CREATE INDEX hwrf_forecastcycle_idx ON hwrf USING brin (forecastcycle);
 CREATE INDEX hafsa_forecastcycle_idx ON ncep_hafs_a USING brin (forecastcycle);
 CREATE INDEX hafsb_forecastcycle_idx ON ncep_hafs_b USING brin (forecastcycle);

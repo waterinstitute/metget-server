@@ -28,9 +28,10 @@
 ###################################################################################################
 import math
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from loguru import logger
+from sqlalchemy.dialects.postgresql import insert
 
 from ..database.database import Database
 from ..database.tables import (
@@ -459,6 +460,145 @@ class Metdb:
         )
 
         return v is not None
+
+    def get_existing_gefs_keys(
+        self, start_date: datetime, end_date: datetime
+    ) -> Set[Tuple[datetime, datetime, str]]:
+        """
+        Fetch all existing GEFS records for a date range as a set of
+        (forecastcycle, forecasttime, ensemble_member) tuples.
+
+        This replaces N individual existence checks with a single query.
+
+        Args:
+            start_date: Start of the forecast cycle date range
+            end_date: End of the forecast cycle date range
+
+        Returns:
+            Set of (forecastcycle, forecasttime, ensemble_member) tuples
+
+        """
+        results = (
+            self.__session.query(
+                GefsTable.forecastcycle,
+                GefsTable.forecasttime,
+                GefsTable.ensemble_member,
+            )
+            .filter(
+                GefsTable.forecastcycle >= start_date,
+                GefsTable.forecastcycle <= end_date,
+            )
+            .all()
+        )
+        return {(r[0], r[1], r[2]) for r in results}
+
+    def add_gefs_batch(self, records: List[Dict[str, Any]]) -> int:
+        """
+        Insert multiple GEFS records in bulk, ignoring duplicates.
+
+        Uses PostgreSQL's INSERT ... ON CONFLICT DO NOTHING for efficient
+        bulk insertion that automatically handles duplicates.
+
+        Args:
+            records: List of dicts with keys: forecastcycle, forecasttime,
+                     ensemble_member, tau, filepath, url, accessed
+
+        Returns:
+            Number of records actually inserted (excludes duplicates)
+
+        """
+        if not records:
+            return 0
+
+        stmt = insert(GefsTable).values(records)
+        stmt = stmt.on_conflict_do_nothing(constraint="uq_gefs_cycle_forecast_member")
+        result = self.__session.execute(stmt)
+        self.__session.commit()
+        return result.rowcount
+
+    def get_existing_generic_keys(
+        self, datatype: str, start_date: datetime, end_date: datetime
+    ) -> Set[Tuple[datetime, datetime]]:
+        """
+        Fetch all existing records for a generic table (GFS, NAM, HRRR, etc.)
+        for a date range as a set of (forecastcycle, forecasttime) tuples.
+
+        This replaces N individual existence checks with a single query.
+
+        Args:
+            datatype: The table type (gfs_ncep, nam_ncep, hrrr_ncep, etc.)
+            start_date: Start of the forecast cycle date range
+            end_date: End of the forecast cycle date range
+
+        Returns:
+            Set of (forecastcycle, forecasttime) tuples
+
+        """
+        table_mapping = {
+            "gfs_ncep": GfsTable,
+            "nam_ncep": NamTable,
+            "wpc_ncep": WpcTable,
+            "hrrr_ncep": HrrrTable,
+            "hrrr_alaska_ncep": HrrrAlaskaTable,
+            "rrfs_ncep": RrfsTable,
+        }
+
+        table = table_mapping.get(datatype)
+        if not table:
+            raise ValueError("Invalid datatype: " + datatype)
+
+        results = (
+            self.__session.query(
+                table.forecastcycle,
+                table.forecasttime,
+            )
+            .filter(
+                table.forecastcycle >= start_date,
+                table.forecastcycle <= end_date,
+            )
+            .all()
+        )
+        return {(r[0], r[1]) for r in results}
+
+    def add_generic_batch(self, datatype: str, records: List[Dict[str, Any]]) -> int:
+        """
+        Insert multiple records for a generic table in bulk, ignoring duplicates.
+
+        Uses PostgreSQL's INSERT ... ON CONFLICT DO NOTHING for efficient
+        bulk insertion that automatically handles duplicates.
+
+        Args:
+            datatype: The table type (gfs_ncep, nam_ncep, hrrr_ncep, etc.)
+            records: List of dicts with keys: forecastcycle, forecasttime,
+                     tau, filepath, url, accessed
+
+        Returns:
+            Number of records actually inserted (excludes duplicates)
+
+        """
+        if not records:
+            return 0
+
+        table_mapping = {
+            "gfs_ncep": (GfsTable, "uq_gfs_cycle_forecast"),
+            "nam_ncep": (NamTable, "uq_nam_cycle_forecast"),
+            "wpc_ncep": (WpcTable, "uq_wpc_cycle_forecast"),
+            "hrrr_ncep": (HrrrTable, "uq_hrrr_cycle_forecast"),
+            "hrrr_alaska_ncep": (HrrrAlaskaTable, "uq_hrrr_alaska_cycle_forecast"),
+            "rrfs_ncep": (RrfsTable, "uq_rrfs_cycle_forecast"),
+        }
+
+        mapping = table_mapping.get(datatype)
+        if not mapping:
+            raise ValueError("Invalid datatype: " + datatype)
+
+        table, constraint_name = mapping
+
+        stmt = insert(table).values(records)
+        stmt = stmt.on_conflict_do_nothing(constraint=constraint_name)
+        result = self.__session.execute(stmt)
+        self.__session.commit()
+        return result.rowcount
 
     def __has_generic(self, datatype: str, metadata: Dict[str, Any]) -> bool:
         """
