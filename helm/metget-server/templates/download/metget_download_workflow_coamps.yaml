@@ -3,12 +3,16 @@ apiVersion: argoproj.io/v1alpha1
 kind: CronWorkflow
 metadata:
   name: {{ .Release.Name }}-download-coamps
+  labels:
+    app: metget
+    component: download
+    service: coamps
 spec:
   schedule: "{{ .Values.config.schedules.coamps }}"
   concurrencyPolicy: "Forbid"
   startingDeadlineSeconds: 0
-  activeDeadlineSeconds: 3600
   workflowSpec:
+    activeDeadlineSeconds: {{ .Values.config.download_timeout }}
     serviceAccountName: operate-workflow-sa
     ttlStrategy:
       secondsAfterCompletion: 120    # Time to live after workflow is completed, replaces ttlSecondsAfterFinished

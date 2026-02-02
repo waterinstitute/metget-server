@@ -2,6 +2,9 @@ apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
   name: download-template
+  labels:
+    app: metget
+    component: download
 spec:
   entrypoint: download-runner
   templates:
@@ -9,9 +12,16 @@ spec:
     inputs:
       parameters:
         - name: service
+    retryStrategy:
+      limit: "3"
+      retryPolicy: OnError
+      backoff:
+        duration: "30s"
+        factor: "2"
+        maxDuration: "5m"
     container:
       image: {{ .Values.containers.download.image }}:{{ .Values.containers.version }}
-      imagePullPolicy: Always
+      imagePullPolicy: IfNotPresent
       resources:
         requests:
           cpu: 500m

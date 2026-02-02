@@ -20,7 +20,11 @@ spec:
               kind: Workflow
               metadata:
                 generateName: build-
+                labels:
+                  app: metget
+                  component: build
               spec:
+                activeDeadlineSeconds: {{ .Values.config.build_timeout }}
                 entrypoint: build
                 onExit: exit-handler
                 serviceAccountName: operate-workflow-sa
@@ -40,7 +44,7 @@ spec:
                         - name: message
                     container:
                       image: {{ .Values.containers.build.image }}:{{ .Values.containers.version }}
-                      imagePullPolicy: Always
+                      imagePullPolicy: IfNotPresent
                       env:
                         - name: METGET_DATABASE_USER
                           valueFrom:
@@ -115,7 +119,7 @@ spec:
                   - name: cleanup-on-failure
                     container:
                       image: {{ .Values.containers.build.image }}:{{ .Values.containers.version }}
-                      imagePullPolicy: Always
+                      imagePullPolicy: IfNotPresent
                       command: [metget-build, cleanup]
                       env:
                         - name: METGET_REQUEST_JSON
