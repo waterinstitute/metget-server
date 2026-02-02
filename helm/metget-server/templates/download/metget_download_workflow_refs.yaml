@@ -3,12 +3,16 @@ apiVersion: argoproj.io/v1alpha1
 kind: CronWorkflow
 metadata:
   name: {{ .Release.Name }}-download-refs
+  labels:
+    app: metget
+    component: download
+    service: refs
 spec:
   schedule: "{{ .Values.config.schedules.refs }}"
   concurrencyPolicy: "Forbid"
   startingDeadlineSeconds: 0
-  activeDeadlineSeconds: 3600
   workflowSpec:
+    activeDeadlineSeconds: {{ .Values.config.download_timeout }}
     entrypoint: runner
     serviceAccountName: operate-workflow-sa
     ttlStrategy:

@@ -96,6 +96,16 @@ config:
   #####################################################
     use_aws_ebs: True
   #####################################################
+  # Workflow Timeouts
+  #
+  # Maximum time in seconds that jobs can run before
+  # being terminated by Argo Workflows. This prevents
+  # jobs from hanging indefinitely.
+  #####################################################
+  download_timeout: 600   # 10 minutes
+  build_timeout: 3600     # 60 minutes
+
+  #####################################################
   # Download Schedules
   #
   # Cron schedules for each download job. These are
