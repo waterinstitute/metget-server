@@ -70,6 +70,23 @@ http:
   aws_certificate_arn: cert_arn
   host: dev-api.metget.org
   project_tag: project_code
+  #...Shared ALB Configuration
+  # Set use_shared_alb to True to use an existing shared
+  # Application Load Balancer instead of creating a
+  # dedicated ALB for this deployment. This is useful
+  # for consolidating multiple services behind a single
+  # ALB to reduce costs and simplify management.
+  use_shared_alb: False
+  shared_alb:
+    # The ALB group name to join. All ingresses with the
+    # same group name share a single ALB.
+    group_name: floodid-shared
+    # Target type for the ALB target group.
+    # Use "ip" for pod IP addressing (recommended for shared ALB)
+    # Use "instance" for node-based routing
+    target_type: ip
+    # TLS security policy for the ALB listener
+    ssl_policy: ELBSecurityPolicy-TLS13-1-2-2021-06
 
 #####################################################
 # S3 Configuration

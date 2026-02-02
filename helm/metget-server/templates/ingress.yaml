@@ -5,9 +5,15 @@ metadata:
   name: ingress
   annotations:
     alb.ingress.kubernetes.io/ingress.class: alb
+    {{- if .Values.http.use_shared_alb }}
+    alb.ingress.kubernetes.io/group.name: {{ .Values.http.shared_alb.group_name }}
+    alb.ingress.kubernetes.io/target-type: {{ .Values.http.shared_alb.target_type | default "ip" }}
+    alb.ingress.kubernetes.io/ssl-policy: {{ .Values.http.shared_alb.ssl_policy | default "ELBSecurityPolicy-TLS13-1-2-2021-06" }}
+    {{- else }}
     alb.ingress.kubernetes.io/load-balancer-name: {{ .Release.Namespace }}-{{ .Release.Name }}-ingress
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/tags: PROJECT_ID={{ .Values.http.project_tag }}
+    {{- end }}
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
     alb.ingress.kubernetes.io/certificate-arn: {{ .Values.http.aws_certificate_arn }}
     alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
