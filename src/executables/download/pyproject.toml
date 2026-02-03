@@ -1,6 +1,6 @@
 [project]
 name = "metget_download"
-version = "0.7.2"
+version = "0.7.3"
 description = "Package for downloading data for metget-server"
 authors = [
     { name = "Zach Cobell", email = "zcobell@thewaterinstitute.org" },
