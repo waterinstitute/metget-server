@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fasttri"
-version = "0.7.4"
+version = "0.7.5"
 description = "Python bindings for triangulation library using CGAL"
 authors = [
     {name = "Zach Cobell", email = "zcobell@thewaterinstitute.org"}
