@@ -197,3 +197,16 @@ config:
   #####################################################
   credits:
     enforce_credit_limits: True
+
+#####################################################
+# Prometheus Metrics
+#
+# Enable Prometheus metrics collection via ServiceMonitor.
+# Requires kube-prometheus-stack or similar to be installed.
+#####################################################
+metrics:
+  enabled: False
+  # The release label must match your Prometheus installation
+  release: kube-prometheus-stack
+  # Scrape interval
+  interval: 30s

@@ -26,6 +26,7 @@ dependencies = [
     "flask-restful",
     "flask-cors",
     "flask-healthz",
+    "prometheus-flask-exporter",
     "pika",
 ]
 

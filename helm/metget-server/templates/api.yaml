@@ -91,6 +91,9 @@ spec:
         - name: api-port
           containerPort: 8080
           protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
 ---
 apiVersion: v1
 kind: Service
@@ -101,8 +104,13 @@ metadata:
 spec:
   type: NodePort
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: api-port
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
       protocol: TCP
   selector:
     app.kubernetes.io/name: api
