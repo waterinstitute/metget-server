@@ -87,10 +87,19 @@ spec:
           {{ else }}
           value: "false"
           {{ end }}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: /tmp/prometheus_multiproc
+
         ports:
         - name: api-port
           containerPort: 8080
           protocol: TCP
+        volumeMounts:
+        - name: prometheus-multiproc
+          mountPath: /tmp/prometheus_multiproc
+      volumes:
+      - name: prometheus-multiproc
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
