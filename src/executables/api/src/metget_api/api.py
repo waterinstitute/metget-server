@@ -63,7 +63,7 @@ CORS(application)
 
 # Prometheus metrics exporter - compatible with gunicorn multi-worker
 # Metrics exposed at /metrics on the main app port
-metrics = GunicornPrometheusMetrics(application, group_by="endpoint")
+metrics = GunicornPrometheusMetrics(application, path="/metrics", group_by="endpoint")
 
 # Loguru handles log levels automatically
 
