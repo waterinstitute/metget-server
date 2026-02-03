@@ -35,7 +35,7 @@ RUN /env/bin/pip install /tmp/keymanager/.
 FROM debian:stable-slim AS metget
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
-LABEL version="0.7.5"
+LABEL version="0.7.6"
 LABEL description="METGET Utilities"
 LABEL io.k8s.description="METGET Utilities"
 LABEL io.k8s.display-name="METGET Utilities"
