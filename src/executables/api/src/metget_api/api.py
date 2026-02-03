@@ -42,7 +42,7 @@ from flask_limiter.util import get_remote_address
 from flask_restful import Api, Resource
 from libmetget.database.database import Database
 from loguru import logger
-from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
 from .access_control import AccessControl
 from .adeck import ADeck
@@ -61,10 +61,9 @@ limiter = Limiter(
 
 CORS(application)
 
-# Prometheus metrics exporter - runs on separate port for security
-# Metrics are not exposed on the public API port
-metrics = PrometheusMetrics(application, path=None, group_by="endpoint")
-metrics.start_http_server(9090)
+# Prometheus metrics exporter - compatible with gunicorn multi-worker
+# Metrics exposed at /metrics on the main app port
+metrics = GunicornPrometheusMetrics(application, group_by="endpoint")
 
 # Loguru handles log levels automatically
 
