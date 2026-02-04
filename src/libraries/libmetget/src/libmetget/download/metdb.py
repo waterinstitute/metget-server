@@ -516,6 +516,138 @@ class Metdb:
         self.__session.commit()
         return result.rowcount
 
+    def get_existing_refs_keys(
+        self, start_date: datetime, end_date: datetime
+    ) -> Set[Tuple[datetime, datetime, str]]:
+        """
+        Fetch all existing REFS records for a date range as a set of
+        (forecastcycle, forecasttime, ensemble_member) tuples.
+
+        This replaces N individual existence checks with a single query.
+
+        Args:
+            start_date: Start of the forecast cycle date range
+            end_date: End of the forecast cycle date range
+
+        Returns:
+            Set of (forecastcycle, forecasttime, ensemble_member) tuples
+
+        """
+        results = (
+            self.__session.query(
+                RefsTable.forecastcycle,
+                RefsTable.forecasttime,
+                RefsTable.ensemble_member,
+            )
+            .filter(
+                RefsTable.forecastcycle >= start_date,
+                RefsTable.forecastcycle <= end_date,
+            )
+            .all()
+        )
+        return {(r[0], r[1], r[2]) for r in results}
+
+    def add_refs_batch(self, records: List[Dict[str, Any]]) -> int:
+        """
+        Insert multiple REFS records in bulk, ignoring duplicates.
+
+        Uses PostgreSQL's INSERT ... ON CONFLICT DO NOTHING for efficient
+        bulk insertion that automatically handles duplicates.
+
+        Args:
+            records: List of dicts with keys: forecastcycle, forecasttime,
+                     ensemble_member, tau, filepath, url, accessed
+
+        Returns:
+            Number of records actually inserted (excludes duplicates)
+
+        """
+        if not records:
+            return 0
+
+        stmt = insert(RefsTable).values(records)
+        stmt = stmt.on_conflict_do_nothing(constraint="uq_refs_cycle_forecast_member")
+        result = self.__session.execute(stmt)
+        self.__session.commit()
+        return result.rowcount
+
+    def get_existing_hafs_keys(
+        self, datatype: str, start_date: datetime, end_date: datetime
+    ) -> Set[Tuple[datetime, datetime, str]]:
+        """
+        Fetch all existing HAFS records for a date range as a set of
+        (forecastcycle, forecasttime, stormname) tuples.
+
+        This replaces N individual existence checks with a single query.
+
+        Args:
+            datatype: The table type (ncep_hafs_a or ncep_hafs_b)
+            start_date: Start of the forecast cycle date range
+            end_date: End of the forecast cycle date range
+
+        Returns:
+            Set of (forecastcycle, forecasttime, stormname) tuples
+
+        """
+        table_mapping = {
+            "ncep_hafs_a": HafsATable,
+            "ncep_hafs_b": HafsBTable,
+        }
+
+        table = table_mapping.get(datatype)
+        if not table:
+            raise ValueError("Invalid HAFS datatype: " + datatype)
+
+        results = (
+            self.__session.query(
+                table.forecastcycle,
+                table.forecasttime,
+                table.stormname,
+            )
+            .filter(
+                table.forecastcycle >= start_date,
+                table.forecastcycle <= end_date,
+            )
+            .all()
+        )
+        return {(r[0], r[1], r[2]) for r in results}
+
+    def add_hafs_batch(self, datatype: str, records: List[Dict[str, Any]]) -> int:
+        """
+        Insert multiple HAFS records in bulk, ignoring duplicates.
+
+        Uses PostgreSQL's INSERT ... ON CONFLICT DO NOTHING for efficient
+        bulk insertion that automatically handles duplicates.
+
+        Args:
+            datatype: The table type (ncep_hafs_a or ncep_hafs_b)
+            records: List of dicts with keys: forecastcycle, forecasttime,
+                     stormname, tau, filepath, url, accessed
+
+        Returns:
+            Number of records actually inserted (excludes duplicates)
+
+        """
+        if not records:
+            return 0
+
+        table_mapping = {
+            "ncep_hafs_a": (HafsATable, "uq_hafs_a_cycle_forecast_storm"),
+            "ncep_hafs_b": (HafsBTable, "uq_hafs_b_cycle_forecast_storm"),
+        }
+
+        mapping = table_mapping.get(datatype)
+        if not mapping:
+            raise ValueError("Invalid HAFS datatype: " + datatype)
+
+        table, constraint_name = mapping
+
+        stmt = insert(table).values(records)
+        stmt = stmt.on_conflict_do_nothing(constraint=constraint_name)
+        result = self.__session.execute(stmt)
+        self.__session.commit()
+        return result.rowcount
+
     def get_existing_generic_keys(
         self, datatype: str, start_date: datetime, end_date: datetime
     ) -> Set[Tuple[datetime, datetime]]:
