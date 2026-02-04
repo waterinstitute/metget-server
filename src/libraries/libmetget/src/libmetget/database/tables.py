@@ -332,6 +332,18 @@ class HafsATable(TableBase):
     url = Column(String)
     accessed = Column(DateTime)
 
+    __table_args__ = (
+        # Composite index for fast lookups
+        Index("idx_hafs_a_lookup", "forecastcycle", "forecasttime", "stormname"),
+        # Unique constraint for ON CONFLICT bulk inserts
+        UniqueConstraint(
+            "forecastcycle",
+            "forecasttime",
+            "stormname",
+            name="uq_hafs_a_cycle_forecast_storm",
+        ),
+    )
+
 
 class HafsBTable(TableBase):
     """
@@ -348,6 +360,18 @@ class HafsBTable(TableBase):
     filepath = Column(String)
     url = Column(String)
     accessed = Column(DateTime)
+
+    __table_args__ = (
+        # Composite index for fast lookups
+        Index("idx_hafs_b_lookup", "forecastcycle", "forecasttime", "stormname"),
+        # Unique constraint for ON CONFLICT bulk inserts
+        UniqueConstraint(
+            "forecastcycle",
+            "forecasttime",
+            "stormname",
+            name="uq_hafs_b_cycle_forecast_storm",
+        ),
+    )
 
 
 class GefsTable(TableBase):
@@ -575,3 +599,15 @@ class RefsTable(TableBase):
     filepath = Column(String)
     url = Column(String)
     accessed = Column(DateTime)
+
+    __table_args__ = (
+        # Composite index for fast lookups
+        Index("idx_refs_lookup", "forecastcycle", "forecasttime", "ensemble_member"),
+        # Unique constraint for ON CONFLICT bulk inserts
+        UniqueConstraint(
+            "forecastcycle",
+            "forecasttime",
+            "ensemble_member",
+            name="uq_refs_cycle_forecast_member",
+        ),
+    )

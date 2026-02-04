@@ -620,9 +620,12 @@ class NoaaDownloader:
             if "Contents" in response:
                 yield from response["Contents"]
 
-    def _download_aws_big_data(self) -> int:
+    def _download_aws_big_data(self) -> int:  # noqa: PLR0912
         """
         Downloads data from the AWS big data service.
+
+        Processes one calendar day at a time to limit memory usage when
+        running for long date ranges.
 
         Returns:
             int: number of files downloaded
@@ -641,93 +644,105 @@ class NoaaDownloader:
         )
         date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
-        client = boto3.client("s3")
+        total_download = 0
 
-        pairs = []
         for d in date_range:
             if self.verbose():
                 logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
 
+            # Collect pairs for this day only
+            pairs = []
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)
                 cycle_date = d + timedelta(hours=h)
-                for this_obj_s3 in self.list_objects(prefix):
+
+                # Collect all objects for this cycle in one pass
+                # This avoids individual head_object calls for .idx verification
+                all_objects = list(self.list_objects(prefix))
+
+                # Build a set of .idx keys for O(1) existence checking
+                idx_keys = {
+                    obj["Key"] for obj in all_objects if obj["Key"].endswith(".idx")
+                }
+
+                for this_obj_s3 in all_objects:
                     this_obj = this_obj_s3["Key"]
                     if ".idx" in this_obj:
                         continue
                     forecast_hour = self._filename_to_hour(this_obj)
                     forecast_date = cycle_date + timedelta(hours=forecast_hour)
 
-                    try:
-                        # Check if the corresponding *.idx file exists on s3
-                        # If we add this file to the pairs list without an index
-                        # file, calls to the build request will fail if NOAA hasn't
-                        # uploaded it yet. Generally, this doesn't happen except for
-                        # HRRR for some reason
-                        idx_obj = this_obj + ".idx"
-                        client.head_object(Bucket=self.big_data_bucket(), Key=idx_obj)
+                    # Check if the corresponding *.idx file exists using set lookup
+                    # instead of individual head_object calls (eliminates ~800
+                    # network round-trips per day for GFS)
+                    idx_obj = this_obj + ".idx"
+                    if idx_obj in idx_keys:
                         pairs.append(
                             {
                                 "grb": this_obj,
-                                "inv": this_obj + ".idx",
+                                "inv": idx_obj,
                                 "cycledate": cycle_date,
                                 "forecastdate": forecast_date,
                             }
                         )
-                    except ClientError:
-                        pass
 
-        if self.__do_archive:
-            # Archive mode: download files individually (cannot batch)
-            nerror = 0
-            num_download = 0
-            for p in pairs:
-                file_path, n, err = self.get_grib(p)
-                nerror += err
-                if file_path:
-                    num_download += self.__database.add(p, self.met_type(), file_path)
-            return num_download
+            if not pairs:
+                continue
 
-        # Non-archive mode: use batch operations for performance
-        # Prefetch all existing records in a single query
-        existing_keys = self.__database.get_existing_generic_keys(
-            self.met_type(), begin, end + timedelta(days=1)
-        )
-        logger.info(
-            f"Found {len(existing_keys)} existing {self.met_type()} records in database"
-        )
-
-        # Filter to only new records
-        new_records = []
-        for p in pairs:
-            key = (p["cycledate"], p["forecastdate"])
-            if key not in existing_keys:
-                filepath = f"s3://{self.big_data_bucket()}/{p['grb']}"
-                tau = math.floor(
-                    (p["forecastdate"] - p["cycledate"]).total_seconds() / 3600.0
-                )
-                new_records.append(
-                    {
-                        "forecastcycle": p["cycledate"],
-                        "forecasttime": p["forecastdate"],
-                        "tau": tau,
-                        "filepath": filepath,
-                        "url": p["grb"],
-                        "accessed": datetime.now(),
-                    }
+            if self.__do_archive:
+                # Archive mode: download files individually (cannot batch)
+                nerror = 0
+                for p in pairs:
+                    file_path, n, err = self.get_grib(p)
+                    nerror += err
+                    if file_path:
+                        total_download += self.__database.add(
+                            p, self.met_type(), file_path
+                        )
+            else:
+                # Non-archive mode: use batch operations for performance
+                # Query existing records for this day only
+                day_start = d
+                day_end = d + timedelta(days=1)
+                existing_keys = self.__database.get_existing_generic_keys(
+                    self.met_type(), day_start, day_end
                 )
 
-        if not new_records:
-            logger.info(f"No new {self.met_type()} records to insert")
-            return 0
+                # Filter to only new records
+                new_records = []
+                for p in pairs:
+                    key = (p["cycledate"], p["forecastdate"])
+                    if key not in existing_keys:
+                        filepath = f"s3://{self.big_data_bucket()}/{p['grb']}"
+                        tau = math.floor(
+                            (p["forecastdate"] - p["cycledate"]).total_seconds()
+                            / 3600.0
+                        )
+                        new_records.append(
+                            {
+                                "forecastcycle": p["cycledate"],
+                                "forecasttime": p["forecastdate"],
+                                "tau": tau,
+                                "filepath": filepath,
+                                "url": p["grb"],
+                                "accessed": datetime.now(),
+                            }
+                        )
 
-        logger.info(f"Inserting {len(new_records)} new {self.met_type()} records")
+                if new_records:
+                    num_inserted = self.__database.add_generic_batch(
+                        self.met_type(), new_records
+                    )
+                    total_download += num_inserted
+                    if self.verbose():
+                        logger.info(
+                            f"Inserted {num_inserted} new {self.met_type()} records for {d.strftime('%Y-%m-%d')}"
+                        )
 
-        # Bulk insert all new records
-        num_download = self.__database.add_generic_batch(self.met_type(), new_records)
-        logger.info(f"Successfully inserted {num_download} {self.met_type()} records")
+        if self.verbose():
+            logger.info(f"Total: inserted {total_download} {self.met_type()} records")
 
-        return num_download
+        return total_download
 
     def download(self) -> int:
         """

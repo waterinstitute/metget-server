@@ -26,6 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import math
 import os
 import tempfile
 from datetime import datetime, timedelta
@@ -37,6 +38,7 @@ from loguru import logger
 
 from ..sources.metfileattributes import MetFileAttributes
 from ..sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
+from .metdb import Metdb
 from .noaadownloader import NoaaDownloader
 from .spyder import Spyder
 
@@ -78,10 +80,19 @@ class HafsDownloader(NoaaDownloader):
             return self.__download_s3()
         return self.__download_http()
 
-    def __download_s3(self) -> int:
-        s3 = boto3.resource("s3")
+    def __download_s3(self) -> int:  # noqa: PLR0912
+        """
+        Downloads HAFS data from the AWS S3 bucket.
+
+        Collects all objects per cycle first, then uses set lookup for file
+        validation instead of individual S3 API calls. Uses batch database
+        operations for performance.
+
+        Returns:
+            int: number of records added to database
+
+        """
         client = boto3.client("s3")
-        bucket = s3.Bucket(self.big_data_bucket())
         paginator = client.get_paginator("list_objects_v2")
         begin = datetime(
             self.begin_date().year, self.begin_date().month, self.begin_date().day
@@ -89,10 +100,22 @@ class HafsDownloader(NoaaDownloader):
         end = datetime(self.end_date().year, self.end_date().month, self.end_date().day)
         date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
-        n = 0
+        db = Metdb()
+        total_download = 0
+
         for d in date_range:
             if self.verbose():
                 logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
+
+            # Query existing records for this day
+            day_start = d
+            day_end = d + timedelta(days=1)
+            existing_keys = db.get_existing_hafs_keys(
+                self.met_type(), day_start, day_end
+            )
+
+            # Collect new records for this day
+            new_records = []
 
             for hr in self.cycles():
                 prefix = (
@@ -102,74 +125,81 @@ class HafsDownloader(NoaaDownloader):
                     + "/"
                     + f"{hr:02d}"
                 )
+
+                # Collect all objects for this cycle in one pass
+                # This avoids individual S3 filter calls for file validation
+                all_keys = set()
                 for page in paginator.paginate(
                     Bucket=self.big_data_bucket(), Prefix=prefix
                 ):
                     if "Contents" in page:
                         for obj in page["Contents"]:
-                            if "parent.atm" in obj["Key"] and obj["Key"].endswith(
-                                ".grb2"
-                            ):
-                                # Extract the metadata from the path
-                                keys = obj["Key"].split("/")[-1].split(".")
-                                storm_name = keys[0]
-                                cycle_date = datetime.strptime(keys[1], "%Y%m%d%H")
-                                forecast_hour = int(keys[5][1:])
-                                forecast_date = cycle_date + timedelta(
-                                    hours=forecast_hour
-                                )
+                            all_keys.add(obj["Key"])
 
-                                # Check that the corresponding files exist
-                                storm_file = obj["Key"].replace(
-                                    ".parent.atm", ".storm.atm"
-                                )
-                                found_files_on_s3 = (
-                                    HafsDownloader.__check_s3_for_hafs_file(
-                                        bucket,
-                                        [
-                                            storm_file,
-                                            obj["Key"] + ".idx",
-                                            storm_file + ".idx",
-                                        ],
-                                    )
-                                )
-                                if not found_files_on_s3:
-                                    continue
+                # Process parent.atm files and validate using set lookup
+                for key in all_keys:
+                    if "parent.atm" not in key or not key.endswith(".grb2"):
+                        continue
 
-                                # Generate the metadata and add to the list
-                                metadata = {
-                                    "name": storm_name,
-                                    "cycledate": cycle_date,
-                                    "forecastdate": forecast_date,
-                                    "grb": [storm_file, obj["Key"]],
-                                    "inv": [
-                                        storm_file + ".idx",
-                                        obj["Key"] + ".idx",
-                                    ],
-                                }
+                    # Extract the metadata from the path
+                    keys_split = key.split("/")[-1].split(".")
+                    storm_name = keys_split[0]
+                    cycle_date = datetime.strptime(keys_split[1], "%Y%m%d%H")
+                    forecast_hour = int(keys_split[5][1:])
+                    forecast_date = cycle_date + timedelta(hours=forecast_hour)
 
-                                filepath = [
-                                    "s3://" + self.big_data_bucket() + "/" + storm_file,
-                                    "s3://" + self.big_data_bucket() + "/" + obj["Key"],
-                                ]
-                                filepath_str = ",".join(filepath)
+                    # Check that the corresponding files exist using set lookup
+                    # instead of individual S3 API calls (eliminates 3 network
+                    # round-trips per file)
+                    storm_file = key.replace(".parent.atm", ".storm.atm")
+                    required_files = [
+                        storm_file,
+                        key + ".idx",
+                        storm_file + ".idx",
+                    ]
+                    if not all(f in all_keys for f in required_files):
+                        continue
 
-                                n += self.database().add(
-                                    metadata, self.met_type(), filepath_str
-                                )
+                    # Check if record already exists
+                    record_key = (cycle_date, forecast_date, storm_name)
+                    if record_key in existing_keys:
+                        continue
 
-        return n
+                    # Build filepath and record for batch insert
+                    filepath = [
+                        "s3://" + self.big_data_bucket() + "/" + storm_file,
+                        "s3://" + self.big_data_bucket() + "/" + key,
+                    ]
+                    filepath_str = ",".join(filepath)
+                    tau = math.floor(
+                        (forecast_date - cycle_date).total_seconds() / 3600.0
+                    )
 
-    @staticmethod
-    def __check_s3_for_hafs_file(
-        bucket: boto3.resources.base.ServiceResource, filenames: list
-    ) -> bool:
-        for filename in filenames:
-            check_objs = list(bucket.objects.filter(Prefix=filename))
-            check_keys = [o.key for o in check_objs]
-            if filename not in check_keys:
-                return False
-        return True
+                    new_records.append(
+                        {
+                            "forecastcycle": cycle_date,
+                            "forecasttime": forecast_date,
+                            "stormname": storm_name,
+                            "tau": tau,
+                            "filepath": filepath_str,
+                            "url": key,
+                            "accessed": datetime.now(),
+                        }
+                    )
+
+            # Batch insert all new records for this day
+            if new_records:
+                num_inserted = db.add_hafs_batch(self.met_type(), new_records)
+                total_download += num_inserted
+                if self.verbose():
+                    logger.info(
+                        f"Inserted {num_inserted} new {self.met_type()} records for {d.strftime('%Y-%m-%d')}"
+                    )
+
+        if self.verbose():
+            logger.info(f"Total: inserted {total_download} {self.met_type()} records")
+
+        return total_download
 
     def __download_http(self) -> int:
         num_download = 0

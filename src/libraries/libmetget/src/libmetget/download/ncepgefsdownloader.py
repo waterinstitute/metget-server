@@ -71,7 +71,17 @@ class NcepGefsdownloader(NoaaDownloader):
         return int(filename[-3:])
 
     # ...In the case of GEFS, we need to reimplement this function because we have to deal with ensemble members
-    def _download_aws_big_data(self) -> int:
+    def _download_aws_big_data(self) -> int:  # noqa: PLR0912
+        """
+        Downloads GEFS data from the AWS big data service.
+
+        Processes one calendar day at a time to limit memory usage when
+        running for long date ranges.
+
+        Returns:
+            int: number of records downloaded/inserted
+
+        """
         begin = datetime(
             self.begin_date().year,
             self.begin_date().month,
@@ -85,11 +95,15 @@ class NcepGefsdownloader(NoaaDownloader):
         )
         date_range = [begin + timedelta(days=x) for x in range((end - begin).days)]
 
-        pairs = []
+        db = Metdb()
+        total_download = 0
+
         for d in date_range:
             if self.verbose():
                 logger.info("Processing {:s}...".format(d.strftime("%Y-%m-%d")))
 
+            # Collect pairs for this day only
+            pairs = []
             for h in self.cycles():
                 prefix = self._generate_prefix(d, h)
                 cycle_date = d + timedelta(hours=h)
@@ -115,53 +129,55 @@ class NcepGefsdownloader(NoaaDownloader):
                         }
                     )
 
-        db = Metdb()
+            if not pairs:
+                continue
 
-        if self.do_archive():
-            # Archive mode: download files individually
-            nerror = 0
-            num_download = 0
-            for p in pairs:
-                file_path, n, err = self.get_grib(p)
-                nerror += err
-                if file_path:
-                    num_download += db.add(p, self.met_type(), file_path)
-            return num_download
+            if self.do_archive():
+                # Archive mode: download files individually
+                nerror = 0
+                for p in pairs:
+                    file_path, n, err = self.get_grib(p)
+                    nerror += err
+                    if file_path:
+                        total_download += db.add(p, self.met_type(), file_path)
+            else:
+                # Non-archive mode: use batch operations for performance
+                # Query existing records for this day only
+                day_start = d
+                day_end = d + timedelta(days=1)
+                existing_keys = db.get_existing_gefs_keys(day_start, day_end)
 
-        # Non-archive mode: use batch operations for performance
-        # Prefetch all existing records in a single query
-        existing_keys = db.get_existing_gefs_keys(begin, end + timedelta(days=1))
-        logger.info(f"Found {len(existing_keys)} existing GEFS records in database")
+                # Filter to only new records
+                new_records = []
+                for p in pairs:
+                    key = (p["cycledate"], p["forecastdate"], str(p["ensemble_member"]))
+                    if key not in existing_keys:
+                        filepath = f"s3://{self.big_data_bucket()}/{p['grb']}"
+                        tau = math.floor(
+                            (p["forecastdate"] - p["cycledate"]).total_seconds()
+                            / 3600.0
+                        )
+                        new_records.append(
+                            {
+                                "forecastcycle": p["cycledate"],
+                                "forecasttime": p["forecastdate"],
+                                "ensemble_member": str(p["ensemble_member"]),
+                                "tau": tau,
+                                "filepath": filepath,
+                                "url": p["grb"],
+                                "accessed": datetime.now(),
+                            }
+                        )
 
-        # Filter to only new records
-        new_records = []
-        for p in pairs:
-            key = (p["cycledate"], p["forecastdate"], str(p["ensemble_member"]))
-            if key not in existing_keys:
-                filepath = f"s3://{self.big_data_bucket()}/{p['grb']}"
-                tau = math.floor(
-                    (p["forecastdate"] - p["cycledate"]).total_seconds() / 3600.0
-                )
-                new_records.append(
-                    {
-                        "forecastcycle": p["cycledate"],
-                        "forecasttime": p["forecastdate"],
-                        "ensemble_member": str(p["ensemble_member"]),
-                        "tau": tau,
-                        "filepath": filepath,
-                        "url": p["grb"],
-                        "accessed": datetime.now(),
-                    }
-                )
+                if new_records:
+                    num_inserted = db.add_gefs_batch(new_records)
+                    total_download += num_inserted
+                    if self.verbose():
+                        logger.info(
+                            f"Inserted {num_inserted} new GEFS records for {d.strftime('%Y-%m-%d')}"
+                        )
 
-        if not new_records:
-            logger.info("No new GEFS records to insert")
-            return 0
+        if self.verbose():
+            logger.info(f"Total: inserted {total_download} GEFS records")
 
-        logger.info(f"Inserting {len(new_records)} new GEFS records")
-
-        # Bulk insert all new records
-        num_download = db.add_gefs_batch(new_records)
-        logger.info(f"Successfully inserted {num_download} GEFS records")
-
-        return num_download
+        return total_download
