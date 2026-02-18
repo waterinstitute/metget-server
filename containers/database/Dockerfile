@@ -1,7 +1,7 @@
 FROM postgres:17-trixie
 
 LABEL maintainer="Zach Cobell <zcobell@thewaterinstitute.org>"
-LABEL version="0.8.0"
+LABEL version="0.8.1"
 LABEL description="METGET Database"
 LABEL io.k8s.description="METGET Database"
 LABEL io.k8s.display-name="METGET Database"

@@ -1,2 +1,2 @@
 def get_metget_version() -> str:
-    return "0.8.0"
+    return "0.8.1"
