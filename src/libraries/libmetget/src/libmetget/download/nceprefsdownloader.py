@@ -67,7 +67,7 @@ class NcepRefsDownloader(NoaaDownloader):
     def _generate_prefix_ensemble(date: datetime, hour: int, member: str) -> str:
         return os.path.join(
             "rrfs_a",
-            f"refs.{date.strftime('%Y%m%d')}",
+            f"rrfsens.{date.strftime('%Y%m%d')}",
             f"{hour:02d}",
             f"{member}",
             f"rrfs.t{hour:02d}z.{member}.prslev.3km.",
