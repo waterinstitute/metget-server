@@ -19,9 +19,15 @@ class ADeckDownloader:
     Downloads A-Deck tracks from the NHC website and stores them in the database.
     """
 
-    MODEL_NAMES: ClassVar = ADeckNames()
+    MODEL_NAMES: ClassVar = None
     NHC_BASINS: ClassVar = ["AL", "EP", "CP"]
     STORM_IDS: ClassVar = list(range(1, 31)) + list(range(90, 100))
+
+    @classmethod
+    def get_model_names(cls) -> ADeckNames:
+        if cls.MODEL_NAMES is None:
+            cls.MODEL_NAMES = ADeckNames()
+        return cls.MODEL_NAMES
 
     def __init__(self) -> None:
         """
