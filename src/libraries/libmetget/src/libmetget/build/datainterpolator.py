@@ -246,7 +246,8 @@ class DataInterpolator:
             if "points" in data_item.dataset().dims:
                 interp_data = self.__interpolate_with_triangulation(data_item)
             else:
-                interp_data = data_item.dataset().interp(
+                source = self.__pad_periodic_longitude(data_item.dataset())
+                interp_data = source.interp(
                     latitude=self.y(), longitude=self.x(), method="linear"
                 )
             if binary:
@@ -707,6 +708,48 @@ class DataInterpolator:
             dataset["longitude"] > 180.0,
             dataset["longitude"] - 360.0,
             dataset["longitude"],
+        )
+
+    @staticmethod
+    def __pad_periodic_longitude(dataset: xr.Dataset) -> xr.Dataset:
+        """
+        Pad a global source grid with wrap-around longitude columns so that
+        linear interpolation is continuous across the 0/360 (and -180/180)
+        seam.
+
+        This only applies to grids that are global (periodic) in longitude;
+        regional sources (e.g. HWRF, COAMPS-TC) are returned unchanged.
+
+        Args:
+            dataset (xr.Dataset): The structured source dataset with a 1-D
+                longitude dimension.
+
+        Returns:
+            xr.Dataset: The dataset, padded with wrap columns if it is global.
+
+        """
+        if "longitude" not in dataset.dims:
+            return dataset
+
+        dataset = dataset.sortby("longitude")
+        lon = dataset["longitude"].to_numpy()
+        if lon.ndim != 1 or lon.size < 2:
+            return dataset
+
+        dx = float(np.median(np.diff(lon)))
+        if dx <= 0.0:
+            return dataset
+
+        wrap_gap = float(lon[0]) + 360.0 - float(lon[-1])
+        if not (0.5 * dx < wrap_gap <= 1.5 * dx):
+            return dataset
+
+        west = dataset.isel(longitude=-1).assign_coords(
+            longitude=float(lon[-1]) - 360.0
+        )
+        east = dataset.isel(longitude=0).assign_coords(longitude=float(lon[0]) + 360.0)
+        return xr.concat(
+            [west, dataset, east], dim="longitude", combine_attrs="override"
         )
 
     @staticmethod
