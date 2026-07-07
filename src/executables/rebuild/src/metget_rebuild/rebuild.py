@@ -40,6 +40,8 @@ import requests
 from geojson import Feature, FeatureCollection, Point
 from libmetget.database.database import Database
 from libmetget.database.tables import (
+    JtwcBtkTable,
+    JtwcFcstTable,
     NhcBtkTable,
     NhcFcstTable,
 )
@@ -307,39 +309,53 @@ def nhc_generate_geojson(data: List[dict]) -> FeatureCollection:
     return FeatureCollection(features=points)
 
 
-def nhc_download_data(table: Type) -> int:  # noqa: PLR0912
+# S3 key prefixes for the best-track / forecast tables of each storm-track source. NHC and JTWC use
+# the identical file layout, so a single re-index routine handles either source.
+_STORM_TRACK_PREFIXES = {
+    NhcBtkTable: "nhc/besttrack",
+    NhcFcstTable: "nhc/forecast",
+    JtwcBtkTable: "jtwc/besttrack",
+    JtwcFcstTable: "jtwc/forecast",
+}
+_BTK_TABLES = (NhcBtkTable, JtwcBtkTable)
+_FCST_TABLES = (NhcFcstTable, JtwcFcstTable)
+
+
+def nhc_download_data(table: Type) -> int:
     bucket = os.environ["METGET_S3_BUCKET"]
     client = boto3.client("s3")
     paginator = client.get_paginator("list_objects_v2")
 
-    if table == NhcBtkTable:
-        prefix = "nhc/besttrack"
-    elif table == NhcFcstTable:
-        prefix = "nhc/forecast"
-    else:
+    prefix = _STORM_TRACK_PREFIXES.get(table)
+    if prefix is None:
         msg = f"Invalid table type: {table}"
         raise ValueError(msg)
+    is_besttrack = table in _BTK_TABLES
 
     n = 0
+    # Only ATCF track files are re-indexed. Other objects that share the prefix (e.g. the JTWC
+    # ".radii.json" accumulation sidecars stored alongside the best tracks) must be skipped, or
+    # read_nhc_data would fail trying to parse them as ATCF.
+    expected_suffix = ".btk" if is_besttrack else ".fcst"
+
     with Database() as db, db.session() as session:
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
             if "Contents" in page:
                 for obj in page["Contents"]:
+                    if not obj["Key"].endswith(expected_suffix):
+                        continue
                     storm_year = obj["Key"].split("/")[2]
                     keys = obj["Key"].split("/")[3].split("_")
                     basin = keys[3]
 
                     logger.info(f"Processing {obj['Key']}")
 
-                    if table == NhcBtkTable:
+                    if is_besttrack:
                         storm_id = int(keys[4].split(".")[0])
                         advisory = None
-                    elif table == NhcFcstTable:
+                    else:
                         storm_id = int(keys[4])
                         advisory = "{:03d}".format(int(keys[5].split(".")[0]))
-                    else:
-                        msg = f"Invalid table type: {table}"
-                        raise ValueError(msg)
 
                     with tempfile.NamedTemporaryFile() as t_file:
                         client.download_file(bucket, obj["Key"], t_file.name)
@@ -347,67 +363,35 @@ def nhc_download_data(table: Type) -> int:  # noqa: PLR0912
                         md5 = nhc_compute_checksum(t_file.name)
                         geojson = nhc_generate_geojson(storm_data)
 
-                    if table == NhcBtkTable:
-                        found = (
-                            session.query(NhcBtkTable)
-                            .filter(
-                                NhcBtkTable.storm_year == storm_year,
-                                NhcBtkTable.basin == basin,
-                                NhcBtkTable.storm == storm_id,
-                                NhcBtkTable.md5 == md5,
-                            )
-                            .count()
-                        )
-                    elif table == NhcFcstTable:
-                        found = (
-                            session.query(NhcFcstTable)
-                            .filter(
-                                NhcFcstTable.storm_year == storm_year,
-                                NhcFcstTable.basin == basin,
-                                NhcFcstTable.storm == storm_id,
-                                NhcFcstTable.advisory == advisory,
-                                NhcFcstTable.md5 == md5,
-                            )
-                            .count()
-                        )
-                    else:
-                        msg = f"Invalid table type: {table}"
-                        raise ValueError(msg)
+                    filters = [
+                        table.storm_year == storm_year,
+                        table.basin == basin,
+                        table.storm == storm_id,
+                        table.md5 == md5,
+                    ]
+                    if not is_besttrack:
+                        filters.append(table.advisory == advisory)
+                    found = session.query(table).filter(*filters).count()
 
                     if found == 0:
-                        if table == NhcBtkTable:
-                            record = NhcBtkTable(
-                                storm_year=storm_year,
-                                basin=basin,
-                                storm=storm_id,
-                                advisory_start=storm_data[0]["time"],
-                                advisory_end=storm_data[-1]["time"],
-                                advisory_duration_hr=(
-                                    storm_data[-1]["time"] - storm_data[0]["time"]
-                                ).total_seconds()
-                                / 3600.0,
-                                filepath=obj["Key"],
-                                md5=md5,
-                                accessed=datetime.now(),
-                                geometry_data=geojson,
-                            )
-                        elif table == NhcFcstTable:
-                            record = NhcFcstTable(
-                                storm_year=storm_year,
-                                basin=basin,
-                                storm=storm_id,
-                                advisory=advisory,
-                                advisory_start=storm_data[0]["time"],
-                                advisory_end=storm_data[-1]["time"],
-                                advisory_duration_hr=(
-                                    storm_data[-1]["time"] - storm_data[0]["time"]
-                                ).total_seconds()
-                                / 3600.0,
-                                filepath=obj["Key"],
-                                md5=md5,
-                                accessed=datetime.now(),
-                                geometry_data=geojson,
-                            )
+                        fields = {
+                            "storm_year": storm_year,
+                            "basin": basin,
+                            "storm": storm_id,
+                            "advisory_start": storm_data[0]["time"],
+                            "advisory_end": storm_data[-1]["time"],
+                            "advisory_duration_hr": (
+                                storm_data[-1]["time"] - storm_data[0]["time"]
+                            ).total_seconds()
+                            / 3600.0,
+                            "filepath": obj["Key"],
+                            "md5": md5,
+                            "accessed": datetime.now(),
+                            "geometry_data": geojson,
+                        }
+                        if not is_besttrack:
+                            fields["advisory"] = advisory
+                        record = table(**fields)
 
                         session.add(record)
                         n += 1
@@ -568,6 +552,18 @@ def rebuild_nhc() -> int:
     return n
 
 
+def rebuild_jtwc() -> int:
+    logger.info("Beginning to run JTWC rebuild")
+    n = 0
+
+    # The JTWC data is only available from the upstream sources for the current season, so the
+    # rebuild simply re-indexes the ATCF files already present in S3 back into the database.
+    n += nhc_download_data(JtwcBtkTable)
+    n += nhc_download_data(JtwcFcstTable)
+
+    return n
+
+
 def check_for_environment_variables() -> None:
     required_env_vars = [
         "METGET_DATABASE_USER",
@@ -625,6 +621,8 @@ def rebuilder() -> None:
         rebuild_gefs(args.start, args.end)
     elif args.source == "nhc":
         rebuild_nhc()
+    elif args.source == "jtwc":
+        rebuild_jtwc()
     else:
         msg = f"Invalid source type: {args.source}"
         raise ValueError(msg)

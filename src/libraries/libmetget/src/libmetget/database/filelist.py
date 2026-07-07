@@ -110,7 +110,7 @@ class Filelist:
         self.__error = []
         self.__valid = False
 
-        if self.__service == "nhc":
+        if self.__service in ("nhc", "jtwc"):
             self.__parse_nhc_kwargs(kwargs)
         else:
             self.__parse_generic_kwargs(kwargs)
@@ -234,8 +234,9 @@ class Filelist:
         """
         filelist_obj = None
 
-        if self.__service == "nhc":
+        if self.__service in ("nhc", "jtwc"):
             filelist_obj = FilelistNHC(
+                source=self.__service,
                 storm=int(self.__storm),
                 storm_year=self.__storm_year,
                 advisory=self.__advisory,

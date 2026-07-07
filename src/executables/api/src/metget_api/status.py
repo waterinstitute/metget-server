@@ -42,6 +42,8 @@ from libmetget.database.tables import (
     HrrrAlaskaTable,
     HrrrTable,
     HwrfTable,
+    JtwcBtkTable,
+    JtwcFcstTable,
     NamTable,
     NhcBtkTable,
     NhcFcstTable,
@@ -61,6 +63,7 @@ AVAILABLE_MET_MODELS = [
     "hrrr",
     "hrrr-alaska",
     "nhc",
+    "jtwc",
     "coamps",
     "ctcx",
     "wpc",
@@ -234,6 +237,10 @@ class Status:
             ),
             "nhc": (
                 Status.__get_status_nhc,
+                [time_limit, start_dt, end_dt, basin, storm],
+            ),
+            "jtwc": (
+                Status.__get_status_jtwc,
                 [time_limit, start_dt, end_dt, basin, storm],
             ),
             "coamps": (
@@ -1257,19 +1264,56 @@ class Status:
             Dictionary containing the status information and the HTTP status code
 
         """
-        best_track = Status.__get_status_nhc_besttrack(limit, start, end, basin, storm)
-        forecast = Status.__get_status_nhc_forecast(limit, start, end, basin, storm)
+        best_track = Status.__get_status_besttrack(
+            NhcBtkTable, limit, start, end, basin, storm
+        )
+        forecast = Status.__get_status_forecast(
+            NhcFcstTable, limit, start, end, basin, storm
+        )
         return {"best_track": best_track, "forecast": forecast}
 
     @staticmethod
-    def __get_status_nhc_besttrack(
+    def __get_status_jtwc(
         limit: timedelta, start: datetime, end: datetime, basin: str, storm: str
     ) -> dict:
         """
-        This method is used to generate the status information for the
-        NHC best track data.
+        This method is used to generate the status for the JTWC storm-track data. It mirrors the
+        NHC status exactly, but queries the parallel jtwc_btk / jtwc_fcst tables.
 
         Args:
+            limit: The limit in days to use when generating the status
+            start: The start date to use when generating the status
+            end: The end date to use when generating the status
+            basin: The basin to use when generating the status
+            storm: The storm to use when generating the status
+
+        Returns:
+            Dictionary containing the status information and the HTTP status code
+
+        """
+        best_track = Status.__get_status_besttrack(
+            JtwcBtkTable, limit, start, end, basin, storm
+        )
+        forecast = Status.__get_status_forecast(
+            JtwcFcstTable, limit, start, end, basin, storm
+        )
+        return {"best_track": best_track, "forecast": forecast}
+
+    @staticmethod
+    def __get_status_besttrack(
+        table: type,
+        limit: timedelta,
+        start: datetime,
+        end: datetime,
+        basin: str,
+        storm: str,
+    ) -> dict:
+        """
+        This method is used to generate the status information for the best track data of a
+        storm-track source (NHC or JTWC), selected via the ``table`` argument.
+
+        Args:
+            table: The best-track table to query (NhcBtkTable or JtwcBtkTable)
             limit: The limit in days to use when generating the status
             start: The start date to use when generating the status
             end: The end date to use when generating the status
@@ -1284,40 +1328,31 @@ class Status:
 
         with Database() as db, db.session() as session:
             date_filter = or_(
-                NhcBtkTable.advisory_start.between(
-                    time_limits["start"], time_limits["end"]
-                ),
-                NhcBtkTable.advisory_end.between(
-                    time_limits["start"], time_limits["end"]
-                ),
+                table.advisory_start.between(time_limits["start"], time_limits["end"]),
+                table.advisory_end.between(time_limits["start"], time_limits["end"]),
             )
 
             query_filter = [date_filter]
             if storm != "all":
-                query_filter.append(NhcBtkTable.storm == storm)
+                query_filter.append(table.storm == storm)
             if basin != "all":
-                query_filter.append(NhcBtkTable.basin == basin)
+                query_filter.append(table.basin == basin)
 
-            basins = (
-                session.query(NhcBtkTable.basin).distinct().filter(*query_filter).all()
-            )
+            basins = session.query(table.basin).distinct().filter(*query_filter).all()
             storm_years = (
-                session.query(NhcBtkTable.storm_year)
-                .distinct()
-                .filter(*query_filter)
-                .all()
+                session.query(table.storm_year).distinct().filter(*query_filter).all()
             )
             storms = (
                 session.query(
-                    NhcBtkTable.basin,
-                    NhcBtkTable.storm_year,
-                    NhcBtkTable.storm,
-                    NhcBtkTable.advisory_start,
-                    NhcBtkTable.advisory_end,
-                    NhcBtkTable.advisory_duration_hr,
+                    table.basin,
+                    table.storm_year,
+                    table.storm,
+                    table.advisory_start,
+                    table.advisory_end,
+                    table.advisory_duration_hr,
                 )
                 .filter(*query_filter)
-                .order_by(NhcBtkTable.basin, NhcBtkTable.storm)
+                .order_by(table.basin, table.storm)
                 .all()
             )
 
@@ -1343,13 +1378,20 @@ class Status:
         return storm_data
 
     @staticmethod
-    def __get_status_nhc_forecast(
-        limit: timedelta, start: datetime, end: datetime, basin: str, storm: str
+    def __get_status_forecast(
+        table: type,
+        limit: timedelta,
+        start: datetime,
+        end: datetime,
+        basin: str,
+        storm: str,
     ) -> dict:
         """
-        Method to generate the status data for NHC forecast data.
+        Method to generate the status data for the forecast data of a storm-track source (NHC or
+        JTWC), selected via the ``table`` argument.
 
         Args:
+            table: The forecast table to query (NhcFcstTable or JtwcFcstTable)
             limit: The limit in days to use when generating the status
             start: The start date to use when generating the status
             end: The end date to use when generating the status
@@ -1364,40 +1406,31 @@ class Status:
 
         with Database() as db, db.session() as session:
             date_filter = or_(
-                NhcFcstTable.advisory_start.between(
-                    time_limits["start"], time_limits["end"]
-                ),
-                NhcFcstTable.advisory_end.between(
-                    time_limits["start"], time_limits["end"]
-                ),
+                table.advisory_start.between(time_limits["start"], time_limits["end"]),
+                table.advisory_end.between(time_limits["start"], time_limits["end"]),
             )
 
             query_filter = [date_filter]
             if storm != "all":
-                query_filter.append(NhcFcstTable.storm == storm)
+                query_filter.append(table.storm == storm)
             if basin != "all":
-                query_filter.append(NhcFcstTable.basin == basin)
+                query_filter.append(table.basin == basin)
 
-            basins = (
-                session.query(NhcFcstTable.basin).distinct().filter(*query_filter).all()
-            )
+            basins = session.query(table.basin).distinct().filter(*query_filter).all()
 
             storm_years = (
-                session.query(NhcFcstTable.storm_year)
-                .distinct()
-                .filter(*query_filter)
-                .all()
+                session.query(table.storm_year).distinct().filter(*query_filter).all()
             )
 
             storms = (
                 session.query(
-                    NhcFcstTable.basin,
-                    NhcFcstTable.storm_year,
-                    NhcFcstTable.storm,
+                    table.basin,
+                    table.storm_year,
+                    table.storm,
                 )
                 .distinct()
                 .filter(*query_filter)
-                .order_by(NhcFcstTable.basin, NhcFcstTable.storm)
+                .order_by(table.basin, table.storm)
                 .all()
             )
 
@@ -1414,17 +1447,17 @@ class Status:
 
                 this_storm = (
                     session.query(
-                        NhcFcstTable.advisory,
-                        NhcFcstTable.advisory_start,
-                        NhcFcstTable.advisory_end,
-                        NhcFcstTable.advisory_duration_hr,
+                        table.advisory,
+                        table.advisory_start,
+                        table.advisory_end,
+                        table.advisory_duration_hr,
                     )
                     .filter(
-                        NhcFcstTable.basin == b,
-                        NhcFcstTable.storm_year == y,
-                        NhcFcstTable.storm == n,
+                        table.basin == b,
+                        table.storm_year == y,
+                        table.storm == n,
                     )
-                    .order_by(NhcFcstTable.advisory)
+                    .order_by(table.advisory)
                     .all()
                 )
 

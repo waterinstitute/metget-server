@@ -111,6 +111,15 @@ def test_get_rejects_invalid_basin(patch_db: PatchDb) -> None:
     assert "ALL" in message["message"]
 
 
+def test_get_accepts_jtwc_basin(patch_db: PatchDb) -> None:
+    # WP is a valid JTWC basin and must pass basin validation (i.e. it must not be rejected with
+    # the "Basin must be ..." 400 error that only unknown basins receive).
+    patch_db([])
+    message, status = ADeck.get("2026", "WP", "OFCL", "all", CYCLE)
+    if status == 400 and isinstance(message, dict):
+        assert "Basin must be" not in message.get("message", "")
+
+
 def test_all_basins_all_storms_nested_by_basin(patch_db: PatchDb) -> None:
     # storm="all", model="OFCL", basin="all" -> nest {basin: {storm: track}}.
     # Storm number 9 exists in both AL and EP and must not collide.

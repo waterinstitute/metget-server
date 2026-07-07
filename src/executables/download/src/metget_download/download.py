@@ -36,6 +36,7 @@ from libmetget.download.coampsdownloader import CoampsDownloader
 from libmetget.download.ctcxdownloader import CtcxDownloader
 from libmetget.download.hafsdownloader import HafsDownloader
 from libmetget.download.hwrfdownloader import HwrfDownloader
+from libmetget.download.jtwcdownloader import JtwcDownloader
 from libmetget.download.ncepgefsdownloader import NcepGefsdownloader
 from libmetget.download.ncepgfsdownloader import NcepGfsdownloader
 from libmetget.download.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
@@ -132,6 +133,14 @@ def nhc_download() -> int:
     return n
 
 
+def jtwc_download() -> int:
+    jtwc = JtwcDownloader()
+    logger.info("Beginning downloading JTWC data")
+    n = jtwc.download()
+    logger.info(f"JTWC complete. {n:d} files downloaded")
+    return n
+
+
 def coamps_download() -> int:
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
@@ -207,7 +216,7 @@ def metget_download() -> None:
         "--service",
         type=str,
         required=True,
-        help="Service to download from (nam, gfs, gefs, hwrf, nhc, coamps, hrrr, hrrr-alaska, wpc, rrfs, refs, adeck)",
+        help="Service to download from (nam, gfs, gefs, hwrf, nhc, jtwc, coamps, hrrr, hrrr-alaska, wpc, rrfs, refs, adeck)",
     )
     args = p.parse_args()
 
@@ -222,6 +231,7 @@ def metget_download() -> None:
         "hwrf": hwrf_download,
         "hafs": hafs_download,
         "nhc": nhc_download,
+        "jtwc": jtwc_download,
         "coamps": coamps_download,
         "ctcx": ctcx_download,
         "hrrr": hrrr_download,

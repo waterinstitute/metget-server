@@ -31,12 +31,27 @@ import gzip
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import ClassVar, Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional, Tuple
 
 import requests
 from geojson import Feature, FeatureCollection, Point
 
 KT_TO_MPH = 1.15078
+
+
+def _atcf_int(value: str) -> int:
+    """
+    Safely parse an integer from an ATCF field. JTWC a-decks (unlike the NHC a-decks) leave some
+    numeric fields blank (e.g. the radius to maximum winds), so a blank or non-numeric field is
+    treated as zero rather than raising.
+    """
+    value = value.strip()
+    if not value:
+        return 0
+    try:
+        return int(value)
+    except ValueError:
+        return 0
 
 
 class ADeckDownloaderException(Exception):
@@ -320,19 +335,45 @@ class ADeckStorms:
 
     BASE_URL: ClassVar = "https://ftp.nhc.noaa.gov/atcf/aid_public"
     BASE_URL_ARCHIVE: ClassVar = "https://ftp.nhc.noaa.gov/atcf/archive"
+    # JTWC basins are served by the UCAR Tropical Cyclone Guidance Project real-time repository as
+    # plain-text (not gzipped) a-decks, in a flat current-year directory.
+    UCAR_ADECK_URL: ClassVar = (
+        "https://hurricanes.ral.ucar.edu/repository/data/adecks_open"
+    )
+    NHC_BASINS: ClassVar = ["al", "ep", "cp"]
+    JTWC_BASINS: ClassVar = ["wp", "io", "sh"]
 
     @staticmethod
-    def __generate_url(basin: str, year: int, storm: int) -> str:
+    def __generate_url(basin: str, year: int, storm: int) -> Tuple[str, bool]:
         """
-        Generates the URL for a given year and storm number.
-        """
-        if basin.lower() not in ["al", "ep", "cp"]:
-            msg = "Invalid basin."
-            raise ValueError(msg)
+        Generates the a-deck URL for a given basin, year and storm number.
 
-        if year != datetime.now().year:
-            return f"{ADeckStorms.BASE_URL_ARCHIVE}/{year:4d}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
-        return f"{ADeckStorms.BASE_URL}/a{basin.lower()}{storm:02d}{year:4d}.dat.gz"
+        Returns:
+            A tuple of (url, is_gzipped). NHC a-decks are gzipped; the UCAR JTWC a-decks are plain.
+
+        """
+        basin_lc = basin.lower()
+
+        if basin_lc in ADeckStorms.NHC_BASINS:
+            if year != datetime.now().year:
+                return (
+                    f"{ADeckStorms.BASE_URL_ARCHIVE}/{year:4d}/a{basin_lc}{storm:02d}{year:4d}.dat.gz",
+                    True,
+                )
+            return (
+                f"{ADeckStorms.BASE_URL}/a{basin_lc}{storm:02d}{year:4d}.dat.gz",
+                True,
+            )
+
+        if basin_lc in ADeckStorms.JTWC_BASINS:
+            # The UCAR real-time repository only carries the current season's a-decks.
+            return (
+                f"{ADeckStorms.UCAR_ADECK_URL}/a{basin_lc}{storm:02d}{year:4d}.dat",
+                False,
+            )
+
+        msg = "Invalid basin."
+        raise ValueError(msg)
 
     def download_storm(self, basin: str, year: int, storm: int) -> Dict[str, ModelDeck]:
         """
@@ -347,13 +388,14 @@ class ADeckStorms:
             A dictionary containing the parsed data from the A-Deck.
 
         """
-        url = self.__generate_url(basin, year, storm)
+        url, is_gzipped = self.__generate_url(basin, year, storm)
         response = requests.get(url)
         if response.status_code != 200:
             msg = "Failed to download the A-Deck file."
             raise ADeckDownloaderException(msg)
 
-        data = gzip.decompress(response.content).decode("utf-8").split("\n")
+        raw = gzip.decompress(response.content) if is_gzipped else response.content
+        data = raw.decode("utf-8").split("\n")
 
         deck_dict = {}
         for line in data:
@@ -364,10 +406,10 @@ class ADeckStorms:
             basin = split_line[0]
             cycle = datetime.strptime(split_line[2].strip(), "%Y%m%d%H")
             model = split_line[4].strip()
-            forecast_hour = int(split_line[5])
+            forecast_hour = _atcf_int(split_line[5])
             forecast_time = datetime.strptime(
                 split_line[2].strip(), "%Y%m%d%H"
-            ) + timedelta(hours=int(split_line[5]))
+            ) + timedelta(hours=forecast_hour)
 
             latitude = float(split_line[6][:-1]) / 10
             if split_line[6][-1] == "S":
@@ -377,10 +419,12 @@ class ADeckStorms:
             if split_line[7][-1] == "W":
                 longitude = -longitude
 
-            max_wind = int(split_line[8])
-            min_pressure = int(split_line[9])
+            max_wind = _atcf_int(split_line[8])
+            min_pressure = _atcf_int(split_line[9])
 
-            radius_to_max_wind = int(split_line[20]) if len(split_line) > 20 else 0.0
+            radius_to_max_wind = (
+                _atcf_int(split_line[20]) if len(split_line) > 20 else 0
+            )
 
             snapshot = DeckSnapshot(
                 basin=basin,

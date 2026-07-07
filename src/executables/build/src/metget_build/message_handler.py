@@ -272,7 +272,7 @@ class MessageHandler:
             )
             logger.info(f"Selected {len(filelist.files()):d} files for interpolation")
 
-            if input_data.domain(i).service() == "nhc":
+            if input_data.domain(i).service() in ("nhc", "jtwc"):
                 nhc_data[i] = filelist.files()
             else:
                 db_files.append(filelist.files())
@@ -659,9 +659,9 @@ class MessageHandler:
             f"Processing domain {domain_index + 1:d} of {input_data.num_domains():d}"
         )
 
-        if input_data.domain(domain_index).service() == "nhc":
-            logger.error("NHC to gridded data not implemented")
-            msg = "NHC to gridded data no implemented"
+        if input_data.domain(domain_index).service() in ("nhc", "jtwc"):
+            logger.error("Storm track to gridded data not implemented")
+            msg = "Storm track to gridded data not implemented"
             raise RuntimeError(msg)
 
         logger.debug(f"Generating source key for domain {domain_index + 1:d}")
@@ -1114,7 +1114,7 @@ class MessageHandler:
             d = input_data.domain(i)
             domain_data.append([])
 
-            if d.service() == "nhc":
+            if d.service() in ("nhc", "jtwc"):
                 MessageHandler.__generate_merged_nhc_files(
                     d, domain_data, i, met_field, nhc_data
                 )
@@ -1366,6 +1366,10 @@ class MessageHandler:
         """
         s3 = S3file(os.environ["METGET_S3_BUCKET"])
 
+        # The storm-track source ("nhc" or "jtwc") names the local scratch subfolder used for the
+        # downloaded ATCF files and the merged track filename prefix.
+        source = domain.service()
+
         if not nhc_data[index]["best_track"] and not nhc_data[index]["forecast_track"]:
             logger.error(f"No data found for domain {index:d}. Giving up")
             msg = f"No data found for domain {index:d}. Giving up"
@@ -1374,7 +1378,7 @@ class MessageHandler:
         local_file_forecast = None
         if nhc_data[index]["best_track"]:
             local_file_besttrack = s3.download(
-                nhc_data[index]["best_track"]["filepath"], "nhc"
+                nhc_data[index]["best_track"]["filepath"], source
             )
             if not met_field:
                 new_file = os.path.basename(local_file_besttrack)
@@ -1388,7 +1392,7 @@ class MessageHandler:
             )
         if nhc_data[index]["forecast_track"]:
             local_file_forecast = s3.download(
-                nhc_data[index]["forecast_track"]["filepath"], "nhc"
+                nhc_data[index]["forecast_track"]["filepath"], source
             )
             if not met_field:
                 new_file = os.path.basename(local_file_forecast)
@@ -1401,7 +1405,8 @@ class MessageHandler:
                 }
             )
         if nhc_data[index]["best_track"] and nhc_data[index]["forecast_track"]:
-            merge_file = "nhc_merge_{:04d}_{:s}_{:s}_{:s}.trk".format(
+            merge_file = "{:s}_merge_{:04d}_{:s}_{:s}_{:s}.trk".format(
+                source,
                 nhc_data[index]["best_track"]["start"].year,
                 domain.basin(),
                 domain.storm(),

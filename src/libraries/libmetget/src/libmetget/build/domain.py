@@ -42,6 +42,7 @@ VALID_SERVICES = [
     "coamps-tc",
     "coamps-ctcx",
     "nhc",
+    "jtwc",
     "hrrr-conus",
     "hrrr-alaska",
     "ncep-hafs-a",
@@ -49,6 +50,15 @@ VALID_SERVICES = [
     "hwrf",
     "rrfs",
 ]
+
+# Storm-track services and the basins that are valid for each. NHC covers the Atlantic and the
+# East/Central Pacific; JTWC covers the Western Pacific, North Indian Ocean, and Southern
+# Hemisphere. The basins are disjoint, so a basin is only valid for its own service.
+STORM_TRACK_SERVICES = ("nhc", "jtwc")
+SERVICE_BASINS = {
+    "nhc": ["al", "ep", "cp"],
+    "jtwc": ["wp", "io", "sh"],
+}
 
 
 class Domain:
@@ -241,7 +251,7 @@ class Domain:
             self.service() == "hwrf"
             or self.service() == "coamps-tc"
             or self.service() == "coamps-ctcx"
-            or self.service() == "nhc"
+            or self.service() in STORM_TRACK_SERVICES
             or "hafs" in self.service()
         ):
             if "storm" in self.__json:
@@ -253,15 +263,24 @@ class Domain:
 
     def __get_basin(self) -> None:
         """
-        Gets the basin name for the domain from the json object if the service is nhc.
+        Gets the basin name for the domain from the json object if the service is a storm-track
+        service (nhc or jtwc). The basin is validated against the basins that are valid for that
+        service; a basin that belongs to a different service invalidates the domain.
 
         Returns:
             None
 
         """
-        if self.service() == "nhc":
+        if self.service() in STORM_TRACK_SERVICES:
             if "basin" in self.__json:
-                self.__basin = self.__json["basin"]
+                basin = str(self.__json["basin"]).lower()
+                if basin not in SERVICE_BASINS[self.service()]:
+                    logger.error(
+                        f"Basin '{basin:s}' is not valid for service "
+                        f"'{self.service():s}'"
+                    )
+                    self.__valid = False
+                self.__basin = basin
             else:
                 self.__valid = False
         else:
@@ -269,13 +288,14 @@ class Domain:
 
     def __get_advisory(self) -> None:
         """
-        Gets the advisory name for the domain from the json object if the service is nhc.
+        Gets the advisory name for the domain from the json object if the service is a storm-track
+        service (nhc or jtwc).
 
         Returns:
             None
 
         """
-        if self.service() == "nhc":
+        if self.service() in STORM_TRACK_SERVICES:
             if "advisory" in self.__json:
                 self.__advisory = str(self.__json["advisory"])
             else:
@@ -285,13 +305,14 @@ class Domain:
 
     def __get_storm_year(self) -> None:
         """
-        Gets the storm year for the domain from the json object if the service is nhc.
+        Gets the storm year for the domain from the json object if the service is a storm-track
+        service (nhc or jtwc).
 
         Returns:
             None
 
         """
-        if self.service() == "nhc":
+        if self.service() in STORM_TRACK_SERVICES:
             if "storm_year" in self.__json:
                 self.__storm_year = self.__json["storm_year"]
             else:

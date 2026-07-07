@@ -29,14 +29,21 @@
 from typing import Any, Union
 
 from ..database import Database
-from ..tables import NhcBtkTable, NhcFcstTable
+from ..tables import JtwcBtkTable, JtwcFcstTable, NhcBtkTable, NhcFcstTable
+
+# The best-track / forecast tables are keyed by meteorological source. NHC and JTWC store the same
+# ATCF format in parallel tables so the query logic below is identical for either source.
+_SOURCE_TABLES = {
+    "nhc": (NhcBtkTable, NhcFcstTable),
+    "jtwc": (JtwcBtkTable, JtwcFcstTable),
+}
 
 
 class FilelistNHC:
     """
-    Class to handle querying NHC track data.
+    Class to handle querying storm track data for the storm-track services (NHC and JTWC).
 
-    Note that this class does not inherit from the FilelistBase class since the NHC
+    Note that this class does not inherit from the FilelistBase class since the storm track
     data is wholly different from the other data sources, but the concept is similar
     """
 
@@ -50,6 +57,12 @@ class FilelistNHC:
             if arg not in kwargs:
                 msg = f"Missing required argument: {arg}"
                 raise ValueError(msg)
+
+        self.__source: str = kwargs.get("source", "nhc")
+        if self.__source not in _SOURCE_TABLES:
+            msg = f"Invalid storm track source: {self.__source}"
+            raise ValueError(msg)
+        self.__btk_table, self.__fcst_table = _SOURCE_TABLES[self.__source]
 
         self.__storm: Union[None, str] = kwargs.get("storm")
         self.__basin: Union[None, str] = kwargs.get("basin")
@@ -82,13 +95,15 @@ class FilelistNHC:
             dict: A dictionary containing the best track and forecast track files
 
         """
+        btk_table = self.__btk_table
+        fcst_table = self.__fcst_table
         with Database() as db, db.session() as session:
             best_track_query = (
-                session.query(NhcBtkTable)
+                session.query(btk_table)
                 .filter(
-                    NhcBtkTable.storm_year == self.__storm_year,
-                    NhcBtkTable.basin == self.__basin,
-                    NhcBtkTable.storm == self.__storm,
+                    btk_table.storm_year == self.__storm_year,
+                    btk_table.basin == self.__basin,
+                    btk_table.storm == self.__storm,
                 )
                 .all()
             )
@@ -104,12 +119,12 @@ class FilelistNHC:
                 }
 
             forecast_track_query = (
-                session.query(NhcFcstTable)
+                session.query(fcst_table)
                 .filter(
-                    NhcFcstTable.storm_year == self.__storm_year,
-                    NhcFcstTable.basin == self.__basin,
-                    NhcFcstTable.storm == self.__storm,
-                    NhcFcstTable.advisory == self.__advisory,
+                    fcst_table.storm_year == self.__storm_year,
+                    fcst_table.basin == self.__basin,
+                    fcst_table.storm == self.__storm,
+                    fcst_table.advisory == self.__advisory,
                 )
                 .all()
             )

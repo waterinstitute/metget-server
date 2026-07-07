@@ -86,6 +86,33 @@ CREATE TABLE nhc_fcst(
   accessed TIMESTAMP NOT NULL,
   geometry_data JSON NOT NULL
 );
+CREATE TABLE jtwc_btk(
+  id SERIAL PRIMARY KEY,
+  storm_year INTEGER NOT NULL,
+  basin VARCHAR(256) NOT NULL,
+  storm INTEGER NOT NULL,
+  advisory_start TIMESTAMP NOT NULL,
+  advisory_end TIMESTAMP NOT NULL,
+  advisory_duration_hr INT NOT NULL,
+  filepath VARCHAR(256) NOT NULL,
+  md5 VARCHAR(32) NOT NULL,
+  accessed TIMESTAMP NOT NULL,
+  geometry_data JSON NOT NULL
+);
+CREATE TABLE jtwc_fcst(
+  id SERIAL PRIMARY KEY,
+  storm_year INTEGER NOT NULL,
+  basin VARCHAR(256) NOT NULL,
+  storm INTEGER NOT NULL,
+  advisory VARCHAR(256) NOT NULL,
+  advisory_start TIMESTAMP NOT NULL,
+  advisory_end TIMESTAMP NOT NULL,
+  advisory_duration_hr INT NOT NULL,
+  filepath VARCHAR(256) NOT NULL,
+  md5 VARCHAR(32) NOT NULL,
+  accessed TIMESTAMP NOT NULL,
+  geometry_data JSON NOT NULL
+);
 CREATE TABLE coamps_tc(
   id SERIAL PRIMARY KEY,
   stormname VARCHAR(256) NOT NULL,
@@ -249,3 +276,8 @@ CREATE INDEX nhc_adeck_forecastcycle_idx ON nhc_adeck USING brin (forecastcycle)
 --
 CREATE INDEX nhc_fcst_basin_idx ON nhc_fcst USING brin (basin);
 CREATE INDEX nhc_btk_basin_idx ON nhc_btk USING brin (basin);
+--
+-- Create Brin Index on basin for jtwc_fcst and jtwc_btk
+--
+CREATE INDEX jtwc_fcst_basin_idx ON jtwc_fcst USING brin (basin);
+CREATE INDEX jtwc_btk_basin_idx ON jtwc_btk USING brin (basin);

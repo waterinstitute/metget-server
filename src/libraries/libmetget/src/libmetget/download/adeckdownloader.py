@@ -16,12 +16,17 @@ from libmetget.download.adeck import (
 
 class ADeckDownloader:
     """
-    Downloads A-Deck tracks from the NHC website and stores them in the database.
+    Downloads A-Deck tracks from the NHC website (Atlantic / East / Central Pacific) and the UCAR
+    Tropical Cyclone Guidance Project repository (JTWC: Western Pacific / North Indian / Southern
+    Hemisphere) and stores them in the database.
     """
 
     MODEL_NAMES: ClassVar = None
     NHC_BASINS: ClassVar = ["AL", "EP", "CP"]
-    STORM_IDS: ClassVar = list(range(1, 31)) + list(range(90, 100))
+    JTWC_BASINS: ClassVar = ["WP", "IO", "SH"]
+    BASINS: ClassVar = NHC_BASINS + JTWC_BASINS
+    # Southern Hemisphere seasons can run well past storm 30, so probe a wider range than the NHC.
+    STORM_IDS: ClassVar = list(range(1, 41)) + list(range(90, 100))
 
     @classmethod
     def get_model_names(cls) -> ADeckNames:
@@ -207,7 +212,7 @@ class ADeckDownloader:
 
         db_tracks = self.__get_tracks_currently_in_db()
 
-        for basin in ADeckDownloader.NHC_BASINS:
+        for basin in ADeckDownloader.BASINS:
             for storm in ADeckDownloader.STORM_IDS:
                 this_storm_track_count = 0
                 try:
