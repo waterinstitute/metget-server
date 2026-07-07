@@ -30,7 +30,23 @@ from typing import Tuple, Union
 
 import flask
 from libmetget.database.database import Database
-from libmetget.database.tables import NhcBtkTable, NhcFcstTable
+from libmetget.database.tables import (
+    JtwcBtkTable,
+    JtwcFcstTable,
+    NhcBtkTable,
+    NhcFcstTable,
+)
+
+# Storm-track sources and the basins that are valid for each. NHC covers al/ep/cp; JTWC covers
+# wp/io/sh. The (best-track, forecast) table pair is selected by the requested source.
+_SOURCE_TABLES = {
+    "nhc": (NhcBtkTable, NhcFcstTable),
+    "jtwc": (JtwcBtkTable, JtwcFcstTable),
+}
+_SOURCE_BASINS = {
+    "nhc": ("al", "ep", "cp"),
+    "jtwc": ("wp", "io", "sh"),
+}
 
 
 class StormTrackQueryStringParameters:
@@ -51,6 +67,7 @@ class StormTrackQueryStringParameters:
         self.__storm = None
         self.__advisory = None
         self.__type = None
+        self.__source = "nhc"
         self.__valid = False
         self.__error_message = None
         self.__parse_request(request)
@@ -127,6 +144,16 @@ class StormTrackQueryStringParameters:
         """
         return self.__type
 
+    def source(self) -> str:
+        """
+        Returns the meteorological source query string parameter (defaults to 'nhc').
+
+        Returns:
+            The source query string parameter ('nhc' or 'jtwc')
+
+        """
+        return self.__source
+
     def __parse_request(self, request: flask.Request) -> None:  # noqa: PLR0912
         """
         Parses the query string parameters from the request.
@@ -144,8 +171,23 @@ class StormTrackQueryStringParameters:
             self.__error_message = "Query string parameter 'year' not provided"
             return
 
+        if "source" in request.args:
+            self.__source = request.args["source"].lower()
+            if self.__source not in _SOURCE_TABLES:
+                self.__error_message = (
+                    f"Invalid source specified: {self.__source:s}. "
+                    "Must be 'nhc' or 'jtwc'"
+                )
+                return
+
         if "basin" in request.args:
-            self.__basin = request.args["basin"]
+            self.__basin = request.args["basin"].lower()
+            if self.__basin not in _SOURCE_BASINS[self.__source]:
+                self.__error_message = (
+                    f"Basin '{self.__basin:s}' is not valid for source "
+                    f"'{self.__source:s}'"
+                )
+                return
         else:
             self.__error_message = "Query string parameter 'basin' not provided"
 
@@ -203,6 +245,7 @@ class StormTrack:
             "body": {
                 "query": {
                     "type": query.type(),
+                    "source": query.source(),
                     "advisory": query.advisory(),
                     "basin": query.basin(),
                     "storm": query.storm(),
@@ -249,11 +292,12 @@ class StormTrack:
             GEOJSON data for the best track
 
         """
+        btk_table = _SOURCE_TABLES[query.source()][0]
         with Database() as db, db.session() as session:
-            query = session.query(NhcBtkTable.geometry_data).filter(
-                NhcBtkTable.storm_year == query.year(),
-                NhcBtkTable.basin == query.basin(),
-                NhcBtkTable.storm == query.storm(),
+            query = session.query(btk_table.geometry_data).filter(
+                btk_table.storm_year == query.year(),
+                btk_table.basin == query.basin(),
+                btk_table.storm == query.storm(),
             )
         return query.all()
 
@@ -269,11 +313,12 @@ class StormTrack:
             GEOJSON data for the forecast track
 
         """
+        fcst_table = _SOURCE_TABLES[query.source()][1]
         with Database() as db, db.session() as session:
-            query = session.query(NhcFcstTable.geometry_data).filter(
-                NhcFcstTable.storm_year == query.year(),
-                NhcFcstTable.basin == query.basin(),
-                NhcFcstTable.storm == query.storm(),
-                NhcFcstTable.advisory == query.advisory(),
+            query = session.query(fcst_table.geometry_data).filter(
+                fcst_table.storm_year == query.year(),
+                fcst_table.basin == query.basin(),
+                fcst_table.storm == query.storm(),
+                fcst_table.advisory == query.advisory(),
             )
         return query.all()

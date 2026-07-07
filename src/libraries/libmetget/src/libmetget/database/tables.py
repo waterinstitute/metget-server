@@ -561,6 +561,51 @@ class NhcAdeck(TableBase):
     geometry_data = Column(MutableDict.as_mutable(JSONB))
 
 
+class JtwcBtkTable(TableBase):
+    """
+    This class is used to create the table that holds the JTWC Best Track data which has been
+    downloaded from the UCAR TCGP repository. The data is stored using the same ATCF b-deck
+    format as the NHC best track data so that downstream consumers require no new format support.
+    """
+
+    __tablename__ = "jtwc_btk"
+
+    index = Column("id", Integer, primary_key=True)
+    storm_year = Column(Integer)
+    basin = Column(String)
+    storm = Column(Integer)
+    advisory_start = Column(DateTime)
+    advisory_end = Column(DateTime)
+    advisory_duration_hr = Column(Integer)
+    filepath = Column(String)
+    md5 = Column(String)
+    accessed = Column(DateTime)
+    geometry_data = Column(MutableDict.as_mutable(JSONB))
+
+
+class JtwcFcstTable(TableBase):
+    """
+    This class is used to create the table that holds the JTWC Forecast data which has been
+    parsed from the JTWC warning text bulletins. The data is stored using the same ATCF forecast
+    format as the NHC forecast data so that downstream consumers require no new format support.
+    """
+
+    __tablename__ = "jtwc_fcst"
+
+    index = Column("id", Integer, primary_key=True)
+    storm_year = Column(Integer)
+    basin = Column(String)
+    storm = Column(Integer)
+    advisory = Column(String)
+    advisory_start = Column(DateTime)
+    advisory_end = Column(DateTime)
+    advisory_duration_hr = Column(Integer)
+    filepath = Column(String)
+    md5 = Column(String)
+    accessed = Column(DateTime)
+    geometry_data = Column(MutableDict.as_mutable(JSONB))
+
+
 class RrfsTable(TableBase):
     """
     This class is used to create the table that holds the RRFS data which has been

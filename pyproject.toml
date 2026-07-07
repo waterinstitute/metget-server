@@ -138,3 +138,6 @@ unfixable = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
+# Test code does not need production-grade type annotations, top-level-only imports, or
+# match= on every raises(); relax those rules for the test suites.
+"**/tests/**" = ["ANN", "PLC0415", "PT011"]

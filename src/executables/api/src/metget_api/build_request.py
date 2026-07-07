@@ -234,8 +234,8 @@ class BuildRequest:
             lookup, is_lookup_valid = self.__generate_lookup_obj(domain, tau)
             is_domain_valid = is_domain_valid and is_lookup_valid
 
-            # Check the synoptic request validity
-            if domain.service() != "nhc":
+            # Check the synoptic request validity (skipped for storm-track services nhc/jtwc)
+            if domain.service() not in ("nhc", "jtwc"):
                 is_domain_valid = (
                     is_domain_valid
                     and self.__check_synoptic_request_validity(lookup, tau)
@@ -345,7 +345,7 @@ class BuildRequest:
             int: The tau parameter
 
         """
-        if d.service() != "nhc":
+        if d.service() not in ("nhc", "jtwc"):
             tau = FilelistBase.check_tau_parameter(
                 d.tau(), d.service(), self.__input_obj.data_type()
             )

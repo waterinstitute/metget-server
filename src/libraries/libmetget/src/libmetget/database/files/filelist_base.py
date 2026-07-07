@@ -155,7 +155,7 @@ class FilelistBase:
             int: The updated forecast skip time
 
         """
-        if service == "nhc":
+        if service in ("nhc", "jtwc"):
             return tau
 
         # ...If the parameter is an accumulated parameter, we need tau to be greater than 0

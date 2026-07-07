@@ -44,6 +44,8 @@ from ..database.tables import (
     HrrrAlaskaTable,
     HrrrTable,
     HwrfTable,
+    JtwcBtkTable,
+    JtwcFcstTable,
     NamTable,
     NhcBtkTable,
     NhcFcstTable,
@@ -169,7 +171,7 @@ class Metdb:
                     NhcFcstTable.storm_year == year,
                     NhcFcstTable.basin == basin,
                     NhcFcstTable.storm == storm,
-                    NhcFcstTable.advisory == advisory,
+                    NhcFcstTable.advisory == f"{int(advisory):03d}",
                 )
                 .first()
             )
@@ -182,6 +184,103 @@ class Metdb:
                 NhcFcstTable.storm_year == year,
                 NhcFcstTable.basin == basin,
                 NhcFcstTable.storm == storm,
+            )
+            .all()
+        )
+        if v:
+            md5_list: List[str] = []
+            for md5 in v:
+                md5_list.append(md5[0])
+            return md5_list
+        return []
+
+    def get_jtwc_md5(
+        self, mettype: str, year: int, basin: str, storm: str, advisory: int = 0
+    ) -> Union[str, List[str]]:
+        """
+        Get the md5 hash for a jtwc file.
+
+        Args:
+            mettype (str): The type of jtwc file to get the md5 hash for
+            year (int): The year of the jtwc file
+            basin (str): The basin of the jtwc file
+            storm (str): The storm of the jtwc file
+            advisory (int): The advisory of the jtwc file
+
+        Returns:
+            str: The md5 hash of the jtwc file
+
+        """
+        if mettype == "jtwc_btk":
+            return self.get_jtwc_btk_md5(year, basin, storm)
+        if mettype == "jtwc_fcst":
+            return self.get_jtwc_fcst_md5(year, basin, storm, advisory)
+        msg = "Invalid JTWC type"
+        raise ValueError(msg)
+
+    def get_jtwc_btk_md5(self, year: int, basin: str, storm: str) -> str:
+        """
+        Get the md5 hash for a jtwc btk file.
+
+        Args:
+            year (int): The year of the jtwc btk file
+            basin (str): The basin of the jtwc btk file
+            storm (str): The storm of the jtwc btk file
+
+        Returns:
+            str: The md5 hash of the jtwc btk file
+
+        """
+        v = (
+            self.__session.query(JtwcBtkTable.md5)
+            .filter(
+                JtwcBtkTable.storm_year == year,
+                JtwcBtkTable.basin == basin,
+                JtwcBtkTable.storm == storm,
+            )
+            .first()
+        )
+
+        if v is not None:
+            return v[0]
+        return "0"
+
+    def get_jtwc_fcst_md5(
+        self, year: int, basin: str, storm: str, advisory: Optional[int]
+    ) -> Union[str, List[str]]:
+        """
+        Get the md5 hash for a jtwc fcst file.
+
+        Args:
+            year (int): The year of the jtwc fcst file
+            basin (str): The basin of the jtwc fcst file
+            storm (str): The storm of the jtwc fcst file
+            advisory (int): The advisory of the jtwc fcst file
+
+        Returns:
+            str: The md5 hash of the jtwc fcst file
+
+        """
+        if advisory:
+            v = (
+                self.__session.query(JtwcFcstTable.md5)
+                .filter(
+                    JtwcFcstTable.storm_year == year,
+                    JtwcFcstTable.basin == basin,
+                    JtwcFcstTable.storm == storm,
+                    JtwcFcstTable.advisory == f"{int(advisory):03d}",
+                )
+                .first()
+            )
+            if v is not None:
+                return v[0]
+            return "0"
+        v = (
+            self.__session.query(JtwcFcstTable.md5)
+            .filter(
+                JtwcFcstTable.storm_year == year,
+                JtwcFcstTable.basin == basin,
+                JtwcFcstTable.storm == storm,
             )
             .all()
         )
@@ -212,6 +311,8 @@ class Metdb:
             "ctcx": self.__has_ctcx,
             "nhc_fcst": self.__has_nhc_fcst,
             "nhc_btk": self.__has_nhc_btk,
+            "jtwc_fcst": self.__has_jtwc_fcst,
+            "jtwc_btk": self.__has_jtwc_btk,
             "gefs_ncep": self.__has_gefs,
             "refs_ncep": self.__has_refs,
         }
@@ -401,6 +502,74 @@ class Metdb:
                 NhcBtkTable.storm_year == year,
                 NhcBtkTable.basin == basin,
                 NhcBtkTable.storm == storm,
+            )
+            .first()
+        )
+
+        return v is not None
+
+    def __has_jtwc_fcst(self, metadata: Dict[str, Any]) -> bool:
+        """
+        Check if a jtwc fcst file exists in the database.
+
+        Args:
+            metadata (dict): The pair to check for
+
+        Returns:
+            bool: True if the file exists in the database, False otherwise
+
+        """
+        (
+            year,
+            storm,
+            basin,
+            md5,
+            start,
+            end,
+            duration,
+        ) = Metdb.__generate_nhc_vars_from_dict(metadata)
+        advisory = metadata["advisory"]
+
+        v = (
+            self.__session.query(JtwcFcstTable.index)
+            .filter(
+                JtwcFcstTable.storm_year == year,
+                JtwcFcstTable.basin == basin,
+                JtwcFcstTable.storm == storm,
+                JtwcFcstTable.advisory == advisory,
+            )
+            .first()
+        )
+
+        return v is not None
+
+    def __has_jtwc_btk(self, metadata: Dict[str, Any]) -> bool:
+        """
+        Check if a jtwc btk file exists in the database.
+
+        Args:
+            metadata (dict): The pair to check for
+
+        Returns:
+            bool: True if the file exists in the database, False otherwise
+
+        """
+        (
+            year,
+            storm,
+            basin,
+            md5,
+            start,
+            end,
+            duration,
+        ) = Metdb.__generate_nhc_vars_from_dict(metadata)
+
+        v = (
+            self.__session.query(JtwcBtkTable.index)
+            .filter(
+                JtwcBtkTable.storm_year == year,
+                JtwcBtkTable.basin == basin,
+                JtwcBtkTable.storm == storm,
             )
             .first()
         )
@@ -795,6 +964,8 @@ class Metdb:
             "ctcx": lambda: self.__add_record_ctcx(filepath, metadata),
             "nhc_fcst": lambda: self.__add_record_nhc_fcst(filepath, metadata),
             "nhc_btk": lambda: self.__add_record_nhc_btk(filepath, metadata),
+            "jtwc_fcst": lambda: self.__add_record_jtwc_fcst(filepath, metadata),
+            "jtwc_btk": lambda: self.__add_record_jtwc_btk(filepath, metadata),
             "gefs_ncep": lambda: self.__add_record_gefs_ncep(filepath, metadata),
             "refs_ncep": lambda: self.__add_record_refs_ncep(filepath, metadata),
         }
@@ -1012,7 +1183,7 @@ class Metdb:
         geojson = metadata.get("geojson", {})
 
         record = (
-            self.__session.query(NhcFcstTable.index)
+            self.__session.query(NhcFcstTable)
             .filter(
                 NhcFcstTable.storm_year == year,
                 NhcFcstTable.basin == basin,
@@ -1024,6 +1195,127 @@ class Metdb:
 
         if record is None:
             record = NhcFcstTable(
+                storm_year=year,
+                basin=basin,
+                storm=storm,
+                advisory=advisory,
+                advisory_start=start,
+                advisory_end=end,
+                advisory_duration_hr=duration,
+                filepath=filepath,
+                md5=md5,
+                accessed=datetime.now(tz=timezone.utc),
+                geometry_data=geojson,
+            )
+            self.__add_delayed_object(record)
+        else:
+            record.advisory_start = start
+            record.advisory_end = end
+            record.advisory_duration_hr = duration
+            record.geometry_data = geojson
+            record.md5 = md5
+            self.__session.commit()
+
+        return 1
+
+    def __add_record_jtwc_btk(self, filepath: str, metadata: Dict[str, Any]) -> int:
+        """
+        Adds a JTWC BTK file listing to the database.
+
+        Args:
+            filepath (str): File location
+            metadata (dict): dict containing the metadata for the file
+
+        Returns:
+            Always returns 1 since the record is either added or updated
+
+        """
+        (
+            year,
+            storm,
+            basin,
+            md5,
+            start,
+            end,
+            duration,
+        ) = Metdb.__generate_nhc_vars_from_dict(metadata)
+
+        geojson = metadata.get("geojson", {})
+
+        if not self.__has_jtwc_btk(metadata):
+            record = JtwcBtkTable(
+                storm_year=year,
+                basin=basin,
+                storm=storm,
+                advisory_start=start,
+                advisory_end=end,
+                advisory_duration_hr=duration,
+                filepath=filepath,
+                md5=md5,
+                accessed=datetime.now(tz=timezone.utc),
+                geometry_data=geojson,
+            )
+
+            self.__add_delayed_object(record)
+        else:
+            # Update the record
+            record = (
+                self.__session.query(JtwcBtkTable)
+                .filter(
+                    JtwcBtkTable.storm_year == year,
+                    JtwcBtkTable.basin == basin,
+                    JtwcBtkTable.storm == storm,
+                )
+                .first()
+            )
+            record.advisory_start = start
+            record.advisory_end = end
+            record.advisory_duration_hr = duration
+            record.filepath = filepath
+            record.md5 = md5
+            record.accessed = datetime.now(tz=timezone.utc)
+            record.geometry_data = geojson
+            self.__session.commit()
+        return 1
+
+    def __add_record_jtwc_fcst(self, filepath: str, metadata: Dict[str, Any]) -> int:
+        """
+        Adds a JTWC forecast file listing to the database.
+
+        Args:
+            filepath (str): File location
+            metadata (dict): dict containing the metadata for the file
+
+        Returns:
+            Always returns 1 since the record is either added or updated
+
+        """
+        (
+            year,
+            storm,
+            basin,
+            md5,
+            start,
+            end,
+            duration,
+        ) = Metdb.__generate_nhc_vars_from_dict(metadata)
+        advisory = metadata["advisory"]
+
+        geojson = metadata.get("geojson", {})
+
+        record = (
+            self.__session.query(JtwcFcstTable)
+            .filter(
+                JtwcFcstTable.storm_year == year,
+                JtwcFcstTable.basin == basin,
+                JtwcFcstTable.storm == storm,
+                JtwcFcstTable.advisory == advisory,
+            )
+            .first()
+        )
+
+        if record is None:
+            record = JtwcFcstTable(
                 storm_year=year,
                 basin=basin,
                 storm=storm,

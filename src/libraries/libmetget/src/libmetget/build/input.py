@@ -67,7 +67,7 @@ class Input:
             "dj": And(Use(float), lambda n: n > 0),
             Optional("ensemble_member"): And(Use(str)),
             Optional("storm"): Use(str),
-            Optional("basin"): Or("al", "ep", "wp"),
+            Optional("basin"): Or("al", "ep", "cp", "wp", "io", "sh"),
             Optional("advisory"): And(Use(int), lambda n: n > 0),
             Optional("storm_year", default=datetime.utcnow().year): And(
                 Use(int), lambda n: n > 1990
@@ -510,9 +510,9 @@ class Input:
             (self.__end_date - self.__start_date).total_seconds() / self.__time_step
         )
         for d in self.__domains:
-            if d.service() != "nhc" and self.format() != "raw":
+            if d.service() not in ("nhc", "jtwc") and self.format() != "raw":
                 credit_usage += d.grid().n() * num_time_steps
-            elif d.service() == "nhc":
+            elif d.service() in ("nhc", "jtwc"):
                 credit_usage += 100 * 100 * 24
             else:
                 credit_usage += 100 * 100 * 24 * num_time_steps
