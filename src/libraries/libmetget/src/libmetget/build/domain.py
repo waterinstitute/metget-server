@@ -49,6 +49,7 @@ VALID_SERVICES = [
     "ncep-hafs-b",
     "hwrf",
     "rrfs",
+    "rtofs",
 ]
 
 # Storm-track services and the basins that are valid for each. NHC covers the Atlantic and the

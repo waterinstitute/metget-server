@@ -51,6 +51,7 @@ from ..database.tables import (
     NhcFcstTable,
     RefsTable,
     RrfsTable,
+    RtofsTable,
     WpcTable,
 )
 
@@ -315,6 +316,7 @@ class Metdb:
             "jtwc_btk": self.__has_jtwc_btk,
             "gefs_ncep": self.__has_gefs,
             "refs_ncep": self.__has_refs,
+            "rtofs": self.__has_rtofs,
         }
 
         handler = handlers.get(datatype)
@@ -629,6 +631,57 @@ class Metdb:
         )
 
         return v is not None
+
+    def __has_rtofs(self, metadata: Dict[str, Any]) -> bool:
+        """
+        Check if a rtofs file exists in the database.
+
+        Args:
+            metadata (dict): The pair to check for
+
+        Returns:
+            bool: True if the file exists in the database, False otherwise
+
+        """
+        cdate = metadata["cycledate"]
+        fdate = metadata["forecastdate"]
+        param = metadata["param"]
+
+        v = (
+            self.__session.query(RtofsTable.index)
+            .filter(
+                RtofsTable.forecastcycle == cdate,
+                RtofsTable.forecasttime == fdate,
+                RtofsTable.param == param,
+            )
+            .first()
+        )
+
+        return v is not None
+
+    def add_rtofs_batch(self, records: List[Dict[str, Any]]) -> int:
+        """
+        Insert multiple RTOFS records in bulk, ignoring duplicates.
+
+        Uses PostgreSQL's INSERT ... ON CONFLICT DO NOTHING for efficient
+        bulk insertion that automatically handles duplicates.
+
+        Args:
+            records: List of dicts with keys: forecastcycle, forecasttime,
+                     param, tau, filepath, url, accessed
+
+        Returns:
+            Number of records actually inserted (excludes duplicates)
+
+        """
+        if not records:
+            return 0
+
+        stmt = insert(RtofsTable).values(records)
+        stmt = stmt.on_conflict_do_nothing(constraint="uq_rtofs_cycle_forecast_param")
+        result = self.__session.execute(stmt)
+        self.__session.commit()
+        return result.rowcount
 
     def get_existing_gefs_keys(
         self, start_date: datetime, end_date: datetime
@@ -968,6 +1021,7 @@ class Metdb:
             "jtwc_btk": lambda: self.__add_record_jtwc_btk(filepath, metadata),
             "gefs_ncep": lambda: self.__add_record_gefs_ncep(filepath, metadata),
             "refs_ncep": lambda: self.__add_record_refs_ncep(filepath, metadata),
+            "rtofs": lambda: self.__add_record_rtofs(filepath, metadata),
         }
 
         handler = handlers.get(datatype)
@@ -1089,6 +1143,41 @@ class Metdb:
             forecasttime=fdate,
             ensemble_member=member,
             tau=tau,
+            filepath=filepath,
+            url=url,
+            accessed=datetime.now(),
+        )
+        self.__add_delayed_object(record)
+
+        return 1
+
+    def __add_record_rtofs(self, filepath: str, metadata: Dict[str, Any]) -> int:
+        """
+        Adds a RTOFS file listing to the database.
+
+        Args:
+            filepath (str): File location
+            metadata (dict): dict containing the metadata for the file
+
+        Returns:
+            1 if the record was added, 0 otherwise
+
+        """
+        if self.__has_rtofs(metadata):
+            return 0
+        cdate = metadata["cycledate"]
+        fdate = metadata["forecastdate"]
+        param = metadata["param"]
+        url = metadata["url"]
+        tau = math.floor(
+            (metadata["forecastdate"] - metadata["cycledate"]).total_seconds() / 3600.0
+        )
+
+        record = RtofsTable(
+            forecastcycle=cdate,
+            forecasttime=fdate,
+            tau=tau,
+            param=param,
             filepath=filepath,
             url=url,
             accessed=datetime.now(),

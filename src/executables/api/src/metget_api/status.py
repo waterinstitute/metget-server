@@ -49,6 +49,7 @@ from libmetget.database.tables import (
     NhcFcstTable,
     RefsTable,
     RrfsTable,
+    RtofsTable,
     WpcTable,
 )
 from sqlalchemy import or_
@@ -69,6 +70,7 @@ AVAILABLE_MET_MODELS = [
     "wpc",
     "rrfs",
     "refs",
+    "rtofs",
 ]
 
 MET_MODEL_FORECAST_DURATION = {
@@ -84,6 +86,8 @@ MET_MODEL_FORECAST_DURATION = {
     "wpc": 162,
     "rrfs": 84,
     "refs": 60,
+    # ...RTOFS daily steps span n024 (cycle - 24h) to f192
+    "rtofs": 216,
 }
 
 
@@ -234,6 +238,10 @@ class Status:
             "wpc": (
                 Status.__get_status_wpc,
                 [MET_MODEL_FORECAST_DURATION["wpc"], time_limit, start_dt, end_dt],
+            ),
+            "rtofs": (
+                Status.__get_status_rtofs,
+                [MET_MODEL_FORECAST_DURATION["rtofs"], time_limit, start_dt, end_dt],
             ),
             "nhc": (
                 Status.__get_status_nhc,
@@ -708,6 +716,30 @@ class Status:
             start,
             end,
             member,
+        )
+
+    @staticmethod
+    def __get_status_rtofs(
+        cycle_length: int, limit: timedelta, start: datetime, end: datetime
+    ) -> dict:
+        """
+        This method is used to generate the status for the Global RTOFS data.
+        Note that the temperature and salinity files produce two rows per
+        forecast time, which is harmless to the generic min/max/distinct-cycle
+        status logic.
+
+        Args:
+            cycle_length: The duration of the cycle in hours
+            limit: The limit in days to use when generating the status
+            start: The start date to use when generating the status
+            end: The end date to use when generating the status
+
+        Returns:
+            Dictionary containing the status information
+
+        """
+        return Status.__get_status_generic(
+            "rtofs", RtofsTable, cycle_length, limit, start, end
         )
 
     @staticmethod

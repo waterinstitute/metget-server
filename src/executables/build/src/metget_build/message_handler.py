@@ -41,6 +41,7 @@ from libmetget.build.output.outputfile import OutputFile
 from libmetget.build.output.outputfilefactory import OutputFileFactory
 from libmetget.build.s3file import S3file
 from libmetget.build.s3gribio import S3GribIO
+from libmetget.build.s3tar import stream_s3_objects_to_tar
 from libmetget.database.filelist import Filelist
 from libmetget.database.tables import RequestEnum, RequestTable
 from libmetget.sources.meteorologicalsource import MeteorologicalSource
@@ -133,10 +134,19 @@ class MessageHandler:
             pre_download_files,
         )
 
+        output_already_uploaded = False
         if output_obj is None:
-            output_info = MessageHandler.__generate_raw_files_list(
-                domain_data, self.input()
-            )
+            if self.input().domain(0).service() == "rtofs":
+                # ...RTOFS raw data is streamed from the archive bucket into a
+                # tar archive in the upload bucket without local staging
+                output_info = MessageHandler.__generate_rtofs_raw_tar(
+                    domain_data, self.input()
+                )
+                output_already_uploaded = True
+            else:
+                output_info = MessageHandler.__generate_raw_files_list(
+                    domain_data, self.input()
+                )
         else:
             output_info = MessageHandler.__interpolate_wind_fields(
                 self.input(),
@@ -157,7 +167,9 @@ class MessageHandler:
 
         # ...Posts the data out to the correct S3 location
         self.__upload_files_to_s3(
-            output_info["output_files"], output_file_dict, filelist_name
+            [] if output_already_uploaded else output_info["output_files"],
+            output_file_dict,
+            filelist_name,
         )
 
         # ...Remove the temporary files
@@ -1088,6 +1100,59 @@ class MessageHandler:
         return {"output_files": output_file_list, "files_used": files_used_list}
 
     @staticmethod
+    def __generate_rtofs_raw_tar(domain_data: list, input_data: Input) -> dict:
+        """
+        Streams the selected RTOFS files from the archive bucket into a single
+        tar archive in the upload bucket. The objects are streamed directly
+        S3 to S3 through a multipart upload, so no local disk space is used
+        even though the archive can be tens of gigabytes.
+
+        Archive member names are prefixed with the forecast cycle directory
+        (rtofs.YYYYMMDD/) since files selected from different cycles share
+        the same base filename.
+
+        Args:
+            domain_data (list): The list of domain data
+            input_data (Input): The input data
+
+        Returns:
+            Dict: The list of output files and the list of files used
+
+        """
+        files = []
+        files_used_list = {}
+        seen_keys = set()
+        for i in range(input_data.num_domains()):
+            files_used = []
+            for pr in domain_data[i]:
+                key = pr["filepath"]
+                files_used.append(key)
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                # ...Keys are rtofs/YYYY/MM/DD/<filename>
+                parts = key.split("/")
+                archive_name = (
+                    f"rtofs.{parts[1]:s}{parts[2]:s}{parts[3]:s}/{parts[4]:s}"
+                )
+                files.append((key, archive_name))
+            files_used_list[input_data.domain(i).name()] = files_used
+
+        tar_filename = input_data.filename()
+        if not tar_filename.endswith(".tar"):
+            tar_filename += ".tar"
+
+        destination_key = os.path.join(input_data.request_id(), tar_filename)
+        stream_s3_objects_to_tar(
+            os.environ["METGET_S3_BUCKET"],
+            files,
+            os.environ["METGET_S3_BUCKET_UPLOAD"],
+            destination_key,
+        )
+
+        return {"output_files": [tar_filename], "files_used": files_used_list}
+
+    @staticmethod
     def __download_files_from_s3(
         db_files: list,
         input_data: Input,
@@ -1118,6 +1183,17 @@ class MessageHandler:
                 MessageHandler.__generate_merged_nhc_files(
                     d, domain_data, i, met_field, nhc_data
                 )
+            elif d.service() == "rtofs":
+                # ...RTOFS files are delivered raw (streamed S3 to S3), so
+                # they are never staged on the local disk
+                for item in db_files[i]:
+                    domain_data[i].append(
+                        {
+                            "time": item["forecasttime"],
+                            "filepath": item["filepath"],
+                            "is_local": False,
+                        }
+                    )
             else:
                 MessageHandler.__get_2d_forcing_files(
                     input_data.data_type(),

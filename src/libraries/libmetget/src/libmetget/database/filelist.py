@@ -30,6 +30,7 @@
 from datetime import datetime
 from typing import Any, ClassVar, Union
 
+from ..database.tables import RtofsTable
 from ..sources.metfiletype import (
     COAMPS_CTCX,
     COAMPS_TC,
@@ -50,6 +51,7 @@ from .files.filelist_base import FilelistBase
 from .files.filelist_generic import FilelistGeneric
 from .files.filelist_generic_ensemble import FilelistGenericEnsemble
 from .files.filelist_nhc import FilelistNHC
+from .files.filelist_rtofs import FilelistRtofs
 from .files.filelist_storm import FileListStorm
 from .files.filelist_storm_ensemble import FilelistStormEnsemble
 
@@ -241,6 +243,17 @@ class Filelist:
                 storm_year=self.__storm_year,
                 advisory=self.__advisory,
                 basin=self.__basin,
+            )
+        elif self.__service == "rtofs":
+            filelist_obj = FilelistRtofs(
+                table=RtofsTable,
+                service=self.__service,
+                param=self.__param,
+                start=self.__start,
+                end=self.__end,
+                tau=self.__tau,
+                nowcast=self.__nowcast,
+                multiple_forecasts=self.__multiple_forecasts,
             )
         else:
             service_type = attributes_from_service(self.__service)

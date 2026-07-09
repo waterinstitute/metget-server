@@ -49,11 +49,13 @@ from libmetget.download.coampsdownloader import CoampsDownloader
 from libmetget.download.ctcxdownloader import CtcxDownloader
 from libmetget.download.forecastdata import ForecastData
 from libmetget.download.hafsdownloader import HafsDownloader
+from libmetget.download.metdb import Metdb
 from libmetget.download.ncepgefsdownloader import NcepGefsdownloader
 from libmetget.download.ncepgfsdownloader import NcepGfsdownloader
 from libmetget.download.ncephrrralaskadownloader import NcepHrrrAlaskadownloader
 from libmetget.download.ncephrrrdownloader import NcepHrrrdownloader
 from libmetget.download.ncepnamdownloader import NcepNamdownloader
+from libmetget.download.rtofsdownloader import RtofsDownloader
 from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
 from libmetget.version import get_metget_version
 from loguru import logger
@@ -564,6 +566,69 @@ def rebuild_jtwc() -> int:
     return n
 
 
+def rebuild_rtofs(start: datetime, end: datetime) -> int:
+    """
+    Re-indexes the RTOFS files already archived in the MetGet S3 bucket back
+    into the database. NOMADS only retains ~2 days of RTOFS data, so unlike
+    the NODD-hosted sources the rebuild cannot re-run the downloader and
+    instead walks the rtofs/ prefix of the MetGet bucket.
+
+    Args:
+        start (datetime): Start of the cycle date range
+        end (datetime): End of the cycle date range
+
+    Returns:
+        int: The number of records added to the database
+
+    """
+    logger.info("Beginning to run RTOFS rebuild")
+
+    bucket = os.environ["METGET_S3_BUCKET"]
+    client = boto3.client("s3")
+    paginator = client.get_paginator("list_objects_v2")
+
+    records = []
+    for page in paginator.paginate(Bucket=bucket, Prefix="rtofs/"):
+        if "Contents" not in page:
+            continue
+        for obj in page["Contents"]:
+            match = RtofsDownloader.FILE_RE.search(obj["Key"])
+            if match is None:
+                continue
+
+            # ...Keys are rtofs/YYYY/MM/DD/<filename>; the date is the 00Z cycle
+            year, month, day = obj["Key"].split("/")[1:4]
+            cycle = datetime(int(year), int(month), int(day), 0, 0, 0)
+            if start is not None and cycle < start:
+                continue
+            if end is not None and cycle > end:
+                continue
+
+            step = match.group(1)
+            forecast_time = RtofsDownloader.valid_time(cycle, step)
+            tau = int((forecast_time - cycle).total_seconds() / 3600.0)
+
+            logger.info(f"Processing {obj['Key']}")
+
+            records.append(
+                {
+                    "forecastcycle": cycle,
+                    "forecasttime": forecast_time,
+                    "tau": tau,
+                    "param": RtofsDownloader.VARIABLES[match.group(2)],
+                    "filepath": obj["Key"],
+                    "url": f"{RtofsDownloader.BASE_URL:s}/rtofs.{cycle:%Y%m%d}/{match.group(0):s}",
+                    "accessed": datetime.now(),
+                }
+            )
+
+    db = Metdb()
+    n = db.add_rtofs_batch(records)
+    logger.info(f"RTOFS rebuild complete. {n:d} records added")
+
+    return n
+
+
 def check_for_environment_variables() -> None:
     required_env_vars = [
         "METGET_DATABASE_USER",
@@ -623,6 +688,8 @@ def rebuilder() -> None:
         rebuild_nhc()
     elif args.source == "jtwc":
         rebuild_jtwc()
+    elif args.source == "rtofs":
+        rebuild_rtofs(args.start, args.end)
     else:
         msg = f"Invalid source type: {args.source}"
         raise ValueError(msg)

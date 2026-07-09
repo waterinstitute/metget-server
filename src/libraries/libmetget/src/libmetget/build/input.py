@@ -26,6 +26,7 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
+import math
 import os
 from datetime import datetime
 from typing import List
@@ -46,6 +47,11 @@ VALID_DATA_TYPES = [
     "precipitation_type",
     "all_variables",
 ]
+
+# ...Services which cannot be interpolated to a gridded output product and are only
+# available with the 'raw' output format: the storm-track services deliver ATCF track
+# files and rtofs delivers raw ocean model NetCDF
+RAW_ONLY_SERVICES = ("nhc", "jtwc", "rtofs")
 
 
 class Input:
@@ -387,7 +393,7 @@ class Input:
         """
         return self.__strict
 
-    def __parse(self) -> None:  # noqa: PLR0915
+    def __parse(self) -> None:  # noqa: PLR0915, PLR0912
         """
         Parses the input data.
         """
@@ -458,9 +464,35 @@ class Input:
                 msg = "You must specify one or more domains"
                 logger.error(msg)
                 raise RuntimeError(msg)
+
+            # ...The rtofs raw delivery path packages the whole request as a single
+            # tar archive and cannot be combined with other services, whose raw
+            # files are handled through a different (local staging) path
+            services = {d["service"] for d in self.__json["domains"]}
+            if "rtofs" in services and len(services) > 1:
+                msg = (
+                    "The 'rtofs' service cannot be combined with other "
+                    "services in a single request"
+                )
+                logger.error(msg)
+                self.__error.append(msg)
+                self.__valid = False
+                return
+
             for i in range(num_domains):
                 name = self.__json["domains"][i]["name"]
                 service = self.__json["domains"][i]["service"]
+
+                if service in RAW_ONLY_SERVICES and self.__format != "raw":
+                    msg = (
+                        f"The '{service:s}' service cannot be interpolated to a "
+                        f"gridded output product and is only available with the "
+                        f"'raw' output format, but '{self.__format:s}' was requested"
+                    )
+                    logger.error(msg)
+                    self.__error.append(msg)
+                    self.__valid = False
+                    return
 
                 if self.__data_type == "all_variables" and service != "coamps-tc":
                     logger.error(
@@ -509,8 +541,18 @@ class Input:
         num_time_steps = int(
             (self.__end_date - self.__start_date).total_seconds() / self.__time_step
         )
+        num_days = max(
+            1,
+            math.ceil((self.__end_date - self.__start_date).total_seconds() / 86400.0),
+        )
         for d in self.__domains:
-            if d.service() not in ("nhc", "jtwc") and self.format() != "raw":
+            if d.service() == "rtofs":
+                # ...RTOFS raw data is delivered as one temperature/salinity file
+                # pair per daily step, so the cost is based on the number of days
+                # in the window. The request time_step has no effect on raw output
+                # and must not influence the cost
+                credit_usage += 100 * 100 * 24 * num_days
+            elif d.service() not in ("nhc", "jtwc") and self.format() != "raw":
                 credit_usage += d.grid().n() * num_time_steps
             elif d.service() in ("nhc", "jtwc"):
                 credit_usage += 100 * 100 * 24
