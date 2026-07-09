@@ -121,6 +121,7 @@ config:
   #####################################################
   download_timeout: 600   # 10 minutes
   build_timeout: 3600     # 60 minutes
+  rtofs_download_timeout: 7200  # 2 hours
 
   #####################################################
   # Download Schedules
@@ -157,6 +158,7 @@ config:
     jtwc: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
     wpc: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
     adeck: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+    rtofs: "9 * * * *"
     era5: "0 * * * *" # Not implemented
 
   #####################################################
@@ -188,6 +190,7 @@ config:
     adeck: False
     rrfs: False
     refs: False
+    rtofs: False
   #####################################################
   # Ensure that the API enforces credit limits
   #

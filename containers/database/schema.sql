@@ -190,6 +190,16 @@ CREATE TABLE refs_ncep(
   url VARCHAR(256) NOT NULL,
   accessed TIMESTAMP NOT NULL
 );
+CREATE TABLE rtofs(
+  id SERIAL PRIMARY KEY,
+  forecastcycle TIMESTAMP NOT NULL,
+  forecasttime TIMESTAMP NOT NULL,
+  tau INTEGER NOT NULL,
+  param VARCHAR(32) NOT NULL,
+  filepath VARCHAR(512) NOT NULL,
+  url VARCHAR(512) NOT NULL,
+  accessed TIMESTAMP NOT NULL
+);
 --
 --Creates tables for the storage of metget's API access
 --
@@ -258,6 +268,10 @@ ALTER TABLE wpc_ncep ADD CONSTRAINT uq_wpc_cycle_forecast
 CREATE INDEX idx_gefs_lookup ON gefs_fcst (forecastcycle, forecasttime, ensemble_member);
 ALTER TABLE gefs_fcst ADD CONSTRAINT uq_gefs_cycle_forecast_member
   UNIQUE (forecastcycle, forecasttime, ensemble_member);
+-- RTOFS (temperature/salinity per file)
+CREATE INDEX idx_rtofs_lookup ON rtofs (forecastcycle, forecasttime, param);
+ALTER TABLE rtofs ADD CONSTRAINT uq_rtofs_cycle_forecast_param
+  UNIQUE (forecastcycle, forecasttime, param);
 CREATE INDEX hwrf_forecastcycle_idx ON hwrf USING brin (forecastcycle);
 CREATE INDEX hafsa_forecastcycle_idx ON ncep_hafs_a USING brin (forecastcycle);
 CREATE INDEX hafsb_forecastcycle_idx ON ncep_hafs_b USING brin (forecastcycle);
@@ -268,6 +282,7 @@ CREATE INDEX hrrr_ncep_forecastcycle_idx ON hrrr_ncep USING brin (forecastcycle)
 CREATE INDEX hrrr_alaska_ncep_forecastcycle_idx ON hrrr_alaska_ncep USING brin (forecastcycle);
 CREATE INDEX rrfs_ncep_forecastcycle_idx ON rrfs_ncep USING brin (forecastcycle);
 CREATE INDEX refs_ncep_forecastcycle_idx ON refs_ncep USING brin (forecastcycle);
+CREATE INDEX rtofs_forecastcycle_idx ON rtofs USING brin (forecastcycle);
 CREATE INDEX wpc_ncep_forecastcycle_idx ON wpc_ncep USING brin (forecastcycle);
 CREATE INDEX nhc_adeck_model_idx ON nhc_adeck USING brin (model);
 CREATE INDEX nhc_adeck_forecastcycle_idx ON nhc_adeck USING brin (forecastcycle);

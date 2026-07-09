@@ -155,7 +155,10 @@ class FilelistBase:
             int: The updated forecast skip time
 
         """
-        if service in ("nhc", "jtwc"):
+        # ...Storm-track services have no gridded variables and RTOFS is raw
+        # ocean data where the analysis step carries a negative tau, so the
+        # accumulated-parameter tau adjustment does not apply
+        if service in ("nhc", "jtwc", "rtofs"):
             return tau
 
         # ...If the parameter is an accumulated parameter, we need tau to be greater than 0

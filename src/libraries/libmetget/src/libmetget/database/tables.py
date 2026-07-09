@@ -656,3 +656,35 @@ class RefsTable(TableBase):
             name="uq_refs_cycle_forecast_member",
         ),
     )
+
+
+class RtofsTable(TableBase):
+    """
+    This class is used to create the table that holds the Global RTOFS 3-D z-level
+    daily NetCDF data (temperature and salinity) which has been downloaded from
+    NOMADS and archived in the MetGet S3 bucket. These files are served raw via
+    the API for downstream baroclinic forcing generation and are not part of the
+    build pipeline. The tau value is signed: the n024 analysis step is -24.
+    """
+
+    __tablename__ = "rtofs"
+    index = Column("id", Integer, primary_key=True)
+    forecastcycle = Column(DateTime)
+    forecasttime = Column(DateTime)
+    tau = Column(Integer)
+    param = Column(String)
+    filepath = Column(String)
+    url = Column(String)
+    accessed = Column(DateTime)
+
+    __table_args__ = (
+        # Composite index for fast lookups
+        Index("idx_rtofs_lookup", "forecastcycle", "forecasttime", "param"),
+        # Unique constraint for ON CONFLICT bulk inserts
+        UniqueConstraint(
+            "forecastcycle",
+            "forecasttime",
+            "param",
+            name="uq_rtofs_cycle_forecast_param",
+        ),
+    )

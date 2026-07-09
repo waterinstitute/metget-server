@@ -238,18 +238,23 @@ class BuildRequest:
             if domain.service() not in ("nhc", "jtwc"):
                 is_domain_valid = (
                     is_domain_valid
-                    and self.__check_synoptic_request_validity(lookup, tau)
+                    and self.__check_synoptic_request_validity(
+                        lookup, tau, domain.service()
+                    )
                 )
 
         return is_domain_valid
 
-    def __check_synoptic_request_validity(self, lookup: list, tau: int) -> bool:
+    def __check_synoptic_request_validity(
+        self, lookup: list, tau: int, service: str
+    ) -> bool:
         """
         This method is used to check the validity of the synoptic request.
 
         Args:
             lookup: The lookup object
             tau: The tau parameter
+            service: The service that is being requested
 
         Returns:
             bool: True if the synoptic request is valid, False otherwise
@@ -285,7 +290,9 @@ class BuildRequest:
             )
             is_valid = False
 
-        if not self.__input_obj.multiple_forecasts():
+        if service == "rtofs":
+            is_valid = self.__check_rtofs_forecast_flags(taus, n_forecasts) and is_valid
+        elif not self.__input_obj.multiple_forecasts():
             if n_forecasts > 1 and tau == 0:
                 self.__error.append("Multiple forecasts requested")
                 if self.__input_obj.strict():
@@ -296,6 +303,36 @@ class BuildRequest:
                 self.__error.append("Nowcast requested but non-zero tau returned")
                 if self.__input_obj.strict():
                     is_valid = False
+
+        return is_valid
+
+    def __check_rtofs_forecast_flags(self, taus: list, n_forecasts: int) -> bool:
+        """
+        This method checks the nowcast/multiple_forecasts expectations for the
+        RTOFS service. The RTOFS nowcast is the daily n024 analysis, which
+        carries a negative tau (-24) and is stitched from consecutive cycles
+        by design, so the generic tau == 0 and single-cycle expectations used
+        for the gridded services do not apply.
+
+        Args:
+            taus: The tau values of the selected files
+            n_forecasts: The number of distinct forecast cycles selected
+
+        Returns:
+            bool: True if the selection satisfies the requested flags
+
+        """
+        is_valid = True
+
+        if self.__input_obj.nowcast():
+            if any(t >= 0 for t in taus):
+                self.__error.append("Nowcast requested but non-analysis data returned")
+                if self.__input_obj.strict():
+                    is_valid = False
+        elif not self.__input_obj.multiple_forecasts() and n_forecasts > 1:
+            self.__error.append("Multiple forecasts requested")
+            if self.__input_obj.strict():
+                is_valid = False
 
         return is_valid
 

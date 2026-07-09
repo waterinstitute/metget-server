@@ -45,6 +45,7 @@ from libmetget.download.ncepnamdownloader import NcepNamdownloader
 from libmetget.download.nceprefsdownloader import NcepRefsDownloader
 from libmetget.download.nceprrfsdownloader import NcepRrfsDownloader
 from libmetget.download.nhcdownloader import NhcDownloader
+from libmetget.download.rtofsdownloader import RtofsDownloader
 from libmetget.download.wpcdownloader import WpcDownloader
 from libmetget.sources.metfiletype import NCEP_HAFS_A, NCEP_HAFS_B
 from libmetget.version import get_metget_version
@@ -193,6 +194,17 @@ def refs_download() -> int:
     return n
 
 
+def rtofs_download() -> int:
+    start, end = generate_default_date_range()
+    rtofs = RtofsDownloader(start, end)
+    logger.info(
+        f"Beginning to run RTOFS from {start.isoformat():s} to {end.isoformat():s}"
+    )
+    n = rtofs.download()
+    logger.info(f"RTOFS complete. {n:d} files downloaded")
+    return n
+
+
 def wpc_download() -> int:
     logger.info("Beginning downloading WPC data")
     n = WpcDownloader.download()
@@ -216,7 +228,7 @@ def metget_download() -> None:
         "--service",
         type=str,
         required=True,
-        help="Service to download from (nam, gfs, gefs, hwrf, nhc, jtwc, coamps, hrrr, hrrr-alaska, wpc, rrfs, refs, adeck)",
+        help="Service to download from (nam, gfs, gefs, hwrf, nhc, jtwc, coamps, hrrr, hrrr-alaska, wpc, rrfs, refs, rtofs, adeck)",
     )
     args = p.parse_args()
 
@@ -240,6 +252,7 @@ def metget_download() -> None:
         "adeck": adeck_download,
         "rrfs": rrfs_download,
         "refs": refs_download,
+        "rtofs": rtofs_download,
     }
 
     if args.service in download_functions:

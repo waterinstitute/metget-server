@@ -1,0 +1,40 @@
+{{ if .Values.config.meteorology.rtofs }}
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ .Release.Name }}-download-rtofs
+  labels:
+    app: metget
+    component: download
+    service: rtofs
+spec:
+  schedule: "{{ .Values.config.schedules.rtofs }}"
+  concurrencyPolicy: "Forbid"
+  startingDeadlineSeconds: 0
+  workflowSpec:
+    # ...RTOFS files are ~1.4 GB each (up to ~25 GB/day), so the global
+    # download_timeout is far too short. Progress is committed per file, so
+    # a run killed at this deadline resumes where it left off on the next run
+    activeDeadlineSeconds: {{ .Values.config.rtofs_download_timeout }}
+    entrypoint: runner
+    serviceAccountName: operate-workflow-sa
+    ttlStrategy:
+      secondsAfterCompletion: 120    # Time to live after workflow is completed, replaces ttlSecondsAfterFinished
+      secondsAfterSuccess: 120       # Time to live after workflow is successful
+      secondsAfterFailure: 86400     # Time to live after workflow fails
+    arguments:
+      parameters:
+        - name: input-service
+          value: rtofs
+    templates:
+      - name: runner
+        steps:
+        - - name: download
+            templateRef:
+              name: download-template
+              template: download-runner
+            arguments:
+              parameters:
+                - name: service
+                  value: '{{ "{{" }}workflow.parameters.input-service{{ "}}" }}'
+{{ end }}
