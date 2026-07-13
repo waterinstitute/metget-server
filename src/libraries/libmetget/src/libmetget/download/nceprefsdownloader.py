@@ -70,7 +70,7 @@ class NcepRefsDownloader(NoaaDownloader):
             f"rrfsens.{date.strftime('%Y%m%d')}",
             f"{hour:02d}",
             f"{member}",
-            f"rrfs.t{hour:02d}z.{member}.prslev.3km.",
+            f"rrfs.t{hour:02d}z.{member}.2dfld.3km.",
         )
 
     @staticmethod
