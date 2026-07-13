@@ -413,9 +413,14 @@ class NoaaDownloader:
         if not path_found:
             # ...Get the inventory data
             byte_list = self.__get_inventory_big_data(info)
-            if len(byte_list) != len(self.variables()):
+            missing_variables = [
+                v["long_name"] for v, b in zip(self.variables(), byte_list) if b is None
+            ]
+            if missing_variables:
                 logger.error(
-                    "Could not gather the inventory or missing variables detected. Trying again later."
+                    "Variables [{:s}] not found in inventory for file {:s}. Trying again later.".format(
+                        ", ".join(missing_variables), fn
+                    )
                 )
                 return None, 0, 1
             n = 1
