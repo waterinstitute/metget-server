@@ -292,17 +292,16 @@ class BuildRequest:
 
         if service == "rtofs":
             is_valid = self.__check_rtofs_forecast_flags(taus, n_forecasts) and is_valid
-        elif not self.__input_obj.multiple_forecasts():
-            if n_forecasts > 1 and tau == 0:
-                self.__error.append("Multiple forecasts requested")
-                if self.__input_obj.strict():
-                    is_valid = False
         elif self.__input_obj.nowcast():
             has_t_not_zero = any(t != 0 for t in taus)
             if has_t_not_zero:
                 self.__error.append("Nowcast requested but non-zero tau returned")
                 if self.__input_obj.strict():
                     is_valid = False
+        elif not self.__input_obj.multiple_forecasts() and n_forecasts > 1 and tau == 0:
+            self.__error.append("Multiple forecasts requested")
+            if self.__input_obj.strict():
+                is_valid = False
 
         return is_valid
 
