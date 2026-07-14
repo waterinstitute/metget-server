@@ -1,6 +1,7 @@
 ###################################################################################################
 # Tests for the Global RTOFS ingestion and delivery path: the NOMADS directory listing parser,
-# the step valid-time convention (n024 analysis = cycle - 24h), the S3 archive key layout, the
+# the step valid-time convention (n024 analysis = valid at the cycle time), the S3 archive key
+# layout, the
 # download dedup/fetch logic, and the S3-to-S3 streaming tar assembly used for raw delivery.
 # These tests operate on a saved NOMADS listing fixture and fakes; they do not touch the network,
 # AWS, or the database.
@@ -65,10 +66,11 @@ def test_parse_listing_deduplicates_href_and_text_matches() -> None:
 
 
 # --- step valid-time convention ------------------------------------------------------------------
-def test_valid_time_analysis_is_before_cycle() -> None:
-    assert RtofsDownloader.valid_time(CYCLE, "n024") == CYCLE - datetime.timedelta(
-        hours=24
-    )
+def test_valid_time_analysis_is_at_cycle() -> None:
+    # ...The n024 analysis is the end of the 24-hour nowcast segment which
+    # begins at cycle - 24h, i.e. it is valid exactly AT the cycle time
+    # (verified against the MT variable in the published NOMADS files)
+    assert RtofsDownloader.valid_time(CYCLE, "n024") == CYCLE
 
 
 def test_valid_time_forecast_is_after_cycle() -> None:
@@ -131,7 +133,8 @@ def test_download_dedup_metadata_contents() -> None:
 
         metadata = mock_metdb.return_value.has.call_args.args[1]
         assert metadata["cycledate"] == CYCLE
-        assert metadata["forecastdate"] == CYCLE - datetime.timedelta(hours=24)
+        # ...The n024 analysis is valid AT the cycle time
+        assert metadata["forecastdate"] == CYCLE
         assert metadata["param"] == "salinity"
         assert metadata["url"].endswith(
             "rtofs.20260708/rtofs_glo_3dz_n024_daily_3zsio.nc"

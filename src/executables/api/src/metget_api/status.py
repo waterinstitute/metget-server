@@ -86,8 +86,9 @@ MET_MODEL_FORECAST_DURATION = {
     "wpc": 162,
     "rrfs": 84,
     "refs": 60,
-    # ...RTOFS daily steps span n024 (cycle - 24h) to f192
-    "rtofs": 216,
+    # ...RTOFS daily steps span n024 (the analysis, valid at the cycle time)
+    # to f192 (cycle + 192h)
+    "rtofs": 192,
 }
 
 

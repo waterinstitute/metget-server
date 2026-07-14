@@ -664,7 +664,9 @@ class RtofsTable(TableBase):
     daily NetCDF data (temperature and salinity) which has been downloaded from
     NOMADS and archived in the MetGet S3 bucket. These files are served raw via
     the API for downstream baroclinic forcing generation and are not part of the
-    build pipeline. The tau value is signed: the n024 analysis step is -24.
+    build pipeline. The n024 analysis step is valid at its own cycle time and
+    carries tau = 0 (no f000 step exists, so tau = 0 uniquely identifies the
+    analysis).
     """
 
     __tablename__ = "rtofs"

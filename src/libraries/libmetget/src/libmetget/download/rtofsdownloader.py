@@ -50,7 +50,7 @@ class RtofsDownloader:
     These are the rtofs_glo_3dz_{step}_daily_3z{t,s}io.nc products: the global
     ocean state interpolated to standard depths on the native curvilinear
     (tripolar) grid. RTOFS publishes a single 00Z cycle per day whose daily
-    steps are n024 (the analysis, valid at cycle - 24h) and f024..f192. These
+    steps are n024 (the analysis, valid at the cycle time) and f024..f192. These
     files exist only on NOMADS, which retains ~2 days, so they are copied into
     the MetGet bucket rather than index-pointed like the NODD-hosted sources.
     They are served raw via the API for downstream baroclinic forcing
@@ -85,7 +85,11 @@ class RtofsDownloader:
     @staticmethod
     def valid_time(cycle: datetime, step: str) -> datetime:
         """
-        Valid time of a step code (f### = cycle + hours, n### = cycle - hours)
+        Valid time of a step code. Forecast steps count forward from the cycle
+        (f### = cycle + hours). Nowcast steps count forward from the start of
+        the 24-hour nowcast segment at cycle - 24h (n### = cycle - 24h +
+        hours), so the n024 analysis is valid exactly AT the cycle time -
+        verified against the MT variable in the published files.
 
         Args:
             cycle (datetime): The forecast cycle
@@ -95,8 +99,10 @@ class RtofsDownloader:
             datetime: The valid time of the step
 
         """
-        sign = 1 if step[0] == "f" else -1
-        return cycle + sign * timedelta(hours=int(step[1:]))
+        hours = int(step[1:])
+        if step[0] == "f":
+            return cycle + timedelta(hours=hours)
+        return cycle - timedelta(hours=24) + timedelta(hours=hours)
 
     @staticmethod
     def parse_listing(html: str) -> List[Tuple[str, str, str]]:

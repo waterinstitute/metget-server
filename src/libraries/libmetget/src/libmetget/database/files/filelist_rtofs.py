@@ -39,9 +39,11 @@ from .filelist_base import FilelistBase
 class FilelistRtofs(FilelistBase):
     """
     Class for handling the Global RTOFS raw-file listings. RTOFS runs a single
-    00Z cycle per day whose daily steps span n024 (the analysis, valid at
-    cycle - 24h, tau = -24) through f192. Each forecast time has a temperature
-    and a salinity file (the param column), and both are always selected.
+    00Z cycle per day whose daily steps span n024 (the analysis, valid AT the
+    cycle time, tau = 0) through f192. A cycle's valid times are therefore
+    contiguous daily records from the cycle date through cycle + 8 days. Each
+    forecast time has a temperature and a salinity file (the param column),
+    and both are always selected.
 
     The queried window is padded by one daily step on each side of the
     requested start/end so the consumer (ADCIRC baroclinic forcing) can
@@ -50,11 +52,6 @@ class FilelistRtofs(FilelistBase):
 
     # ...RTOFS steps are daily; one step of padding brackets the window
     WINDOW_PAD = timedelta(hours=24)
-
-    # ...A cycle's earliest daily step is its analysis (n024) at cycle - 24h and
-    # the next is f024 at cycle + 24h, so the start-side pad of a single-cycle
-    # selection must span that 48-hour gap
-    SINGLE_CYCLE_START_PAD = timedelta(hours=48)
 
     def __init__(self, **kwargs: Any) -> None:
         """
@@ -70,9 +67,10 @@ class FilelistRtofs(FilelistBase):
 
     def _query_nowcast(self) -> list:
         """
-        Queries only the analysis (nowcast) fields, i.e. the n024 steps which
-        carry a negative tau. Stitching the daily analyses together yields the
-        RTOFS analysis time series.
+        Queries only the analysis (nowcast) fields, i.e. the n024 steps, which
+        are valid at their own cycle time (tau = 0; no f000 step exists, so a
+        zero tau uniquely identifies the analysis). Stitching the daily
+        analyses together yields the RTOFS analysis time series.
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
@@ -88,7 +86,7 @@ class FilelistRtofs(FilelistBase):
                     self.table().param,
                 )
                 .filter(
-                    self.table().tau < 0,
+                    self.table().tau <= 0,
                     self.table().forecasttime.between(
                         self.__padded_start(), self.__padded_end()
                     ),
@@ -100,11 +98,9 @@ class FilelistRtofs(FilelistBase):
     def _query_single_forecast(self) -> Union[list, None]:
         """
         Queries the files from a single forecast cycle. The cycle is the latest
-        one whose analysis (valid at cycle - 24h) is at or before the start of
-        the window, which maximizes the usable forecast horizon while still
-        bracketing the start. The start side of the valid-time filter is padded
-        by 48 hours so the analysis is never excluded (a cycle's daily valid
-        times jump from cycle - 24h directly to cycle + 24h).
+        one whose analysis (valid at the cycle time) is at or before the start
+        of the window, which maximizes the usable forecast horizon while still
+        bracketing the start.
 
         Returns:
             list: The list of files that will be used to generate the requested forcing
@@ -113,10 +109,7 @@ class FilelistRtofs(FilelistBase):
         with Database() as db, db.session() as session:
             cycle = (
                 session.query(self.table().forecastcycle)
-                .filter(
-                    self.table().forecastcycle
-                    <= self.start() + FilelistRtofs.WINDOW_PAD
-                )
+                .filter(self.table().forecastcycle <= self.start())
                 .order_by(self.table().forecastcycle.desc())
                 .first()
             )
@@ -135,7 +128,7 @@ class FilelistRtofs(FilelistBase):
                 .filter(
                     self.table().forecastcycle == cycle[0],
                     self.table().forecasttime.between(
-                        self.start() - FilelistRtofs.SINGLE_CYCLE_START_PAD,
+                        self.__padded_start(),
                         self.__padded_end(),
                     ),
                 )

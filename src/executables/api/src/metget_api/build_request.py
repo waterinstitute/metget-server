@@ -309,10 +309,10 @@ class BuildRequest:
     def __check_rtofs_forecast_flags(self, taus: list, n_forecasts: int) -> bool:
         """
         This method checks the nowcast/multiple_forecasts expectations for the
-        RTOFS service. The RTOFS nowcast is the daily n024 analysis, which
-        carries a negative tau (-24) and is stitched from consecutive cycles
-        by design, so the generic tau == 0 and single-cycle expectations used
-        for the gridded services do not apply.
+        RTOFS service. The RTOFS nowcast is the daily n024 analysis, which is
+        valid at its own cycle time (tau = 0; no f000 step exists) and is
+        stitched from consecutive cycles by design, so the generic
+        single-cycle expectations used for the gridded services do not apply.
 
         Args:
             taus: The tau values of the selected files
@@ -325,7 +325,7 @@ class BuildRequest:
         is_valid = True
 
         if self.__input_obj.nowcast():
-            if any(t >= 0 for t in taus):
+            if any(t > 0 for t in taus):
                 self.__error.append("Nowcast requested but non-analysis data returned")
                 if self.__input_obj.strict():
                     is_valid = False
