@@ -90,7 +90,7 @@ class ADeckNames:
             and the long name as the value.
 
         """
-        response = requests.get(self.__url)
+        response = requests.get(self.__url, timeout=30)
         if response.status_code != 200:
             msg = "Failed to download the A-Deck names."
             raise ADeckDownloaderException(msg)
@@ -389,7 +389,7 @@ class ADeckStorms:
 
         """
         url, is_gzipped = self.__generate_url(basin, year, storm)
-        response = requests.get(url)
+        response = requests.get(url, timeout=30)
         if response.status_code != 200:
             msg = "Failed to download the A-Deck file."
             raise ADeckDownloaderException(msg)

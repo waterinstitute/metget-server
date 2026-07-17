@@ -2,6 +2,7 @@ import math
 from datetime import datetime
 from typing import ClassVar, Dict, List
 
+import requests
 from loguru import logger
 
 from libmetget.database.database import Database
@@ -238,6 +239,11 @@ class ADeckDownloader:
                                 track_count += 1
                                 this_storm_track_count += 1
                 except ADeckDownloaderException:
+                    continue
+                except requests.RequestException as e:
+                    logger.warning(
+                        f"Skipping {basin}{storm:02d} due to a connection error: {e}"
+                    )
                     continue
 
                 if this_storm_track_count > 0:
