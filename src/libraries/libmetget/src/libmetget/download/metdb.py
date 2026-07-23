@@ -37,6 +37,7 @@ from ..database.database import Database
 from ..database.tables import (
     CoampsTable,
     CtcxTable,
+    DeepmindTable,
     GefsTable,
     GfsTable,
     HafsATable,
@@ -292,6 +293,76 @@ class Metdb:
             return md5_list
         return []
 
+    def get_deepmind_md5(
+        self, cycle: Any, storm_year: int, basin: str, storm: str, member: str
+    ) -> Optional[str]:
+        """
+        Get the md5 hash for a deepmind fcst file partition.
+
+        Args:
+            cycle: The forecast cycle (datetime or datetime-parsable value) of the
+                deepmind file
+            storm_year (int): The year of the deepmind file
+            basin (str): The basin of the deepmind file
+            storm (str): The storm of the deepmind file
+            member (str): The ensemble member ("F000"-"F049" or "mean")
+
+        Returns:
+            Optional[str]: The md5 hash of the deepmind file, or None if no record
+                exists
+
+        """
+        v = (
+            self.__session.query(DeepmindTable.md5)
+            .filter(
+                DeepmindTable.forecastcycle == cycle,
+                DeepmindTable.storm_year == storm_year,
+                DeepmindTable.basin == basin,
+                DeepmindTable.storm == storm,
+                DeepmindTable.ensemble_member == member,
+            )
+            .first()
+        )
+
+        if v is not None:
+            return v[0]
+        return None
+
+    def has_deepmind_cycle(self, cycle: Any, product: str) -> bool:
+        """
+        Fast existence check used for deepmind cycle discovery: determines whether
+        any deepmind_fcst rows already exist for the given forecast cycle and
+        product ("ensemble" or "mean"), without needing to know individual
+        basin/storm/member values in advance.
+
+        A cycle file is all-or-nothing per product (one HTTP fetch produces every
+        basin/storm/member partition for that cycle), so "any row exists" is a safe
+        signal to skip re-fetching; md5 dedup still guards against re-posted files
+        within the lookback window.
+
+        Args:
+            cycle: The forecast cycle (datetime or datetime-parsable value) to check
+            product (str): Either "mean" (checks for ensemble_member == "mean") or
+                "ensemble" (checks for any ensemble_member != "mean")
+
+        Returns:
+            bool: True if at least one matching row exists, False otherwise
+
+        """
+        query = self.__session.query(DeepmindTable.index).filter(
+            DeepmindTable.forecastcycle == cycle
+        )
+
+        if product == "mean":
+            query = query.filter(DeepmindTable.ensemble_member == "mean")
+        elif product == "ensemble":
+            query = query.filter(DeepmindTable.ensemble_member != "mean")
+        else:
+            msg = "Invalid deepmind product: " + product
+            raise ValueError(msg)
+
+        return query.first() is not None
+
     def has(self, datatype: str, metadata: Dict[str, Any]) -> bool:
         """
         Check if a file exists in the database.
@@ -314,6 +385,7 @@ class Metdb:
             "nhc_btk": self.__has_nhc_btk,
             "jtwc_fcst": self.__has_jtwc_fcst,
             "jtwc_btk": self.__has_jtwc_btk,
+            "deepmind": self.__has_deepmind,
             "gefs_ncep": self.__has_gefs,
             "refs_ncep": self.__has_refs,
             "rtofs": self.__has_rtofs,
@@ -572,6 +644,41 @@ class Metdb:
                 JtwcBtkTable.storm_year == year,
                 JtwcBtkTable.basin == basin,
                 JtwcBtkTable.storm == storm,
+            )
+            .first()
+        )
+
+        return v is not None
+
+    def __has_deepmind(self, metadata: Dict[str, Any]) -> bool:
+        """
+        Check if a deepmind fcst file partition exists in the database.
+
+        Expected metadata dict shape (see __add_record_deepmind for the full
+        documented contract):
+            cycle, storm_year, basin, storm, ensemble_member
+
+        Args:
+            metadata (dict): The pair to check for
+
+        Returns:
+            bool: True if the file exists in the database, False otherwise
+
+        """
+        cycle = metadata["cycle"]
+        storm_year = metadata["storm_year"]
+        basin = metadata["basin"]
+        storm = metadata["storm"]
+        member = metadata["ensemble_member"]
+
+        v = (
+            self.__session.query(DeepmindTable.index)
+            .filter(
+                DeepmindTable.forecastcycle == cycle,
+                DeepmindTable.storm_year == storm_year,
+                DeepmindTable.basin == basin,
+                DeepmindTable.storm == storm,
+                DeepmindTable.ensemble_member == member,
             )
             .first()
         )
@@ -1019,6 +1126,7 @@ class Metdb:
             "nhc_btk": lambda: self.__add_record_nhc_btk(filepath, metadata),
             "jtwc_fcst": lambda: self.__add_record_jtwc_fcst(filepath, metadata),
             "jtwc_btk": lambda: self.__add_record_jtwc_btk(filepath, metadata),
+            "deepmind": lambda: self.__add_record_deepmind(filepath, metadata),
             "gefs_ncep": lambda: self.__add_record_gefs_ncep(filepath, metadata),
             "refs_ncep": lambda: self.__add_record_refs_ncep(filepath, metadata),
             "rtofs": lambda: self.__add_record_rtofs(filepath, metadata),
@@ -1424,6 +1532,88 @@ class Metdb:
             record.advisory_duration_hr = duration
             record.geometry_data = geojson
             record.md5 = md5
+            self.__session.commit()
+
+        return 1
+
+    def __add_record_deepmind(self, filepath: str, metadata: Dict[str, Any]) -> int:
+        """
+        Adds a deepmind forecast file partition listing to the database.
+
+        Expected metadata dict shape (parallels the NHC/JTWC metadata dict, but
+        uses deepmind-specific key names since there is no single shared
+        ``__generate_nhc_vars_from_dict`` helper for this source):
+
+            {
+                "cycle": datetime,               # forecast cycle (required)
+                "storm_year": int,                # year of the forecast cycle (required)
+                "basin": str,                     # 2-letter basin, e.g. "al" (required)
+                "storm": str,                      # storm number, e.g. "02" (required)
+                "ensemble_member": str,           # "F000"-"F049" or "mean" (required)
+                "advisory_start": datetime | str,  # optional, defaults to None
+                "advisory_end": datetime | str,    # optional, defaults to None
+                "advisory_duration_hr": int | float,  # optional, defaults to 0
+                "md5": str,                        # optional, defaults to "None"
+                "geometry_data": dict,             # optional geojson dict, defaults to {}
+            }
+
+        Args:
+            filepath (str): File location
+            metadata (dict): dict containing the metadata for the file, per the
+                shape documented above
+
+        Returns:
+            Always returns 1 since the record is either added or updated
+
+        """
+        cycle = metadata["cycle"]
+        storm_year = metadata["storm_year"]
+        basin = metadata["basin"]
+        storm = metadata["storm"]
+        member = metadata["ensemble_member"]
+
+        start = metadata.get("advisory_start")
+        end = metadata.get("advisory_end")
+        duration = metadata.get("advisory_duration_hr", 0)
+        md5 = metadata.get("md5", "None")
+        geojson = metadata.get("geometry_data", {})
+
+        record = (
+            self.__session.query(DeepmindTable)
+            .filter(
+                DeepmindTable.forecastcycle == cycle,
+                DeepmindTable.storm_year == storm_year,
+                DeepmindTable.basin == basin,
+                DeepmindTable.storm == storm,
+                DeepmindTable.ensemble_member == member,
+            )
+            .first()
+        )
+
+        if record is None:
+            record = DeepmindTable(
+                forecastcycle=cycle,
+                storm_year=storm_year,
+                basin=basin,
+                storm=storm,
+                ensemble_member=member,
+                advisory_start=start,
+                advisory_end=end,
+                advisory_duration_hr=duration,
+                filepath=filepath,
+                md5=md5,
+                accessed=datetime.now(tz=timezone.utc),
+                geometry_data=geojson,
+            )
+            self.__add_delayed_object(record)
+        else:
+            record.advisory_start = start
+            record.advisory_end = end
+            record.advisory_duration_hr = duration
+            record.filepath = filepath
+            record.md5 = md5
+            record.accessed = datetime.now(tz=timezone.utc)
+            record.geometry_data = geojson
             self.__session.commit()
 
         return 1
