@@ -31,6 +31,7 @@ from datetime import datetime
 
 from loguru import logger
 
+from ..sources.deepmind import DEEPMIND_ENSEMBLE_MEMBERS
 from .output.gridfactory import grid_factory
 from .output.outputgrid import OutputGrid
 
@@ -50,15 +51,23 @@ VALID_SERVICES = [
     "hwrf",
     "rrfs",
     "rtofs",
+    "deepmind",
 ]
 
 # Storm-track services and the basins that are valid for each. NHC covers the Atlantic and the
 # East/Central Pacific; JTWC covers the Western Pacific, North Indian Ocean, and Southern
-# Hemisphere. The basins are disjoint, so a basin is only valid for its own service.
-STORM_TRACK_SERVICES = ("nhc", "jtwc")
+# Hemisphere. The basins are disjoint between nhc and jtwc, so a basin is only valid for its own
+# service. DeepMind is a global product and its basin list intentionally overlaps both nhc's and
+# jtwc's basins (plus "ls" for the South Atlantic/Indian Ocean-adjacent invests some ATCF feeds
+# use); this is safe because the validation below only ever looks up
+# SERVICE_BASINS[self.service()] for the service actually being requested -- it never reasons
+# about basin -> service in the reverse direction, so overlapping basin sets across services do
+# not create ambiguity.
+STORM_TRACK_SERVICES = ("nhc", "jtwc", "deepmind")
 SERVICE_BASINS = {
     "nhc": ["al", "ep", "cp"],
     "jtwc": ["wp", "io", "sh"],
+    "deepmind": ["al", "ep", "cp", "wp", "io", "sh", "ls"],
 }
 
 
@@ -290,7 +299,13 @@ class Domain:
     def __get_advisory(self) -> None:
         """
         Gets the advisory name for the domain from the json object if the service is a storm-track
-        service (nhc or jtwc).
+        service (nhc, jtwc, or deepmind).
+
+        For nhc/jtwc, the advisory is the (source-defined) advisory identifier string. For
+        deepmind, there is no separate advisory numbering scheme -- the "advisory" field instead
+        carries the forecast cycle itself, as a 10-digit "YYYYMMDDHH" string on a synoptic hour
+        (00/06/12/18Z), since DeepMind publishes exactly one file per cycle rather than a
+        numbered advisory sequence.
 
         Returns:
             None
@@ -299,10 +314,49 @@ class Domain:
         if self.service() in STORM_TRACK_SERVICES:
             if "advisory" in self.__json:
                 self.__advisory = str(self.__json["advisory"])
+                if self.service() == "deepmind":
+                    self.__validate_deepmind_advisory(self.__advisory)
             else:
                 self.__valid = False
         else:
             self.__advisory = None
+
+    def __validate_deepmind_advisory(self, advisory: str) -> None:
+        """
+        Validates that the deepmind advisory field is a 10-digit "YYYYMMDDHH" forecast
+        cycle string on a synoptic hour (00, 06, 12, or 18Z).
+
+        Args:
+            advisory: The advisory string to validate
+
+        Returns:
+            None
+
+        """
+        if len(advisory) != 10 or not advisory.isdigit():
+            logger.error(
+                f"Domain {self.__domain_level} invalid because deepmind advisory "
+                f"'{advisory:s}' is not a 10-digit 'YYYYMMDDHH' forecast cycle string"
+            )
+            self.__valid = False
+            return
+
+        try:
+            cycle = datetime.strptime(advisory, "%Y%m%d%H")
+        except ValueError:
+            logger.error(
+                f"Domain {self.__domain_level} invalid because deepmind advisory "
+                f"'{advisory:s}' is not a parseable date"
+            )
+            self.__valid = False
+            return
+
+        if cycle.hour not in (0, 6, 12, 18):
+            logger.error(
+                f"Domain {self.__domain_level} invalid because deepmind advisory "
+                f"'{advisory:s}' is not on a synoptic hour (00, 06, 12, or 18 UTC)"
+            )
+            self.__valid = False
 
     def __get_storm_year(self) -> None:
         """
@@ -333,7 +387,12 @@ class Domain:
 
     def __get_ensemble_member(self) -> None:
         """
-        Gets the ensemble member for the domain from the json object if the service is gefs-ncep.
+        Gets the ensemble member for the domain from the json object if the service is
+        gefs-ncep, coamps-ctcx, or deepmind.
+
+        For deepmind, the value must be one of the canonical DeepMind ensemble member
+        identifiers ("F000"-"F049", or "mean" for the ensemble-mean product); anything else
+        invalidates the domain.
 
         Returns:
             None
@@ -342,6 +401,19 @@ class Domain:
         if self.service() == "gefs-ncep" or self.service() == "coamps-ctcx":
             if "ensemble_member" in self.__json:
                 self.__ensemble_member = self.__json["ensemble_member"]
+            else:
+                self.__valid = False
+        elif self.service() == "deepmind":
+            if "ensemble_member" in self.__json:
+                member = self.__json["ensemble_member"]
+                if member not in DEEPMIND_ENSEMBLE_MEMBERS:
+                    logger.error(
+                        f"Domain {self.__domain_level} invalid because ensemble member "
+                        f"'{member!s}' is not valid for service 'deepmind'; accepted "
+                        f"forms are 'F000'-'F049' or 'mean'"
+                    )
+                    self.__valid = False
+                self.__ensemble_member = member
             else:
                 self.__valid = False
         else:

@@ -284,7 +284,7 @@ class MessageHandler:
             )
             logger.info(f"Selected {len(filelist.files()):d} files for interpolation")
 
-            if input_data.domain(i).service() in ("nhc", "jtwc"):
+            if input_data.domain(i).service() in ("nhc", "jtwc", "deepmind"):
                 nhc_data[i] = filelist.files()
             else:
                 db_files.append(filelist.files())
@@ -671,7 +671,7 @@ class MessageHandler:
             f"Processing domain {domain_index + 1:d} of {input_data.num_domains():d}"
         )
 
-        if input_data.domain(domain_index).service() in ("nhc", "jtwc"):
+        if input_data.domain(domain_index).service() in ("nhc", "jtwc", "deepmind"):
             logger.error("Storm track to gridded data not implemented")
             msg = "Storm track to gridded data not implemented"
             raise RuntimeError(msg)
@@ -1179,7 +1179,7 @@ class MessageHandler:
             d = input_data.domain(i)
             domain_data.append([])
 
-            if d.service() in ("nhc", "jtwc"):
+            if d.service() in ("nhc", "jtwc", "deepmind"):
                 MessageHandler.__generate_merged_nhc_files(
                     d, domain_data, i, met_field, nhc_data
                 )

@@ -51,7 +51,7 @@ VALID_DATA_TYPES = [
 # ...Services which cannot be interpolated to a gridded output product and are only
 # available with the 'raw' output format: the storm-track services deliver ATCF track
 # files and rtofs delivers raw ocean model NetCDF
-RAW_ONLY_SERVICES = ("nhc", "jtwc", "rtofs")
+RAW_ONLY_SERVICES = ("nhc", "jtwc", "rtofs", "deepmind")
 
 
 class Input:

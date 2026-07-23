@@ -566,6 +566,25 @@ def rebuild_jtwc() -> int:
     return n
 
 
+def rebuild_deepmind() -> int:
+    """
+    DeepMind has no historical archive to rebuild from: the downloader is forward-only with a
+    bounded lookback window and there is no upstream index of past cycles (see the implementation
+    plan's "Backfill: None" decision). This function exists purely so `--source deepmind` is a
+    recognized, no-op source rather than falling through to the generic "Invalid source type"
+    error -- keeping parity with how every other source is dispatched in `rebuilder()` below.
+
+    Returns:
+        int: Always 0, since there is nothing to rebuild.
+
+    """
+    logger.warning(
+        "DeepMind has no historical archive to rebuild from (forward-only, no backfill); "
+        "nothing to do"
+    )
+    return 0
+
+
 def rebuild_rtofs(start: datetime, end: datetime) -> int:
     """
     Re-indexes the RTOFS files already archived in the MetGet S3 bucket back
@@ -668,28 +687,27 @@ def rebuilder() -> None:
 
     check_for_environment_variables()
 
-    if args.source == "gfs":
-        rebuild_gfs(args.start, args.end)
-    elif args.source == "nam":
-        rebuild_nam(args.start, args.end)
-    elif args.source == "hrrr":
-        rebuild_hrrr(args.start, args.end)
-    elif args.source == "hrrr-alaska":
-        rebuild_hrrr_ak(args.start, args.end)
-    elif args.source == "hafs":
-        rebuild_hafs(args.start, args.end)
-    elif args.source == "coamps":
-        rebuild_coamps(args.start, args.end)
-    elif args.source == "ctcx":
-        rebuild_ctcx(args.start, args.end)
-    elif args.source == "gefs":
-        rebuild_gefs(args.start, args.end)
-    elif args.source == "nhc":
-        rebuild_nhc()
-    elif args.source == "jtwc":
-        rebuild_jtwc()
-    elif args.source == "rtofs":
-        rebuild_rtofs(args.start, args.end)
+    rebuild_with_dates = {
+        "gfs": rebuild_gfs,
+        "nam": rebuild_nam,
+        "hrrr": rebuild_hrrr,
+        "hrrr-alaska": rebuild_hrrr_ak,
+        "hafs": rebuild_hafs,
+        "coamps": rebuild_coamps,
+        "ctcx": rebuild_ctcx,
+        "gefs": rebuild_gefs,
+        "rtofs": rebuild_rtofs,
+    }
+    rebuild_without_dates = {
+        "nhc": rebuild_nhc,
+        "jtwc": rebuild_jtwc,
+        "deepmind": rebuild_deepmind,
+    }
+
+    if args.source in rebuild_with_dates:
+        rebuild_with_dates[args.source](args.start, args.end)
+    elif args.source in rebuild_without_dates:
+        rebuild_without_dates[args.source]()
     else:
         msg = f"Invalid source type: {args.source}"
         raise ValueError(msg)

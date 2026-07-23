@@ -48,6 +48,7 @@ from ..sources.metfiletype import (
     attributes_from_service,
 )
 from .files.filelist_base import FilelistBase
+from .files.filelist_deepmind import FilelistDeepmind
 from .files.filelist_generic import FilelistGeneric
 from .files.filelist_generic_ensemble import FilelistGenericEnsemble
 from .files.filelist_nhc import FilelistNHC
@@ -112,7 +113,7 @@ class Filelist:
         self.__error = []
         self.__valid = False
 
-        if self.__service in ("nhc", "jtwc"):
+        if self.__service in ("nhc", "jtwc", "deepmind"):
             self.__parse_nhc_kwargs(kwargs)
         else:
             self.__parse_generic_kwargs(kwargs)
@@ -201,6 +202,7 @@ class Filelist:
         self.__storm = kwargs.get("storm")
         self.__basin = kwargs.get("basin")
         self.__advisory = kwargs.get("advisory")
+        self.__ensemble_member = kwargs.get("ensemble_member")
 
         if not isinstance(self.__storm_year, int) and self.__storm_year is not None:
             msg = "storm_year must be of type int"
@@ -243,6 +245,14 @@ class Filelist:
                 storm_year=self.__storm_year,
                 advisory=self.__advisory,
                 basin=self.__basin,
+            )
+        elif self.__service == "deepmind":
+            filelist_obj = FilelistDeepmind(
+                storm=str(self.__storm),
+                storm_year=self.__storm_year,
+                advisory=self.__advisory,
+                basin=self.__basin,
+                ensemble_member=self.__ensemble_member,
             )
         elif self.__service == "rtofs":
             filelist_obj = FilelistRtofs(
