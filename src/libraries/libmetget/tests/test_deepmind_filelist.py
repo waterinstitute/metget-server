@@ -199,6 +199,21 @@ def test_no_data_for_different_storm_or_basin(monkeypatch) -> None:
     assert fl.query_files() is None
 
 
+def test_storm_and_basin_are_normalized(monkeypatch) -> None:
+    # An unpadded storm number ("2") or uppercase basin ("AL") must still match the
+    # canonical "02"/"al" values the downloader stores.
+    rows = _seed_rows()
+    fl = _make_filelist(
+        monkeypatch, rows, storm="2", basin="AL", ensemble_member="F007"
+    )
+    result = fl.query_files()
+
+    assert result is not None
+    assert result["forecast_track"]["filepath"] == (
+        "deepmind/forecast/2026/al02/2026072206/deepmind_2026072206_al02_F007.fcst"
+    )
+
+
 def test_missing_required_argument_raises() -> None:
     with pytest.raises(ValueError, match="Missing required argument"):
         FilelistDeepmind(storm="02", basin="al", storm_year=2026, advisory="2026072206")
