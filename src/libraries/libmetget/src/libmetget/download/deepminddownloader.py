@@ -331,7 +331,7 @@ class DeepMindDownloader:
 
             max_wind = _atcf_int(fields[8])
             min_pressure = _atcf_int(fields[9])
-            radius_to_max_wind = _atcf_int(fields[20]) if len(fields) > 20 else 0
+            radius_to_max_wind = _atcf_int(fields[19]) if len(fields) > 19 else 0
 
             snapshot = DeckSnapshot(
                 basin=line_basin,
