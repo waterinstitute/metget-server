@@ -34,6 +34,7 @@ from typing import Tuple
 from libmetget.download.adeckdownloader import ADeckDownloader
 from libmetget.download.coampsdownloader import CoampsDownloader
 from libmetget.download.ctcxdownloader import CtcxDownloader
+from libmetget.download.deepminddownloader import DeepMindDownloader
 from libmetget.download.hafsdownloader import HafsDownloader
 from libmetget.download.hwrfdownloader import HwrfDownloader
 from libmetget.download.jtwcdownloader import JtwcDownloader
@@ -142,6 +143,14 @@ def jtwc_download() -> int:
     return n
 
 
+def deepmind_download() -> int:
+    deepmind = DeepMindDownloader()
+    logger.info("Beginning downloading Google DeepMind cyclone ensemble data")
+    n = deepmind.download()
+    logger.info(f"DeepMind complete. {n:d} files downloaded")
+    return n
+
+
 def coamps_download() -> int:
     coamps = CoampsDownloader()
     logger.info("Beginning downloading COAMPS data")
@@ -228,7 +237,7 @@ def metget_download() -> None:
         "--service",
         type=str,
         required=True,
-        help="Service to download from (nam, gfs, gefs, hwrf, nhc, jtwc, coamps, hrrr, hrrr-alaska, wpc, rrfs, refs, rtofs, adeck)",
+        help="Service to download from (nam, gfs, gefs, hwrf, nhc, jtwc, deepmind, coamps, hrrr, hrrr-alaska, wpc, rrfs, refs, rtofs, adeck)",
     )
     args = p.parse_args()
 
@@ -244,6 +253,7 @@ def metget_download() -> None:
         "hafs": hafs_download,
         "nhc": nhc_download,
         "jtwc": jtwc_download,
+        "deepmind": deepmind_download,
         "coamps": coamps_download,
         "ctcx": ctcx_download,
         "hrrr": hrrr_download,
