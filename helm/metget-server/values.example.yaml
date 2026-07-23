@@ -160,6 +160,7 @@ config:
     adeck: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
     rtofs: "9 * * * *"
     era5: "0 * * * *" # Not implemented
+    deepmind: "4,19,34,49 * * * *"
 
   #####################################################
   # Enabled Meteorology Types
@@ -191,6 +192,7 @@ config:
     rrfs: False
     refs: False
     rtofs: False
+    deepmind: False
   #####################################################
   # Ensure that the API enforces credit limits
   #
