@@ -92,6 +92,12 @@ class FilelistDeepmind:
             msg = "Ensemble member must be a string"
             raise ValueError(msg)
 
+        # The downloader stores basin lowercase and storm as the two-digit string found in the
+        # ATCF file (e.g. "02"), so normalize the request values to match ("2" -> "02"); the
+        # nhc/jtwc path is tolerant of this via an int() cast, which a String column cannot use.
+        self.__basin = self.__basin.lower()
+        self.__storm = self.__storm.zfill(2)
+
         # The "advisory" field for deepmind carries the forecast cycle as a "YYYYMMDDHH" string
         # (see domain.py's deepmind advisory validation); parse it here to a datetime for the
         # forecastcycle column comparison.
