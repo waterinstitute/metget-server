@@ -1,8 +1,8 @@
 ###################################################################################################
 # Tests for the raw-only output format enforcement at input validation. The storm-track services
-# (nhc, jtwc) and rtofs cannot be interpolated to a gridded output product, so requesting them
-# with any format other than 'raw' must be rejected at the API with a clear error message rather
-# than failing later in the build worker where the client cannot see the reason.
+# (nhc, jtwc, deepmind) and rtofs cannot be interpolated to a gridded output product, so requesting
+# them with any format other than 'raw' must be rejected at the API with a clear error message
+# rather than failing later in the build worker where the client cannot see the reason.
 ###################################################################################################
 import pytest
 from libmetget.build.input import RAW_ONLY_SERVICES, Input
@@ -31,6 +31,13 @@ BASE_DOMAIN = {
 STORM_EXTRAS = {
     "nhc": {"storm": "09", "basin": "al", "advisory": 5, "storm_year": 2026},
     "jtwc": {"storm": "09", "basin": "wp", "advisory": 5, "storm_year": 2026},
+    "deepmind": {
+        "storm": "02",
+        "basin": "al",
+        "advisory": "2026072206",
+        "storm_year": 2026,
+        "ensemble_member": "F007",
+    },
     "rtofs": {},
 }
 
@@ -41,7 +48,7 @@ def make_input(service: str, output_format: str) -> Input:
 
 
 def test_raw_only_services_cover_expected_set() -> None:
-    assert set(RAW_ONLY_SERVICES) == {"nhc", "jtwc", "rtofs"}
+    assert set(RAW_ONLY_SERVICES) == {"nhc", "jtwc", "rtofs", "deepmind"}
 
 
 @pytest.mark.parametrize("service", RAW_ONLY_SERVICES)
@@ -96,3 +103,70 @@ def test_rtofs_credit_usage_is_independent_of_time_step() -> None:
     assert hourly.credit_usage() == daily.credit_usage()
     # ...One day of data (BASE_REQUEST spans 24 hours) at the flat daily rate
     assert hourly.credit_usage() == 100 * 100 * 24
+
+
+# ...Deepmind-specific validation: raw-only enforcement is covered by the parametrized
+# tests above (deepmind is included in RAW_ONLY_SERVICES); the tests below cover the
+# deepmind-specific ensemble_member and advisory (forecast-cycle) validation rules.
+
+
+def _deepmind_domain(**overrides: object) -> dict:
+    domain = {
+        **BASE_DOMAIN,
+        "service": "deepmind",
+        **STORM_EXTRAS["deepmind"],
+    }
+    domain.update(overrides)
+    return domain
+
+
+def _deepmind_input(**overrides: object) -> Input:
+    domain = _deepmind_domain(**overrides)
+    return Input({**BASE_REQUEST, "format": "raw", "domains": [domain]})
+
+
+def test_deepmind_valid_request_with_member_is_accepted() -> None:
+    result = _deepmind_input()
+    assert result.valid(), str(result.error())
+
+
+def test_deepmind_missing_ensemble_member_is_rejected() -> None:
+    domain = _deepmind_domain()
+    del domain["ensemble_member"]
+    result = Input({**BASE_REQUEST, "format": "raw", "domains": [domain]})
+    assert not result.valid()
+
+
+@pytest.mark.parametrize("member", ["F050", "f007", "avg", "FNV3", ""])
+def test_deepmind_invalid_ensemble_member_is_rejected(member: str) -> None:
+    result = _deepmind_input(ensemble_member=member)
+    assert not result.valid()
+
+
+@pytest.mark.parametrize("member", ["F007", "mean"])
+def test_deepmind_valid_ensemble_member_is_accepted(member: str) -> None:
+    result = _deepmind_input(ensemble_member=member)
+    assert result.valid(), str(result.error())
+
+
+@pytest.mark.parametrize(
+    "advisory",
+    [
+        "garbage",
+        "2026072205",  # non-synoptic hour
+        "202607220",  # 9 digits
+        "20260722061",  # 11 digits
+        "2026133100",  # invalid month/day, unparseable
+    ],
+)
+def test_deepmind_invalid_advisory_is_rejected(advisory: str) -> None:
+    result = _deepmind_input(advisory=advisory)
+    assert not result.valid()
+
+
+@pytest.mark.parametrize(
+    "advisory", ["2026072200", "2026072206", "2026072212", "2026072218"]
+)
+def test_deepmind_valid_synoptic_advisory_is_accepted(advisory: str) -> None:
+    result = _deepmind_input(advisory=advisory)
+    assert result.valid(), str(result.error())

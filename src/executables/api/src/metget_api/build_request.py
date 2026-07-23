@@ -32,7 +32,7 @@ from datetime import datetime
 from typing import Tuple, Union
 
 import pika
-from libmetget.build.domain import Domain
+from libmetget.build.domain import STORM_TRACK_SERVICES, Domain
 from libmetget.build.input import Input
 from libmetget.database.filelist import Filelist, FilelistBase
 from libmetget.database.tables import RequestEnum, RequestTable
@@ -234,8 +234,8 @@ class BuildRequest:
             lookup, is_lookup_valid = self.__generate_lookup_obj(domain, tau)
             is_domain_valid = is_domain_valid and is_lookup_valid
 
-            # Check the synoptic request validity (skipped for storm-track services nhc/jtwc)
-            if domain.service() not in ("nhc", "jtwc"):
+            # Check the synoptic request validity (skipped for storm-track services)
+            if domain.service() not in STORM_TRACK_SERVICES:
                 is_domain_valid = (
                     is_domain_valid
                     and self.__check_synoptic_request_validity(
@@ -381,7 +381,7 @@ class BuildRequest:
             int: The tau parameter
 
         """
-        if d.service() not in ("nhc", "jtwc"):
+        if d.service() not in STORM_TRACK_SERVICES:
             tau = FilelistBase.check_tau_parameter(
                 d.tau(), d.service(), self.__input_obj.data_type()
             )
@@ -402,6 +402,9 @@ class BuildRequest:
         """
         if d.service() == "gefs-ncep" and not d.ensemble_member():
             self.__error.append("GEFS-NCEP requires an ensemble member")
+            return False
+        if d.service() == "deepmind" and not d.ensemble_member():
+            self.__error.append("Deepmind requires an ensemble member")
             return False
         return True
 
