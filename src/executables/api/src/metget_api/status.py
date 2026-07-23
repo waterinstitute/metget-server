@@ -35,6 +35,7 @@ from libmetget.database.database import Database
 from libmetget.database.tables import (
     CoampsTable,
     CtcxTable,
+    DeepmindTable,
     GefsTable,
     GfsTable,
     HafsATable,
@@ -71,6 +72,7 @@ AVAILABLE_MET_MODELS = [
     "rrfs",
     "refs",
     "rtofs",
+    "deepmind",
 ]
 
 MET_MODEL_FORECAST_DURATION = {
@@ -89,6 +91,7 @@ MET_MODEL_FORECAST_DURATION = {
     # ...RTOFS daily steps span n024 (the analysis, valid at the cycle time)
     # to f192 (cycle + 192h)
     "rtofs": 192,
+    "deepmind": 240,
 }
 
 
@@ -272,6 +275,10 @@ class Status:
                     storm,
                     member,
                 ],
+            ),
+            "deepmind": (
+                Status.__get_status_deepmind,
+                [time_limit, start_dt, end_dt, member],
             ),
         }
 
@@ -987,6 +994,90 @@ class Status:
             storm,
             member,
         )
+
+    @staticmethod
+    def __get_status_deepmind(
+        limit: timedelta,
+        start: datetime,
+        end: datetime,
+        member: str,
+    ) -> dict:
+        """
+        This method is used to generate the status for the Google DeepMind cyclone
+        ensemble forecasts. DeepMind is a storm + ensemble raw source: unlike CTCX
+        (which uses ``stormname``/``forecasttime``) the ``deepmind_fcst`` table already
+        carries ``storm_year``/``basin``/``storm`` (NHC/JTWC-style addressing) alongside
+        a ``forecastcycle`` and ``ensemble_member`` column, so a bespoke aggregation is
+        used rather than reusing ``__get_status_ensemble_storm_type`` verbatim.
+
+        Args:
+            limit: The limit in days to use when generating the status
+            start: The start date to use when generating the status
+            end: The end date to use when generating the status
+            member: The ensemble member to filter on ("all", "mean", or "F000"-"F049")
+
+        Returns:
+            Dictionary keyed by storm_year -> basin -> storm, each containing
+            ``first_cycle``, ``latest_cycle``, ``cycle_count``, ``cycles`` (list of
+            cycle strings, ascending), and ``members`` (distinct members present).
+
+        """
+        time_limits = Status.__compute_time_limits(limit, start, end)
+
+        with Database() as db, db.session() as session:
+            query_filter = [
+                DeepmindTable.forecastcycle >= time_limits["start"],
+                DeepmindTable.forecastcycle <= time_limits["end"],
+            ]
+            if member != "all":
+                query_filter.append(DeepmindTable.ensemble_member == member)
+
+            rows = (
+                session.query(
+                    DeepmindTable.storm_year,
+                    DeepmindTable.basin,
+                    DeepmindTable.storm,
+                    DeepmindTable.forecastcycle,
+                    DeepmindTable.ensemble_member,
+                )
+                .filter(*query_filter)
+                .distinct()
+                .order_by(
+                    DeepmindTable.storm_year,
+                    DeepmindTable.basin,
+                    DeepmindTable.storm,
+                    DeepmindTable.forecastcycle,
+                )
+                .all()
+            )
+
+        storms: dict = {}
+        buckets: dict = {}
+        for storm_year, basin, storm, forecastcycle, ensemble_member in rows:
+            year_bucket = storms.setdefault(storm_year, {})
+            basin_bucket = year_bucket.setdefault(basin, {})
+            if storm not in basin_bucket:
+                basin_bucket[storm] = {}
+                buckets[(storm_year, basin, storm)] = {
+                    "cycles": set(),
+                    "members": set(),
+                }
+            bucket = buckets[(storm_year, basin, storm)]
+            bucket["cycles"].add(forecastcycle)
+            bucket["members"].add(ensemble_member)
+
+        for (storm_year, basin, storm), bucket in buckets.items():
+            cycles = sorted(bucket["cycles"])
+            cycle_strs = [Status.d2s(c) for c in cycles]
+            storms[storm_year][basin][storm] = {
+                "first_cycle": cycle_strs[0],
+                "latest_cycle": cycle_strs[-1],
+                "cycle_count": len(cycle_strs),
+                "cycles": cycle_strs,
+                "members": sorted(bucket["members"]),
+            }
+
+        return storms
 
     @staticmethod
     def __get_status_ensemble_storm_type(  # noqa: PLR0915, PLR0912
