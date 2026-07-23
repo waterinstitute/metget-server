@@ -422,8 +422,11 @@ class ADeckStorms:
             max_wind = _atcf_int(split_line[8])
             min_pressure = _atcf_int(split_line[9])
 
+            # ATCF field 19 is the radius to maximum winds; field 20 is gusts. Verified against
+            # real NHC/UCAR/DeepMind decks: model techs report RMW at 19 (20 is 0 or blank),
+            # while OFCL reports gusts at 20 -- so index 20 here would read gusts as a radius.
             radius_to_max_wind = (
-                _atcf_int(split_line[20]) if len(split_line) > 20 else 0
+                _atcf_int(split_line[19]) if len(split_line) > 19 else 0
             )
 
             snapshot = DeckSnapshot(
