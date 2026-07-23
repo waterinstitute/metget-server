@@ -606,6 +606,54 @@ class JtwcFcstTable(TableBase):
     geometry_data = Column(MutableDict.as_mutable(JSONB))
 
 
+class DeepmindTable(TableBase):
+    """
+    This class is used to create the table that holds the Google DeepMind Weather Lab
+    cyclone ensemble forecast data which has been downloaded and partitioned by
+    (basin, storm, ensemble_member). The data is stored using the same ATCF forecast
+    format as the NHC/JTWC forecast data so that downstream consumers require no new
+    format support. `ensemble_member` holds the ATCF tech id (e.g. "F007") or the
+    literal string "mean" for the ensemble-mean product (raw tech "FNV3").
+    """
+
+    __tablename__ = "deepmind_fcst"
+
+    index = Column("id", Integer, primary_key=True)
+    forecastcycle = Column(DateTime)
+    storm_year = Column(Integer)
+    basin = Column(String)
+    storm = Column(String)
+    ensemble_member = Column(String)
+    advisory_start = Column(DateTime)
+    advisory_end = Column(DateTime)
+    advisory_duration_hr = Column(Integer)
+    filepath = Column(String)
+    md5 = Column(String)
+    accessed = Column(DateTime)
+    geometry_data = Column(MutableDict.as_mutable(JSONB))
+
+    __table_args__ = (
+        # Composite index for fast lookups
+        Index(
+            "idx_deepmind_lookup",
+            "forecastcycle",
+            "storm_year",
+            "basin",
+            "storm",
+            "ensemble_member",
+        ),
+        # Unique constraint for ON CONFLICT bulk inserts
+        UniqueConstraint(
+            "forecastcycle",
+            "basin",
+            "storm",
+            "storm_year",
+            "ensemble_member",
+            name="uq_deepmind_cycle_storm_member",
+        ),
+    )
+
+
 class RrfsTable(TableBase):
     """
     This class is used to create the table that holds the RRFS data which has been

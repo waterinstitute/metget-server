@@ -113,6 +113,21 @@ CREATE TABLE jtwc_fcst(
   accessed TIMESTAMP NOT NULL,
   geometry_data JSON NOT NULL
 );
+CREATE TABLE deepmind_fcst(
+  id SERIAL PRIMARY KEY,
+  forecastcycle TIMESTAMP NOT NULL,
+  storm_year INTEGER NOT NULL,
+  basin VARCHAR(256) NOT NULL,
+  storm VARCHAR(256) NOT NULL,
+  ensemble_member VARCHAR(32) NOT NULL,
+  advisory_start TIMESTAMP NOT NULL,
+  advisory_end TIMESTAMP NOT NULL,
+  advisory_duration_hr INT NOT NULL,
+  filepath VARCHAR(256) NOT NULL,
+  md5 VARCHAR(32) NOT NULL,
+  accessed TIMESTAMP NOT NULL,
+  geometry_data JSON NOT NULL
+);
 CREATE TABLE coamps_tc(
   id SERIAL PRIMARY KEY,
   stormname VARCHAR(256) NOT NULL,
@@ -296,3 +311,11 @@ CREATE INDEX nhc_btk_basin_idx ON nhc_btk USING brin (basin);
 --
 CREATE INDEX jtwc_fcst_basin_idx ON jtwc_fcst USING brin (basin);
 CREATE INDEX jtwc_btk_basin_idx ON jtwc_btk USING brin (basin);
+--
+-- DeepMind ensemble forecast lookups/dedup
+--
+CREATE INDEX deepmind_fcst_basin_idx ON deepmind_fcst USING brin (basin);
+CREATE INDEX deepmind_fcst_forecastcycle_idx ON deepmind_fcst USING brin (forecastcycle);
+CREATE INDEX idx_deepmind_lookup ON deepmind_fcst (forecastcycle, storm_year, basin, storm, ensemble_member);
+ALTER TABLE deepmind_fcst ADD CONSTRAINT uq_deepmind_cycle_storm_member
+  UNIQUE (forecastcycle, basin, storm, storm_year, ensemble_member);
