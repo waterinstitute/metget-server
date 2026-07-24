@@ -27,9 +27,16 @@ class _FakeQuery:
     def __init__(self, rows: list) -> None:
         self._rows = rows
         self._filters: list = []
+        self._order_by_key = None
 
     def filter(self, *criteria):
         self._filters.extend(criteria)
+        return self
+
+    def order_by(self, column):
+        # ...Mirrors real SQLAlchemy ordering closely enough for this fake: the column's
+        # `.key` attribute names the model attribute to sort the matched rows by.
+        self._order_by_key = column.key
         return self
 
     def _matches(self, row) -> bool:
@@ -41,7 +48,10 @@ class _FakeQuery:
         return True
 
     def all(self) -> list:
-        return [row for row in self._rows if self._matches(row)]
+        matched = [row for row in self._rows if self._matches(row)]
+        if self._order_by_key is not None:
+            matched.sort(key=lambda row: getattr(row, self._order_by_key))
+        return matched
 
 
 class _FakeSession:
@@ -228,3 +238,86 @@ def test_invalid_advisory_format_raises(monkeypatch) -> None:
             advisory="garbage",
             ensemble_member="F007",
         )
+
+
+###################################################################################################
+# "all" member tests: dropping the ensemble_member filter, returning every archived row for the
+# storm/cycle in the new "ensemble_files" shape, ordered by ensemble_member.
+###################################################################################################
+
+
+def _seed_rows_all_members() -> list:
+    # 3 members for CYCLE_1 (deliberately seeded out of member-name sort order so an
+    # unordered query would fail the ordering assertion), plus a different cycle and a
+    # different storm/basin to prove those filters still apply when the member filter is
+    # dropped.
+    return [
+        _row(CYCLE_1, "mean"),
+        _row(CYCLE_1, "F021"),
+        _row(CYCLE_1, "F003"),
+        _row(CYCLE_2, "F003"),
+        _row(CYCLE_1, "F003", storm="06", basin="ep"),
+    ]
+
+
+def test_all_members_returns_every_row_for_the_cycle_sorted(monkeypatch) -> None:
+    rows = _seed_rows_all_members()
+    fl = _make_filelist(monkeypatch, rows, advisory="2026072206", ensemble_member="all")
+    result = fl.query_files()
+
+    assert result is not None
+    assert result["best_track"] is None
+    assert result["forecast_track"] is None
+    assert "ensemble_files" in result
+
+    members = [f["member"] for f in result["ensemble_files"]]
+    # ...Sorted lexically by ensemble_member ("F003" < "F021" < "mean")
+    assert members == ["F003", "F021", "mean"]
+
+
+def test_all_members_entry_shape(monkeypatch) -> None:
+    rows = _seed_rows_all_members()
+    fl = _make_filelist(monkeypatch, rows, advisory="2026072206", ensemble_member="all")
+    result = fl.query_files()
+
+    for entry in result["ensemble_files"]:
+        assert set(entry.keys()) == {"member", "filepath", "start", "end"}
+    f003 = next(f for f in result["ensemble_files"] if f["member"] == "F003")
+    assert f003["filepath"] == (
+        "deepmind/forecast/2026/al02/2026072206/deepmind_2026072206_al02_F003.fcst"
+    )
+
+
+def test_all_members_does_not_leak_other_cycles_or_storms(monkeypatch) -> None:
+    rows = _seed_rows_all_members()
+    fl = _make_filelist(monkeypatch, rows, advisory="2026072206", ensemble_member="all")
+    result = fl.query_files()
+
+    # ...Only the 3 CYCLE_1/al02 rows should be present -- not the CYCLE_2 row nor the
+    # ep06 row seeded alongside them
+    assert len(result["ensemble_files"]) == 3
+
+
+def test_all_members_zero_rows_returns_none(monkeypatch) -> None:
+    rows = _seed_rows_all_members()
+    fl = _make_filelist(monkeypatch, rows, advisory="2026072300", ensemble_member="all")
+    assert fl.query_files() is None
+
+
+def test_single_member_path_is_unchanged_alongside_all_members_support(
+    monkeypatch,
+) -> None:
+    # ...Regression: the single-member ("F007") path must be byte-identical to before "all"
+    # support was added -- same shape, same keys, "ensemble_files" absent.
+    rows = _seed_rows()
+    fl = _make_filelist(
+        monkeypatch, rows, advisory="2026072206", ensemble_member="F007"
+    )
+    result = fl.query_files()
+
+    assert result is not None
+    assert set(result.keys()) == {"best_track", "forecast_track"}
+    assert result["best_track"] is None
+    assert result["forecast_track"]["filepath"] == (
+        "deepmind/forecast/2026/al02/2026072206/deepmind_2026072206_al02_F007.fcst"
+    )

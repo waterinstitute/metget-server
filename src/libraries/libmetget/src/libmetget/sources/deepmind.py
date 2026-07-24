@@ -40,6 +40,14 @@ from typing import Optional
 # ...key is "F000".."F049"; the mean is addressed as "mean" (its ATCF tech is "FNV3").
 DEEPMIND_ENSEMBLE_MEMBERS = ["mean", *[f"F{i:03d}" for i in range(50)]]
 
+# ...Sentinel `ensemble_member` value requesting every archived member for a storm/cycle,
+# bundled into a single tar.gz delivery (see FilelistDeepmind.query_files() and
+# message_handler.__generate_deepmind_ensemble_tar). Deliberately NOT part of
+# DEEPMIND_ENSEMBLE_MEMBERS -- that list mirrors the real server-side per-file members and is
+# used by ingest validation and by Floodwater's per-member configuration, neither of which should
+# ever see "all" as a legitimate individual member.
+DEEPMIND_ALL_MEMBERS = "all"
+
 # ...ATCF tech IDs that identify a DeepMind ensemble member (F000-F049) or the ensemble mean
 # ...(FNV3).
 _MEMBER_TECH_RE = re.compile(r"^F\d{3}$")

@@ -28,6 +28,7 @@
 ###################################################################################################
 import json
 import os
+import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from os.path import exists
@@ -1180,9 +1181,17 @@ class MessageHandler:
             domain_data.append([])
 
             if d.service() in ("nhc", "jtwc", "deepmind"):
-                MessageHandler.__generate_merged_nhc_files(
-                    d, domain_data, i, met_field, nhc_data
-                )
+                if "ensemble_files" in nhc_data[i]:
+                    # ...A deepmind "all" member request: every archived ensemble-member
+                    # file for the storm/cycle, packaged as a single flat tar.gz rather
+                    # than merged/staged one at a time
+                    MessageHandler.__generate_deepmind_ensemble_tar(
+                        d, domain_data, i, nhc_data
+                    )
+                else:
+                    MessageHandler.__generate_merged_nhc_files(
+                        d, domain_data, i, met_field, nhc_data
+                    )
             elif d.service() == "rtofs":
                 # ...RTOFS files are delivered raw (streamed S3 to S3), so
                 # they are never staged on the local disk
@@ -1497,6 +1506,83 @@ class MessageHandler:
                     "filepath": local_file_merged,
                 }
             )
+
+    @staticmethod
+    def __generate_deepmind_ensemble_tar(
+        domain: Domain,
+        domain_data: list,
+        index: int,
+        nhc_data: dict,
+    ) -> None:
+        """
+        Packages every archived DeepMind ensemble-member file for a storm/cycle (a request
+        with ``ensemble_member: "all"``) into a single flat gzip tar archive. The archive is
+        staged on local disk and then delivered exactly like any other raw file through the
+        standard ``__generate_raw_files_list`` / ``__upload_files_to_s3`` path -- a single
+        entry is appended to ``domain_data[index]`` for the tar file, mirroring how
+        ``__generate_merged_nhc_files`` appends a single entry for the merged/forecast track
+        file in the single-member case.
+
+        This mirrors ``__generate_rtofs_raw_tar``'s general approach (download the source
+        objects, build a tar archive, deliver it as one file) but NOT its S3-to-S3 streaming
+        mechanics: RTOFS archives can be tens of gigabytes, so that path streams objects
+        directly into a multipart upload without local staging. DeepMind ensemble members are
+        small ATCF track text files (order of KB each, ~51 of them at most), so they are
+        downloaded locally and packed with a local ``tarfile.open(mode="w:gz")`` instead.
+
+        Args:
+            domain (Domain): The domain
+            domain_data (list): The list of domain data
+            index (int): The index of the domain
+            nhc_data (dict): The list of NHC/deepmind filelist data
+
+        Returns:
+            None
+
+        """
+        ensemble_files = nhc_data[index]["ensemble_files"]
+        if len(ensemble_files) == 0:
+            # ...Guard against ever producing an empty archive -- a request that resolves to
+            # zero member files should fail loudly rather than deliver an empty tar.gz
+            msg = f"No ensemble member files found for domain {index:d}. Giving up"
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        s3 = S3file(os.environ["METGET_S3_BUCKET"])
+        source = domain.service()
+
+        # ...Deterministic member order so identical requests produce byte-comparable
+        # archive listings
+        ensemble_files_sorted = sorted(ensemble_files, key=lambda f: f["member"])
+
+        # ...Derive the archive name from the first member's own archived filename (rather
+        # than re-deriving basin/storm from the domain, which may not be zero-padded the way
+        # the ingest path names files) by dropping its "_<member>.fcst" suffix and appending
+        # "_all.tar.gz", e.g. "deepmind_2026072206_al02_F007.fcst" ->
+        # "deepmind_2026072206_al02_all.tar.gz"
+        first_basename = os.path.basename(ensemble_files_sorted[0]["filepath"])
+        prefix = first_basename.rsplit("_", 1)[0]
+        tar_filename = f"{prefix}_all.tar.gz"
+
+        local_files = []
+        try:
+            with tarfile.open(tar_filename, mode="w:gz") as tar:
+                for entry in ensemble_files_sorted:
+                    local_file = s3.download(entry["filepath"], source)
+                    local_files.append(local_file)
+                    # ...Flat archive: member names are just the basename, no directories
+                    tar.add(local_file, arcname=os.path.basename(entry["filepath"]))
+        finally:
+            for local_file in local_files:
+                if exists(local_file):
+                    os.remove(local_file)
+
+        domain_data[index].append(
+            {
+                "time": ensemble_files_sorted[0]["start"],
+                "filepath": tar_filename,
+            }
+        )
 
     @staticmethod
     def __check_glacier_restore(domain: Domain, filelist: list) -> bool:

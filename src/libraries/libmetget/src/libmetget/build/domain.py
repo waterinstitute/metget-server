@@ -31,7 +31,7 @@ from datetime import datetime
 
 from loguru import logger
 
-from ..sources.deepmind import DEEPMIND_ENSEMBLE_MEMBERS
+from ..sources.deepmind import DEEPMIND_ALL_MEMBERS, DEEPMIND_ENSEMBLE_MEMBERS
 from .output.gridfactory import grid_factory
 from .output.outputgrid import OutputGrid
 
@@ -391,8 +391,9 @@ class Domain:
         gefs-ncep, coamps-ctcx, or deepmind.
 
         For deepmind, the value must be one of the canonical DeepMind ensemble member
-        identifiers ("F000"-"F049", or "mean" for the ensemble-mean product); anything else
-        invalidates the domain.
+        identifiers ("F000"-"F049", or "mean" for the ensemble-mean product), or the literal
+        "all" sentinel requesting every archived member for the storm/cycle bundled into a
+        single tar.gz delivery; anything else invalidates the domain.
 
         Returns:
             None
@@ -406,11 +407,14 @@ class Domain:
         elif self.service() == "deepmind":
             if "ensemble_member" in self.__json:
                 member = self.__json["ensemble_member"]
-                if member not in DEEPMIND_ENSEMBLE_MEMBERS:
+                if (
+                    member not in DEEPMIND_ENSEMBLE_MEMBERS
+                    and member != DEEPMIND_ALL_MEMBERS
+                ):
                     logger.error(
                         f"Domain {self.__domain_level} invalid because ensemble member "
                         f"'{member!s}' is not valid for service 'deepmind'; accepted "
-                        f"forms are 'F000'-'F049' or 'mean'"
+                        f"forms are 'F000'-'F049', 'mean', or 'all'"
                     )
                     self.__valid = False
                 self.__ensemble_member = member
