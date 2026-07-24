@@ -7,6 +7,7 @@
 import pathlib
 from datetime import datetime, timedelta, timezone
 
+import pytest
 import requests
 from libmetget.database.tables import NhcAdeck
 from libmetget.download import deepminddownloader
@@ -421,3 +422,63 @@ def test_adeck_dedup_still_holds_if_md5_changed_but_row_exists(
         if r.basin == "AL" and r.storm == 2 and r.model == "F000"
     ]
     assert len(al02_f000_rows) == 1
+
+
+def test_cycles_in_range_inclusive_and_rounded() -> None:
+    """
+    __cycles_in_range covers [start, end] inclusive at 6-hour spacing, rounding a
+    between-cycles start up to the next synoptic hour.
+    """
+    fn = deepminddownloader.DeepMindDownloader._DeepMindDownloader__cycles_in_range
+
+    # Exact synoptic bounds are inclusive on both ends
+    cycles = fn(datetime(2026, 7, 22, 0), datetime(2026, 7, 22, 18))
+    assert cycles == [
+        datetime(2026, 7, 22, 0),
+        datetime(2026, 7, 22, 6),
+        datetime(2026, 7, 22, 12),
+        datetime(2026, 7, 22, 18),
+    ]
+
+    # A start between cycles rounds up to the next synoptic hour
+    cycles = fn(datetime(2026, 7, 22, 7), datetime(2026, 7, 22, 18))
+    assert cycles[0] == datetime(2026, 7, 22, 12)
+
+    # A sub-hour start just past a cycle also rounds up
+    cycles = fn(datetime(2026, 7, 22, 6, 0, 30), datetime(2026, 7, 22, 18))
+    assert cycles[0] == datetime(2026, 7, 22, 12)
+
+    # An empty window yields no cycles
+    assert fn(datetime(2026, 7, 22, 1), datetime(2026, 7, 22, 5)) == []
+
+
+def test_download_range_walks_requested_cycles(monkeypatch, tmp_path) -> None:
+    """
+    download_range processes every synoptic cycle in the window (both products),
+    oldest first, skipping cycles the database already has.
+    """
+    metdb = _FakeMetdb()
+    session = _FakeSession()
+    requested = []
+
+    def get_fn(url, timeout):
+        requested.append(url)
+        return _FakeResponse(404)
+
+    dl = _make_downloader(monkeypatch, tmp_path, metdb, session, get_fn)
+    n = dl.download_range(datetime(2026, 7, 22, 0), datetime(2026, 7, 22, 12))
+
+    assert n == 0
+    # 3 cycles x 2 products, oldest first
+    assert len(requested) == 6
+    assert "2026_07_22T00" in requested[0]
+    assert "2026_07_22T12" in requested[-1]
+
+
+def test_download_range_rejects_reversed_window(monkeypatch, tmp_path) -> None:
+    """download_range raises a clear error when end precedes start."""
+    dl = _make_downloader(
+        monkeypatch, tmp_path, _FakeMetdb(), _FakeSession(), lambda *a, **k: None
+    )
+    with pytest.raises(ValueError, match="must not be before"):
+        dl.download_range(datetime(2026, 7, 22, 12), datetime(2026, 7, 22, 0))

@@ -145,11 +145,61 @@ class DeepMindDownloader:
             f"OPER_{cycle:%Y}_{cycle:%m}_{cycle:%d}T{cycle:%H}_00_atcf_a_deck.txt"
         )
 
+    @classmethod
+    def __cycles_in_range(cls, start: datetime, end: datetime) -> List[datetime]:
+        """
+        Returns every 00/06/12/18Z synoptic cycle in [start, end] inclusive, oldest first.
+        The start bound is rounded up to the next synoptic hour if it falls between cycles.
+        """
+        first = start.replace(minute=0, second=0, microsecond=0)
+        remainder = first.hour % cls.CYCLE_INTERVAL_HOURS
+        if remainder != 0 or first < start:
+            first += timedelta(hours=cls.CYCLE_INTERVAL_HOURS - remainder)
+
+        cycles = []
+        cycle = first
+        while cycle <= end:
+            cycles.append(cycle)
+            cycle += timedelta(hours=cls.CYCLE_INTERVAL_HOURS)
+        return cycles
+
     # -- top level ------------------------------------------------------------------------------------
     def download(self) -> int:
         logger.info("Beginning Google DeepMind cyclone ensemble download")
+        return self.__process_cycles(self.__candidate_cycles())
+
+    def download_range(self, start: datetime, end: datetime) -> int:
+        """
+        Archives every published DeepMind cycle in [start, end] inclusive (both products),
+        oldest first. Used for historical backfill (metget_rebuild --source deepmind);
+        already-ingested cycles are skipped via the same existence/md5 checks as the
+        cron downloader, so the operation is incremental and safely re-runnable.
+
+        Args:
+            start: Beginning of the backfill window (inclusive; rounded up to the next
+                synoptic cycle if between cycles).
+            end: End of the backfill window (inclusive).
+
+        Returns:
+            Number of new forecast partitions archived.
+
+        """
+        if end < start:
+            msg = "Backfill end time must not be before the start time"
+            raise ValueError(msg)
+
+        cycles = self.__cycles_in_range(start, end)
+        logger.info(
+            f"Beginning Google DeepMind backfill of {len(cycles)} cycle(s) from "
+            f"{cycles[0]:%Y-%m-%d %HZ} to {cycles[-1]:%Y-%m-%d %HZ}"
+            if cycles
+            else "No DeepMind cycles fall within the requested backfill window"
+        )
+        return self.__process_cycles(cycles)
+
+    def __process_cycles(self, cycles: List[datetime]) -> int:
         n = 0
-        for cycle in self.__candidate_cycles():
+        for cycle in cycles:
             for product in self.PRODUCT_URL_PATHS:
                 n += self.__process_cycle_product(cycle, product)
 

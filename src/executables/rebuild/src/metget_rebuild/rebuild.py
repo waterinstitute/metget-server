@@ -47,6 +47,7 @@ from libmetget.database.tables import (
 )
 from libmetget.download.coampsdownloader import CoampsDownloader
 from libmetget.download.ctcxdownloader import CtcxDownloader
+from libmetget.download.deepminddownloader import DeepMindDownloader
 from libmetget.download.forecastdata import ForecastData
 from libmetget.download.hafsdownloader import HafsDownloader
 from libmetget.download.metdb import Metdb
@@ -566,23 +567,38 @@ def rebuild_jtwc() -> int:
     return n
 
 
-def rebuild_deepmind() -> int:
+def rebuild_deepmind(start: datetime, end: datetime) -> int:
     """
-    DeepMind has no historical archive to rebuild from: the downloader is forward-only with a
-    bounded lookback window and there is no upstream index of past cycles (see the implementation
-    plan's "Backfill: None" decision). This function exists purely so `--source deepmind` is a
-    recognized, no-op source rather than falling through to the generic "Invalid source type"
-    error -- keeping parity with how every other source is dispatched in `rebuilder()` below.
+    Backfills historical Google DeepMind cyclone ensemble cycles into the archive.
+
+    Unlike the S3-re-indexing rebuilds, DeepMind data is fetched directly from the
+    Weather Lab download endpoint: there is no upstream index of past cycles, but the
+    per-cycle URLs remain valid historically, so the backfill simply walks every
+    00/06/12/18Z cycle in the requested window and runs it through the same
+    partition/dedup/adeck pipeline as the cron downloader. Already-ingested cycles
+    are skipped and unpublished cycles 404 quietly, so the operation is incremental
+    and safely re-runnable.
+
+    Note the Weather Lab terms: data more than 48 hours old is CC BY 4.0; the license
+    header is preserved in every archived partition either way.
+
+    Args:
+        start: Beginning of the backfill window (inclusive).
+        end: End of the backfill window (inclusive).
 
     Returns:
-        int: Always 0, since there is nothing to rebuild.
+        int: Number of new forecast partitions archived.
 
     """
-    logger.warning(
-        "DeepMind has no historical archive to rebuild from (forward-only, no backfill); "
-        "nothing to do"
+    if start is None or end is None:
+        msg = "--start and --end are required for a deepmind backfill"
+        raise ValueError(msg)
+
+    logger.info(
+        f"Beginning DeepMind backfill from {start:%Y-%m-%d %H:%M} to {end:%Y-%m-%d %H:%M}"
     )
-    return 0
+    downloader = DeepMindDownloader()
+    return downloader.download_range(start, end)
 
 
 def rebuild_rtofs(start: datetime, end: datetime) -> int:
@@ -697,11 +713,11 @@ def rebuilder() -> None:
         "ctcx": rebuild_ctcx,
         "gefs": rebuild_gefs,
         "rtofs": rebuild_rtofs,
+        "deepmind": rebuild_deepmind,
     }
     rebuild_without_dates = {
         "nhc": rebuild_nhc,
         "jtwc": rebuild_jtwc,
-        "deepmind": rebuild_deepmind,
     }
 
     if args.source in rebuild_with_dates:
