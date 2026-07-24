@@ -29,6 +29,7 @@
 from datetime import datetime
 from typing import Any, Union
 
+from ...sources.deepmind import DEEPMIND_ALL_MEMBERS
 from ..database import Database
 from ..tables import DeepmindTable
 
@@ -44,13 +45,20 @@ class FilelistDeepmind:
     a single ensemble member, so the query is against a single table with an additional
     ensemble_member filter rather than a best-track/forecast-track pair of tables.
 
-    The return shape intentionally mirrors ``FilelistNHC.query_files()`` -- a dict with
-    "best_track" and "forecast_track" keys -- with "best_track" always ``None``. This lets
+    The single-member return shape intentionally mirrors ``FilelistNHC.query_files()`` -- a dict
+    with "best_track" and "forecast_track" keys -- with "best_track" always ``None``. This lets
     ``message_handler.py`` reuse the existing NHC/JTWC raw-delivery machinery
     (``__generate_merged_nhc_files``) unchanged: that function already handles the
     best_track-is-None case (it simply stages the forecast_track file without attempting a
     btk+fcst merge, which is exactly the "single file per request, no merge" behavior DeepMind
-    requires) and no deepmind-specific branch is needed in the build executable.
+    requires) and no deepmind-specific branch is needed in the build executable for that path.
+
+    When ``ensemble_member`` is the sentinel ``DEEPMIND_ALL_MEMBERS`` ("all"), the
+    ``ensemble_member`` filter is dropped entirely and every archived member row for the
+    storm/cycle is returned instead, ordered by ``ensemble_member``, in a different shape:
+    ``{"best_track": None, "forecast_track": None, "ensemble_files": [{"member", "filepath",
+    "start", "end"}, ...]}``. ``message_handler.py`` detects the presence of the
+    "ensemble_files" key and routes to ``__generate_deepmind_ensemble_tar`` instead.
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -109,14 +117,26 @@ class FilelistDeepmind:
 
     def query_files(self) -> Union[dict, None]:
         """
-        This method is used to query the database for the single deepmind forecast track
-        file matching the requested storm/basin/storm_year/forecastcycle/ensemble_member.
+        This method is used to query the database for the deepmind forecast track file(s)
+        matching the requested storm/basin/storm_year/forecastcycle.
+
+        If ``ensemble_member`` is the sentinel ``DEEPMIND_ALL_MEMBERS`` ("all"), every archived
+        member row for the storm/cycle is returned (ordered by ``ensemble_member``) in the
+        "ensemble_files" shape; otherwise the single row matching the requested
+        ``ensemble_member`` is returned in the "forecast_track" shape (unchanged from before
+        "all" support was added).
 
         Returns:
-            dict: A dictionary in the same shape as FilelistNHC.query_files() -- with
-            "best_track" always None -- or None if no matching file was found
+            dict: For a single member, a dictionary in the same shape as
+            FilelistNHC.query_files() -- with "best_track" always None -- or None if no
+            matching file was found. For "all", a dictionary with "best_track" and
+            "forecast_track" both None and an "ensemble_files" list of
+            {"member", "filepath", "start", "end"} dicts, or None if no rows matched.
 
         """
+        if self.__ensemble_member == DEEPMIND_ALL_MEMBERS:
+            return self.__query_all_members()
+
         with Database() as db, db.session() as session:
             forecast_track_query = (
                 session.query(DeepmindTable)
@@ -141,3 +161,45 @@ class FilelistDeepmind:
         }
 
         return {"best_track": None, "forecast_track": forecast_track}
+
+    def __query_all_members(self) -> Union[dict, None]:
+        """
+        Queries every archived ensemble-member row for the storm/cycle (no ensemble_member
+        filter), ordered by ensemble_member for deterministic output.
+
+        Returns:
+            dict: {"best_track": None, "forecast_track": None, "ensemble_files": [...]}, or
+            None if no rows matched.
+
+        """
+        with Database() as db, db.session() as session:
+            rows = (
+                session.query(DeepmindTable)
+                .filter(
+                    DeepmindTable.storm_year == self.__storm_year,
+                    DeepmindTable.basin == self.__basin,
+                    DeepmindTable.storm == self.__storm,
+                    DeepmindTable.forecastcycle == self.__forecastcycle,
+                )
+                .order_by(DeepmindTable.ensemble_member)
+                .all()
+            )
+
+        if len(rows) == 0:
+            return None
+
+        ensemble_files = [
+            {
+                "member": row.ensemble_member,
+                "filepath": row.filepath,
+                "start": row.advisory_start,
+                "end": row.advisory_end,
+            }
+            for row in rows
+        ]
+
+        return {
+            "best_track": None,
+            "forecast_track": None,
+            "ensemble_files": ensemble_files,
+        }

@@ -35,6 +35,9 @@ import dateutil.parser
 from loguru import logger
 from schema import And, Optional, Or, Schema, SchemaError, Use
 
+from ..database.database import Database
+from ..database.tables import DeepmindTable
+from ..sources.deepmind import DEEPMIND_ALL_MEMBERS
 from .domain import VALID_SERVICES, Domain
 
 VALID_DATA_TYPES = [
@@ -556,9 +559,85 @@ class Input:
                 credit_usage += d.grid().n() * num_time_steps
             elif d.service() in ("nhc", "jtwc"):
                 credit_usage += 100 * 100 * 24
+            elif (
+                d.service() == "deepmind"
+                and d.ensemble_member() == DEEPMIND_ALL_MEMBERS
+            ):
+                # ...A single-member deepmind raw request is priced as one file
+                # (100 * 100 * 24 * num_time_steps, the same flat per-file rate used by
+                # the generic 'else' branch below); "all" bundles every archived member
+                # for the storm/cycle into one request, so per the no-discount/no-surcharge
+                # pricing decision it is priced as N separate member files, where N is the
+                # number of member rows actually available for that storm/cycle right now
+                # (resolved with a DB query at credit-computation time, see
+                # __deepmind_all_members_count -- this is the one place in Input that
+                # touches the database; it is scoped to this single branch so it cannot
+                # affect the DB-free credit computation used by every other service/member)
+                credit_usage += (
+                    100
+                    * 100
+                    * 24
+                    * num_time_steps
+                    * self.__deepmind_all_members_count(d)
+                )
             else:
                 credit_usage += 100 * 100 * 24 * num_time_steps
 
         logger.info("Credit usage calculated as: " + str(credit_usage))
 
         return credit_usage
+
+    @staticmethod
+    def __deepmind_all_members_count(domain: Domain) -> int:
+        """
+        Resolves the number of DeepMind ensemble-member rows currently archived for a
+        domain's (storm_year, basin, storm, forecastcycle) -- i.e. the N a
+        ``ensemble_member: "all"`` request will be priced at, per the "no discount/no
+        surcharge, N member files" pricing decision.
+
+        NOTE on where this lands and why: credit usage is computed once, synchronously, in
+        Input's constructor (__calculate_credit_usage, called from __init__), which runs
+        BEFORE FilelistDeepmind/message_handler ever resolve the actual set of member files
+        that will be tarred up for the request (that happens later, in the build worker, via
+        FilelistDeepmind.query_files()). There is no cheaper hook available in the current
+        request lifecycle: BuildRequest.validate() (executables/api/build_request.py) does run
+        a Filelist(...).files() lookup per domain that would give the exact same row set, but
+        that lookup result is a local variable inside __generate_lookup_obj and is not
+        threaded back to influence credit_usage(), and by the time validate() runs,
+        credit_usage() has already been read once by callers that construct Input directly
+        (e.g. this class's own callers may read .credit_usage() immediately after
+        construction). Rather than restructure that call chain, this method issues its own
+        lightweight COUNT-shaped query directly against DeepmindTable, scoped to exactly the
+        columns FilelistDeepmind's own "all" query filters on, so the two are guaranteed to
+        agree on N. This does introduce Input's only database dependency (every other
+        service/member is priced from Domain/format alone with no DB access); it is
+        deliberately isolated to this one method/branch so it cannot affect the DB-free
+        credit computation used everywhere else, and any database error propagates rather
+        than being swallowed into a silently wrong price. If zero rows are currently archived
+        (e.g. the request lands before ingestion completes for that cycle), the count floors
+        at 1 rather than pricing the request at 0 credits.
+
+        Args:
+            domain: The deepmind domain requesting ensemble_member "all"
+
+        Returns:
+            int: The number of archived member rows (minimum 1)
+
+        """
+        forecastcycle = datetime.strptime(domain.advisory(), "%Y%m%d%H")
+        basin = domain.basin().lower()
+        storm = str(domain.storm()).zfill(2)
+
+        with Database() as db, db.session() as session:
+            rows = (
+                session.query(DeepmindTable)
+                .filter(
+                    DeepmindTable.storm_year == domain.storm_year(),
+                    DeepmindTable.basin == basin,
+                    DeepmindTable.storm == storm,
+                    DeepmindTable.forecastcycle == forecastcycle,
+                )
+                .all()
+            )
+
+        return max(len(rows), 1)
