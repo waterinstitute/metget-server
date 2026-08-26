@@ -34,6 +34,11 @@ from typing import Tuple, Union
 import pika
 from libmetget.build.domain import STORM_TRACK_SERVICES, Domain
 from libmetget.build.input import Input
+from libmetget.build.vortex.centers import (
+    cycles_used_by_lookup,
+    missing_vortex_adeck_cycles,
+    techs_for_service,
+)
 from libmetget.database.filelist import Filelist, FilelistBase
 from libmetget.database.tables import RequestEnum, RequestTable
 from loguru import logger
@@ -242,8 +247,68 @@ class BuildRequest:
                         lookup, tau, domain.service()
                     )
                 )
+            if domain.remove_vortices().get("enabled") and lookup:
+                is_domain_valid = (
+                    self.__check_vortex_adeck_availability(domain, lookup)
+                    and is_domain_valid
+                )
 
         return is_domain_valid
+
+    def __check_vortex_adeck_availability(
+        self, domain: Domain, lookup: Union[list, dict]
+    ) -> bool:
+        """
+        Require an a-deck for every meteorological cycle the request will use.
+
+        GFS (and other gridded) availability is not enough: nowcast stitches
+        analysis files from many cycles, and multiple-forecast mode mixes
+        cycles at each valid time. Each of those files is paired with the
+        a-deck from the same ``forecastcycle``. If that cycle has not been
+        ingested, vortex removal cannot be applied and the request is rejected
+        (including dry-run).
+        """
+        if domain.remove_vortices().get("centers"):
+            return True
+        if not isinstance(lookup, list):
+            self.__error.append(
+                f"Vortex removal is not supported for service {domain.service()}"
+            )
+            return False
+
+        techs = techs_for_service(domain.service())
+        if not techs:
+            self.__error.append(
+                f"Vortex removal is not supported for service {domain.service()} "
+                "(no a-deck tracker)"
+            )
+            return False
+
+        cycles = cycles_used_by_lookup(lookup)
+        if not cycles:
+            self.__error.append(
+                "Vortex removal requested but the file list has no forecast "
+                "cycle information"
+            )
+            return False
+
+        missing = missing_vortex_adeck_cycles(
+            service=domain.service(),
+            cycles=cycles,
+            storms=domain.remove_vortices().get("storms", "auto-track"),
+        )
+        if not missing:
+            return True
+
+        cycle_text = ", ".join(cycle.strftime("%Y-%m-%d %H:%M") for cycle in missing)
+        tech_text = ", ".join(techs)
+        self.__error.append(
+            f"Vortex removal requested for {domain.service()} but a-deck tracks "
+            f"are not available for cycle(s) {cycle_text} (techs {tech_text}). "
+            "Nowcast and multiple-forecast requests need an a-deck for every "
+            "meteorological cycle that will be used."
+        )
+        return False
 
     def __check_synoptic_request_validity(
         self, lookup: list, tau: int, service: str
