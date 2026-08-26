@@ -55,8 +55,8 @@ class FileObj:
         self.__forecastcycle = forecastcycle
         self.__tau = tau
         if self.__tau is None and self.__forecastcycle is not None:
-            self.__tau = int(
-                round((self.__time - self.__forecastcycle).total_seconds() / 3600.0)
+            self.__tau = round(
+                (self.__time - self.__forecastcycle).total_seconds() / 3600.0
             )
 
     def forecastcycle(self) -> Optional[datetime]:

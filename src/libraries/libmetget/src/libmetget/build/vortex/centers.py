@@ -43,7 +43,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Iterable, Sequence
 
 from loguru import logger
 
@@ -94,20 +94,20 @@ def preferred_tech(basin: str) -> str:
     return NHC_GFS_TECH
 
 
-def techs_for_service(service: str) -> Tuple[str, ...]:
+def techs_for_service(service: str) -> tuple[str, ...]:
     """ATCF tech codes used as first-guess tracks for ``service``."""
     return SERVICE_TECHS.get(str(service).lower(), ())
 
 
 def guess_from_geojson_feature(
-    feature: Dict[str, Any],
+    feature: dict[str, Any],
     *,
     basin: str = "",
     storm: int = 0,
     year: int = 0,
     tech: str = "",
     tau: int,
-) -> Optional[VortexGuess]:
+) -> VortexGuess | None:
     """Build a guess from one a-deck GeoJSON feature if its forecast hour matches ``tau``."""
     props = feature.get("properties") or {}
     if int(props.get("forecast_hour", -1)) != int(tau):
@@ -133,16 +133,16 @@ def guess_from_geojson_feature(
 
 
 def guesses_from_track_geojson(
-    geometry_data: Dict[str, Any],
+    geometry_data: dict[str, Any],
     tau: int,
     *,
     basin: str = "",
     storm: int = 0,
     year: int = 0,
     tech: str = "",
-) -> List[VortexGuess]:
+) -> list[VortexGuess]:
     """Extract the tau-matching feature from an a-deck FeatureCollection."""
-    guesses: List[VortexGuess] = []
+    guesses: list[VortexGuess] = []
     for feature in geometry_data.get("features") or []:
         guess = guess_from_geojson_feature(
             feature, basin=basin, storm=storm, year=year, tech=tech, tau=tau
@@ -155,11 +155,11 @@ def guesses_from_track_geojson(
 def resolve_vortex_guesses(
     *,
     service: str,
-    forecastcycle: Optional[datetime],
-    tau: Optional[int],
-    config: Dict[str, Any],
-    domain_bbox: Optional[Tuple[float, float, float, float]] = None,
-) -> List[VortexGuess]:
+    forecastcycle: datetime | None,
+    tau: int | None,
+    config: dict[str, Any],
+    domain_bbox: tuple[float, float, float, float] | None = None,
+) -> list[VortexGuess]:
     """
     Resolve first-guess centers for one source file.
 
@@ -186,7 +186,7 @@ def resolve_vortex_guesses(
     storms = config.get("storms", "auto-track")
 
     rows = _query_adeck_rows(forecastcycle, techs, storms)
-    guesses: List[VortexGuess] = []
+    guesses: list[VortexGuess] = []
     for row in rows:
         basin = str(row.basin).upper()
         found = guesses_from_track_geojson(
@@ -217,7 +217,7 @@ def resolve_vortex_guesses(
     return guesses
 
 
-def _guess_from_mapping(item: Dict[str, Any], tau: int) -> VortexGuess:
+def _guess_from_mapping(item: dict[str, Any], tau: int) -> VortexGuess:
     return VortexGuess(
         longitude=float(item["longitude"]),
         latitude=float(item["latitude"]),
@@ -233,16 +233,16 @@ def _guess_from_mapping(item: Dict[str, Any], tau: int) -> VortexGuess:
 
 def _prefer_service_tech(
     guesses: Sequence[VortexGuess], service: str
-) -> List[VortexGuess]:
+) -> list[VortexGuess]:
     """Keep one track per storm: basin-native GFS tech, else the service's first tech."""
     techs = [t.upper() for t in techs_for_service(service)]
     if set(techs) == {NHC_GFS_TECH, JTWC_GFS_TECH}:
         return _prefer_basin_tech(guesses)
 
-    by_storm: Dict[Tuple[str, int, int], List[VortexGuess]] = {}
+    by_storm: dict[tuple[str, int, int], list[VortexGuess]] = {}
     for guess in guesses:
         by_storm.setdefault((guess.basin, guess.storm, guess.year), []).append(guess)
-    kept: List[VortexGuess] = []
+    kept: list[VortexGuess] = []
     for group in by_storm.values():
         chosen = None
         for tech in techs:
@@ -254,12 +254,12 @@ def _prefer_service_tech(
     return kept
 
 
-def _prefer_basin_tech(guesses: Sequence[VortexGuess]) -> List[VortexGuess]:
+def _prefer_basin_tech(guesses: Sequence[VortexGuess]) -> list[VortexGuess]:
     """If both AVNO and AVNX exist for the same storm, keep the basin-native one."""
-    by_storm: Dict[Tuple[str, int, int], List[VortexGuess]] = {}
+    by_storm: dict[tuple[str, int, int], list[VortexGuess]] = {}
     for guess in guesses:
         by_storm.setdefault((guess.basin, guess.storm, guess.year), []).append(guess)
-    kept: List[VortexGuess] = []
+    kept: list[VortexGuess] = []
     for key, group in by_storm.items():
         basin = key[0]
         want = preferred_tech(basin)
@@ -270,7 +270,7 @@ def _prefer_basin_tech(guesses: Sequence[VortexGuess]) -> List[VortexGuess]:
 
 def _in_bbox(
     guess: VortexGuess,
-    bbox: Tuple[float, float, float, float],
+    bbox: tuple[float, float, float, float],
     pad_deg: float,
 ) -> bool:
     x0, y0, x1, y1 = bbox
@@ -286,8 +286,8 @@ def _query_adeck_rows(
     storms: Any,
 ) -> list:
     """Load nhc_adeck rows for this cycle. Import is local so unit tests stay DB-free."""
-    from ...database.database import Database
-    from ...database.tables import NhcAdeck
+    from ...database.database import Database  # noqa: PLC0415
+    from ...database.tables import NhcAdeck  # noqa: PLC0415
 
     tech_list = [t.upper() for t in techs]
     with Database() as db, db.session() as session:
@@ -306,7 +306,7 @@ def _query_adeck_rows(
                     )
                 )
             if pairs:
-                from sqlalchemy import or_
+                from sqlalchemy import or_  # noqa: PLC0415
 
                 clauses = []
                 for basin, storm, year in pairs:

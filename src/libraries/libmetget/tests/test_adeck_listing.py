@@ -122,16 +122,15 @@ def test_downloader_fetches_every_discovered_basin(monkeypatch) -> None:
     ]
     requested = []
 
-    monkeypatch.setattr(
-        "libmetget.download.adeckdownloader.Database", _FakeDatabase
-    )
+    monkeypatch.setattr("libmetget.download.adeckdownloader.Database", _FakeDatabase)
     monkeypatch.setattr(
         ADeckStorms, "list_available_storms", staticmethod(lambda year: discovered)
     )
 
     def fake_download(self, basin, year, storm):
         requested.append((basin, storm))
-        raise ADeckDownloaderException("recorded")
+        msg = "recorded"
+        raise ADeckDownloaderException(msg)
 
     monkeypatch.setattr(ADeckStorms, "download_storm", fake_download)
 

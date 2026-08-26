@@ -593,9 +593,7 @@ class MessageHandler:
                 forecastcycle=forecastcycle,
                 tau=tau,
             )
-        return FileObj(
-            filename, file_type, time, forecastcycle=forecastcycle, tau=tau
-        )
+        return FileObj(filename, file_type, time, forecastcycle=forecastcycle, tau=tau)
 
     @staticmethod
     def __interpolate_wind_fields(

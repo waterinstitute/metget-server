@@ -43,6 +43,8 @@ from .fileobj import FileObj
 from .interpdata import InterpData
 from .output.outputgrid import OutputGrid
 from .triangulation import Triangulation
+from .vortex.centers import resolve_vortex_guesses
+from .vortex.kurihara import apply_vortex_removal
 
 
 class DataInterpolator:
@@ -745,8 +747,6 @@ class DataInterpolator:
             float(self.__grid.x_upper_right()),
             float(self.__grid.y_upper_right()),
         )
-        from .vortex.centers import resolve_vortex_guesses
-        from .vortex.kurihara import apply_vortex_removal
 
         guesses = resolve_vortex_guesses(
             service=self.__vortex_service,
@@ -769,7 +769,9 @@ class DataInterpolator:
         for name in dataset.data_vars:
             if name in filtered:
                 dataset[name] = dataset[name].copy(
-                    data=np.reshape(np.asarray(filtered[name].values), dataset[name].shape)
+                    data=np.reshape(
+                        np.asarray(filtered[name].values), dataset[name].shape
+                    )
                 )
         return dataset
 
