@@ -20,6 +20,11 @@ from libmetget.build.vortex.centers import (
     techs_for_service,
 )
 from libmetget.build.vortex.kurihara import (
+    NINE_POINT_MAX_PASSES,
+    NINE_POINT_MIN_PASSES,
+    _adaptive_nine_passes,
+    _nine_point,
+    _smooth_field,
     apply_vortex_removal,
     remove_vortex,
 )
@@ -232,3 +237,43 @@ def test_apply_vortex_removal_writes_standard_variable_names() -> None:
     assert float(np.mean(np.hypot(out["wind_u"].values[core], out["wind_v"].values[core]))) < float(
         np.mean(np.hypot(u[core], v[core]))
     )
+
+
+def test_nine_point_spreads_a_spike_over_the_3x3_neighborhood() -> None:
+    field = np.zeros((5, 5), dtype=np.float64)
+    field[2, 2] = 9.0
+    out = _nine_point(field, wrap_zonal=False)
+    assert np.allclose(out[2, 2], 1.0)
+    assert np.allclose(out[1:4, 1:4], 1.0)
+    assert np.allclose(out[0, :], 0.0)
+    assert np.allclose(out[:, 0], 0.0)
+
+
+def test_nine_point_wraps_zonally() -> None:
+    field = np.zeros((5, 5), dtype=np.float64)
+    field[2, 0] = 9.0
+    out = _nine_point(field, wrap_zonal=True)
+    assert np.allclose(out[2, 0], 1.0)
+    assert np.allclose(out[2, 1], 1.0)
+    assert np.allclose(out[2, -1], 1.0)
+
+
+def test_smooth_field_switch_selects_nine_point() -> None:
+    field = np.zeros((5, 5), dtype=np.float64)
+    field[2, 2] = 9.0
+    one_pass = _smooth_field(field, wrap_zonal=False, npass=1, smoother="nine-point")
+    assert np.allclose(one_pass[1:4, 1:4], 1.0)
+    with pytest.raises(ValueError, match="Unknown SMOOTHER"):
+        _smooth_field(field, wrap_zonal=False, npass=1, smoother="eleven-point")
+
+
+def test_nine_point_adaptive_stops_between_min_and_max() -> None:
+    n = 41
+    clat, clon = 20.0, -80.0
+    lat = clat + 0.25 * (np.arange(n) - n // 2)
+    lon = clon + 0.25 * (np.arange(n) - n // 2)
+    lon2d, lat2d = np.meshgrid(lon, lat)
+    dist = haversine_km(clon, clat, lon2d, lat2d)
+    field = 20.0 * np.exp(-((dist / 80.0) ** 2))
+    used = _adaptive_nine_passes(field, False, lon2d, lat2d, clon, clat)
+    assert NINE_POINT_MIN_PASSES <= used <= NINE_POINT_MAX_PASSES

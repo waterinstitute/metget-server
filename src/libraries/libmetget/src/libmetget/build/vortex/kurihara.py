@@ -35,11 +35,14 @@ Decomposition (Kurihara, Bender & Ross, MWR 1993; Kurihara et al., MWR 1995):
     disturbance = analyzed vortex + non-hurricane remainder
     environment = basic field + non-hurricane remainder
 
-The basic field is a three-point smoother applied zonally then meridionally
-(100 passes, K=0.5 on the native grid). The vortex domain is a 24-sided
-polygon diagnosed from the disturbance tangential wind. Inside the polygon
-the remainder is interpolated from the boundary so the vortex-scale
-disturbance is removed; outside, the field is unchanged.
+The basic field is a smoother applied on the native grid.
+``SMOOTHER`` at module top selects Kurihara 1993 three-point (zonal then
+meridional, K=0.5, 100 passes) or Winterbottom and Chassignet 2011 nine-point
+(simultaneous 3x3 box average, Δσ² stop in a 500 km box, 5–40 passes).
+The vortex domain is a 24-sided polygon diagnosed from the disturbance
+tangential wind. Inside the polygon the remainder is interpolated from the
+boundary so the vortex-scale disturbance is removed; outside, the field is
+unchanged.
 
 MetGet v1 diagnoses the domain from 10 m wind (the archived GFS surface
 fields) rather than 850 hPa.
@@ -48,7 +51,7 @@ fields) rather than 850 hPa.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Literal, Optional, Sequence, Tuple
 
 import numpy as np
 import xarray as xr
@@ -70,9 +73,19 @@ DEFAULT_MAX_RADIUS_KM = 1500.0
 DEFAULT_MIN_RADIUS_KM = 350.0
 # 11 passes on 0.25° GFS leaves ~half of a 500 km cyclone in the "basic" field.
 # 100 passes puts that scale into the disturbance so the environment is the
-# background, not a ghost vortex. Response is [cos(k Δx)]^n.
+# background, not a ghost vortex. Response is [cos(k Δx)]^n for three-point.
 DEFAULT_SMOOTH_PASSES = 100
 DEFAULT_SMOOTH_K = 0.5
+# Scale-separation kernel. "three-point" is Kurihara 1993 (zonal, then
+# meridional, fixed 100 passes). "nine-point" is Winterbottom and Chassignet
+# 2011 (3x3 mean in both directions at once) with Δσ² stopping in a 500 km
+# box around the vortex (5–40 passes). The rest of K95 is unchanged.
+SmootherKind = Literal["three-point", "nine-point"]
+SMOOTHER: SmootherKind = "three-point"
+NINE_POINT_MIN_PASSES = 5
+NINE_POINT_MAX_PASSES = 40
+NINE_POINT_VAR_BOX_KM = 500.0
+NINE_POINT_VAR_REL = 1.0e-3
 MIN_CYCLONIC_VT = 8.0
 
 
@@ -101,6 +114,7 @@ def apply_vortex_removal(
     dataset: xr.Dataset,
     guesses: Sequence[VortexGuess],
     center_search_km: float = DEFAULT_SEARCH_KM,
+    smoother: Optional[str] = None,
 ) -> Tuple[xr.Dataset, VortexRemovalSummary]:
     """
     Remove tropical-cyclone vortices from ``wind_u`` / ``wind_v`` / ``pressure``
@@ -110,6 +124,7 @@ def apply_vortex_removal(
         dataset: Native-grid dataset with 1-D or 2-D latitude/longitude.
         guesses: First-guess centers (model a-deck positions).
         center_search_km: Local refine radius around each guess.
+        smoother: ``three-point`` or ``nine-point``. Default is module ``SMOOTHER``.
 
     Returns:
         The filtered dataset and per-storm diagnostics.
@@ -145,6 +160,7 @@ def apply_vortex_removal(
             guess.latitude,
             center_search_km=center_search_km,
             name=guess.name or guess.tech,
+            smoother=smoother,
         )
         summary.storms.append(diag)
         distance_km = _haversine_km(
@@ -199,6 +215,7 @@ def remove_vortex(
     guess_lat: float,
     center_search_km: float = DEFAULT_SEARCH_KM,
     name: str = "",
+    smoother: Optional[str] = None,
 ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], VortexRemovalDiagnostics]:
     """
     Separate one vortex from U/V/MSLP. Returns new arrays (copies if skipped).
@@ -213,6 +230,7 @@ def remove_vortex(
         guess_lat: First-guess latitude.
         center_search_km: Refine box half-width.
         name: Storm identifier for logs/diagnostics.
+        smoother: ``three-point`` or ``nine-point``. Default is module ``SMOOTHER``.
 
     Returns:
         Filtered u, v, p and diagnostics for this storm.
@@ -243,13 +261,28 @@ def remove_vortex(
 
     lon_p = _lon_periodic(lon2d)
     wrap = _is_global_longitude(lon2d)
-    u_basic = _smooth_field(u_out, wrap_zonal=wrap)
-    v_basic = _smooth_field(v_out, wrap_zonal=wrap)
+    kind = (smoother or SMOOTHER).lower()
+    nine_passes = None
+    if kind == "nine-point":
+        nine_passes = _adaptive_nine_passes(
+            np.hypot(u_out, v_out), wrap, lon2d, lat2d, clon, clat
+        )
+        logger.info(
+            "Nine-point Δσ² stopped after {} passes for {}", nine_passes, name or "storm"
+        )
+    u_basic = _smooth_field(
+        u_out, wrap_zonal=wrap, npass=nine_passes, smoother=smoother
+    )
+    v_basic = _smooth_field(
+        v_out, wrap_zonal=wrap, npass=nine_passes, smoother=smoother
+    )
     u_dist = u_out - u_basic
     v_dist = v_out - v_basic
     p_basic = p_dist = None
     if p_out is not None:
-        p_basic = _smooth_field(p_out, wrap_zonal=wrap)
+        p_basic = _smooth_field(
+            p_out, wrap_zonal=wrap, npass=nine_passes, smoother=smoother
+        )
         p_dist = p_out - p_basic
 
     radii_m = _vortex_radii(lon_p, lat2d, u_dist, v_dist, clon, clat)
@@ -346,13 +379,79 @@ def _is_global_longitude(lon2d: np.ndarray) -> bool:
     return span > 350.0 or (lon[-1] - lon[0]) > 350.0
 
 
-def _smooth_field(field: np.ndarray, wrap_zonal: bool, npass: int = DEFAULT_SMOOTH_PASSES) -> np.ndarray:
-    """Kurihara 1993 three-point smoother, zonal then meridional, repeated."""
+def _smooth_field(
+    field: np.ndarray,
+    wrap_zonal: bool,
+    npass: Optional[int] = None,
+    smoother: Optional[str] = None,
+) -> np.ndarray:
+    """Build the basic field by repeating the selected smoother."""
+    kind = (smoother or SMOOTHER).lower()
+    if kind not in ("three-point", "nine-point"):
+        msg = f"Unknown SMOOTHER {kind!r}; use 'three-point' or 'nine-point'"
+        raise ValueError(msg)
     out = np.array(field, dtype=np.float64, copy=True)
-    for _ in range(npass):
+    if kind == "nine-point":
+        count = NINE_POINT_MAX_PASSES if npass is None else int(npass)
+        for _ in range(count):
+            out = _nine_point(out, wrap_zonal=wrap_zonal)
+        return out
+    count = DEFAULT_SMOOTH_PASSES if npass is None else int(npass)
+    for _ in range(count):
         out = _three_point(out, axis=1, k=DEFAULT_SMOOTH_K, periodic=wrap_zonal)
         out = _three_point(out, axis=0, k=DEFAULT_SMOOTH_K, periodic=False)
     return out
+
+
+def _adaptive_nine_passes(
+    field: np.ndarray,
+    wrap_zonal: bool,
+    lon2d: np.ndarray,
+    lat2d: np.ndarray,
+    clon: float,
+    clat: float,
+) -> int:
+    """Pass count from local Δσ²; always in [min, max]."""
+    out = np.array(field, dtype=np.float64, copy=True)
+    mask = _haversine_km(clon, clat, lon2d, lat2d) <= NINE_POINT_VAR_BOX_KM
+    var0 = _masked_variance(out, mask)
+    prev = var0
+    denom = max(abs(var0), 1.0e-12)
+    used = NINE_POINT_MAX_PASSES
+    for step in range(1, NINE_POINT_MAX_PASSES + 1):
+        out = _nine_point(out, wrap_zonal=wrap_zonal)
+        var = _masked_variance(out, mask)
+        rel = abs(var - prev) / denom
+        if step >= NINE_POINT_MIN_PASSES and rel < NINE_POINT_VAR_REL:
+            used = step
+            break
+        prev = var
+    return used
+
+
+def _masked_variance(field: np.ndarray, mask: np.ndarray) -> float:
+    vals = field[mask] if np.any(mask) else field.ravel()
+    if vals.size < 4:
+        vals = field.ravel()
+    return float(np.nanvar(vals))
+
+
+def _nine_point(arr: np.ndarray, wrap_zonal: bool) -> np.ndarray:
+    """Winterbottom and Chassignet 2011 simultaneous 3x3 box average."""
+    if arr.ndim != 2:
+        msg = "Nine-point smoother expects a 2-D lat-lon array"
+        raise ValueError(msg)
+    nlat, nlon = arr.shape
+    padded = np.pad(arr, ((1, 1), (0, 0)), mode="edge")
+    if wrap_zonal:
+        padded = np.concatenate([padded[:, -1:], padded, padded[:, :1]], axis=1)
+    else:
+        padded = np.pad(padded, ((0, 0), (1, 1)), mode="edge")
+    acc = np.zeros((nlat, nlon), dtype=np.float64)
+    for dy in range(3):
+        for dx in range(3):
+            acc += padded[dy : dy + nlat, dx : dx + nlon]
+    return acc / 9.0
 
 
 def _three_point(arr: np.ndarray, axis: int, k: float, periodic: bool) -> np.ndarray:

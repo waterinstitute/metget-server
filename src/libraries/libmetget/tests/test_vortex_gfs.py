@@ -413,7 +413,7 @@ def test_real_gfs_removes_20w_on_today_12z(tmp_path: Path) -> None:
     assert float(np.nanmean(np.abs(s1[far] - s0[far]))) < 1.5
 
 
-def _snapshot_at_tau(tmp_path: Path, tau: int, storms: list, bbox: tuple) -> tuple:
+def _snapshot_at_tau(tmp_path: Path, tau: int, storms: list, bbox: tuple, smoother=None) -> tuple:
     grib_path = tmp_path / f"gfs_wp20_f{tau:03d}.grib2"
     _download_gfs_from_s3(LIVE_YMD, LIVE_CC, tau, grib_path)
     ds = _subset_box(_open_gfs_grib(grib_path), *bbox)
@@ -422,7 +422,9 @@ def _snapshot_at_tau(tmp_path: Path, tau: int, storms: list, bbox: tuple) -> tup
     if not guesses:
         msg = f"No GFS-tracked vortices on the subset at tau {tau:03d}"
         raise AssertionError(msg)
-    filtered, summary = apply_vortex_removal(ds, guesses, center_search_km=250.0)
+    filtered, summary = apply_vortex_removal(
+        ds, guesses, center_search_km=250.0, smoother=smoother
+    )
     return ds, filtered, on_grid, summary
 
 
@@ -592,7 +594,9 @@ def _draw_track_only(ax, tracks: dict, focus: str) -> None:
         )
 
 
-def _write_extrema_plots(frames: list, tracks: dict, path: Path, focus: str) -> None:
+def _write_extrema_plots(
+    frames: list, tracks: dict, path: Path, focus: str, smoother: str = "three-point"
+) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -633,7 +637,7 @@ def _write_extrema_plots(frames: list, tracks: dict, path: Path, focus: str) -> 
     last_tau = frames[-1]["tau"] if frames else 0
     fig.suptitle(
         f"GFS 0.25°  {LIVE_CYCLE}Z  {focus} window  all AVNX vortices  "
-        f"extrema over +0–+{last_tau:03d} h (12 h steps)\n"
+        f"{smoother} smoother  extrema over +0–+{last_tau:03d} h (12 h steps)\n"
         f"White = {focus} AVNX; cyan = other GFS-tracked storms in the window",
         fontsize=13,
     )
@@ -683,6 +687,25 @@ def _build_live_forecast(tmp_path: Path, basin: str, number: int):
             }
         )
     return frames, tracks, focus_name
+
+
+def _refilter_frames(frames: list, focus: str, smoother: str) -> list:
+    """Re-run Kurihara on the same native snapshots with a different smoother."""
+    rebuilt = []
+    for frame in frames:
+        guesses = [_guess_from_storm(storm) for storm in frame["storms"]]
+        filtered, summary = apply_vortex_removal(
+            frame["original"], guesses, center_search_km=250.0, smoother=smoother
+        )
+        rebuilt.append(
+            {
+                **frame,
+                "filtered": filtered,
+                "diags": summary.storms,
+                "diag": _diag_named(summary, focus),
+            }
+        )
+    return rebuilt
 
 
 def _write_live_plots(frames: list, tracks: dict, focus: str, tmp_path: Path) -> Path:
@@ -768,3 +791,31 @@ def test_real_gfs_removes_17w_through_forecast(tmp_path: Path) -> None:
     _write_live_plots(frames, tracks, focus, tmp_path)
     _assert_focus_removed(frames, focus)
     assert frames[-1]["tau"] >= 72
+    stem = f"{focus.lower()}_gfs_{LIVE_CYCLE}"
+    three_path = PLOT_DIR / f"{stem}_extrema_5day_three-point.png"
+    nine_path = PLOT_DIR / f"{stem}_extrema_5day_nine-point.png"
+    _write_extrema_plots(frames, tracks, three_path, focus, smoother="three-point")
+    frames_nine = _refilter_frames(frames, focus, "nine-point")
+    _write_extrema_plots(frames_nine, tracks, nine_path, focus, smoother="nine-point Δσ²")
+    _write_extrema_plots(frames, tracks, tmp_path / three_path.name, focus, smoother="three-point")
+    _write_extrema_plots(
+        frames_nine, tracks, tmp_path / nine_path.name, focus, smoother="nine-point Δσ²"
+    )
+    w0, w1, p0, p1 = (
+        float(np.nanmax(_stack_field(frames, "original", "wind"))),
+        float(np.nanmax(_stack_field(frames, "filtered", "wind"))),
+        float(np.nanmin(_stack_field(frames, "original", "pressure"))),
+        float(np.nanmin(_stack_field(frames, "filtered", "pressure"))),
+    )
+    n0, n1, np0, np1 = (
+        float(np.nanmax(_stack_field(frames_nine, "original", "wind"))),
+        float(np.nanmax(_stack_field(frames_nine, "filtered", "wind"))),
+        float(np.nanmin(_stack_field(frames_nine, "original", "pressure"))),
+        float(np.nanmin(_stack_field(frames_nine, "filtered", "pressure"))),
+    )
+    print(
+        f"17W extrema three-point wind {w0:.1f}->{w1:.1f} m/s  MSLP {p0:.1f}->{p1:.1f} mb"
+    )
+    print(
+        f"17W extrema nine-point  wind {n0:.1f}->{n1:.1f} m/s  MSLP {np0:.1f}->{np1:.1f} mb"
+    )
