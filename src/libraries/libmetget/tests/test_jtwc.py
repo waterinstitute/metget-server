@@ -103,10 +103,8 @@ def test_southern_hemisphere_position_is_negative() -> None:
     assert lon == pytest.approx(95.0)
 
 
-@pytest.mark.parametrize("designator,header", [("A", "WTIO21"), ("B", "WTIO31")])
-def test_north_indian_ocean_designators_map_to_io(
-    designator: str, header: str
-) -> None:
+@pytest.mark.parametrize(("designator", "header"), [("A", "WTIO21"), ("B", "WTIO31")])
+def test_north_indian_ocean_designators_map_to_io(designator: str, header: str) -> None:
     # A = Arabian Sea, B = Bay of Bengal; both are the North Indian Ocean basin.
     text = (
         f"{header} PGTW 061500\n"

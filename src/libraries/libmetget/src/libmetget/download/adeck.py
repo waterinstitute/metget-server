@@ -411,6 +411,7 @@ class ADeckStorms:
             Set of (basin-uppercase, storm-number) pairs. Files whose embedded year
             does not match ``year`` (UCAR's flat dir can contain the next SH season)
             are ignored.
+
         """
         storms: Set[Tuple[str, int]] = set()
         for match in ADeckStorms._ADECK_FILENAME_RE.finditer(html):

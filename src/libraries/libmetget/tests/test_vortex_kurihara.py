@@ -60,7 +60,7 @@ def _rankine_field(
 
 
 def _lon_diff(lon, lon0):
-    return (np.mod(lon - lon0 + 180.0, 360.0) - 180.0)
+    return np.mod(lon - lon0 + 180.0, 360.0) - 180.0
 
 
 def test_preferred_tech_is_avno_in_nhc_basins_and_avnx_in_jtwc() -> None:
@@ -147,8 +147,12 @@ def test_gfs_track_techs_are_avno_and_avnx() -> None:
 def test_prefer_service_tech_picks_native_hafs_code() -> None:
     from libmetget.build.vortex.centers import VortexGuess, _prefer_service_tech
 
-    hfsa = VortexGuess(-80.0, 25.0, name="AL09", basin="AL", storm=9, year=2026, tech="HFSA")
-    hafs = VortexGuess(-79.5, 24.8, name="AL09", basin="AL", storm=9, year=2026, tech="HAFS")
+    hfsa = VortexGuess(
+        -80.0, 25.0, name="AL09", basin="AL", storm=9, year=2026, tech="HFSA"
+    )
+    hafs = VortexGuess(
+        -79.5, 24.8, name="AL09", basin="AL", storm=9, year=2026, tech="HAFS"
+    )
     kept = _prefer_service_tech([hfsa, hafs], "ncep-hafs-a")
     assert len(kept) == 1
     assert kept[0].tech == "HFSA"
@@ -229,14 +233,16 @@ def test_apply_vortex_removal_writes_standard_variable_names() -> None:
     out, summary = apply_vortex_removal(
         ds, [VortexGuess(longitude=clon, latitude=clat, name="AL01", vmax_kt=80)]
     )
-    assert "wind_u" in out and "wind_v" in out and "pressure" in out
+    assert "wind_u" in out
+    assert "wind_v" in out
+    assert "pressure" in out
     assert len(summary.storms) == 1
     assert not summary.storms[0].skipped
     dist = haversine_km(clon, clat, lon2d, lat2d)
     core = dist < 40.0
-    assert float(np.mean(np.hypot(out["wind_u"].values[core], out["wind_v"].values[core]))) < float(
-        np.mean(np.hypot(u[core], v[core]))
-    )
+    assert float(
+        np.mean(np.hypot(out["wind_u"].values[core], out["wind_v"].values[core]))
+    ) < float(np.mean(np.hypot(u[core], v[core])))
 
 
 def test_nine_point_spreads_a_spike_over_the_3x3_neighborhood() -> None:

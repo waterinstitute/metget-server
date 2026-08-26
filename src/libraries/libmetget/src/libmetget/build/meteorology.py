@@ -105,9 +105,7 @@ class Meteorology:
             # Prefer the request service name so HAFS-A/B and COAMPS-TC/CTCX
             # keep distinct a-deck techs (the enum collapses those pairs).
             service = kwargs.get("vortex_service") or str(self.__source_key)
-            self.__interpolation_1.set_vortex_removal(
-                vortex_cfg, service=str(service)
-            )
+            self.__interpolation_1.set_vortex_removal(vortex_cfg, service=str(service))
         self.__interpolation_2 = copy.deepcopy(self.__interpolation_1)
         self.__interpolation_result_1: Optional[xr.Dataset] = None
         self.__interpolation_result_2: Optional[xr.Dataset] = None

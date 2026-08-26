@@ -147,22 +147,20 @@ def _all_avnx_forecast() -> dict:
 
 
 def _fixes_at_tau(by_storm: dict, tau: int) -> list:
-    return [
-        by_tau[tau]
-        for by_tau in by_storm.values()
-        if tau in by_tau
-    ]
+    return [by_tau[tau] for by_tau in by_storm.values() if tau in by_tau]
 
 
 def _in_bbox(storm: dict, bbox: tuple, pad: float = 1.0) -> bool:
     west, east, south, north = bbox
     lon = storm["lon"] % 360.0
-    return (west - pad) <= lon <= (east + pad) and (
-        south - pad
-    ) <= storm["lat"] <= (north + pad)
+    return (west - pad) <= lon <= (east + pad) and (south - pad) <= storm["lat"] <= (
+        north + pad
+    )
 
 
-def _expand_bbox_for_tracked_storms(bbox: tuple, by_storm: dict, pad: float = TRACK_PAD_DEG):
+def _expand_bbox_for_tracked_storms(
+    bbox: tuple, by_storm: dict, pad: float = TRACK_PAD_DEG
+):
     """Grow the plot window so every GFS-tracked storm that clips it is fully inside."""
     west, east, south, north = bbox
     extra = []
@@ -307,9 +305,9 @@ def _write_before_after_plots(
     diag,
     path: Path,
 ) -> None:
-    import matplotlib
+    import matplotlib as mpl
 
-    matplotlib.use("Agg")
+    mpl.use("Agg")
     import matplotlib.pyplot as plt
 
     lon2d, lat2d = _mesh(original)
@@ -328,12 +326,44 @@ def _write_before_after_plots(
 
     fig, axes = plt.subplots(2, 3, figsize=(15.5, 9.2), constrained_layout=True)
     panels = [
-        (axes[0, 0], s0, f"10 m wind before (max {np.nanmax(s0):.1f} m/s)", "YlOrRd", 0.0, wind_vmax, "m/s"),
-        (axes[0, 1], s1, f"10 m wind after (max {np.nanmax(s1):.1f} m/s)", "YlOrRd", 0.0, wind_vmax, "m/s"),
-        (axes[0, 2], s1 - s0, "wind after − before", "RdBu_r", -ds_lim, ds_lim, "m/s"),
-        (axes[1, 0], p0, f"MSLP before (min {np.nanmin(p0):.1f} mb)", "viridis_r", None, None, "mb"),
-        (axes[1, 1], p1, f"MSLP after (min {np.nanmin(p1):.1f} mb)", "viridis_r", None, None, "mb"),
-        (axes[1, 2], p1 - p0, "MSLP after − before", "RdBu_r", -dp_lim, dp_lim, "mb"),
+        (
+            axes[0, 0],
+            s0,
+            f"10 m wind before (max {np.nanmax(s0):.1f} m/s)",
+            "YlOrRd",
+            0.0,
+            wind_vmax,
+            "m/s",
+        ),
+        (
+            axes[0, 1],
+            s1,
+            f"10 m wind after (max {np.nanmax(s1):.1f} m/s)",
+            "YlOrRd",
+            0.0,
+            wind_vmax,
+            "m/s",
+        ),
+        (axes[0, 2], s1 - s0, "wind after - before", "RdBu_r", -ds_lim, ds_lim, "m/s"),
+        (
+            axes[1, 0],
+            p0,
+            f"MSLP before (min {np.nanmin(p0):.1f} mb)",
+            "viridis_r",
+            None,
+            None,
+            "mb",
+        ),
+        (
+            axes[1, 1],
+            p1,
+            f"MSLP after (min {np.nanmin(p1):.1f} mb)",
+            "viridis_r",
+            None,
+            None,
+            "mb",
+        ),
+        (axes[1, 2], p1 - p0, "MSLP after - before", "RdBu_r", -dp_lim, dp_lim, "mb"),
     ]
     for ax, field, title, cmap, vmin, vmax, units in panels:
         mesh = ax.pcolormesh(
@@ -343,15 +373,27 @@ def _write_before_after_plots(
         ax.set_title(title, fontsize=10)
         ax.set_xlabel("longitude")
         ax.set_ylabel("latitude")
-        ax.plot(storm["lon"] % 360.0, storm["lat"], "kx", markersize=8, label="AVNX guess")
-        ax.plot(diag.refined_lon % 360.0, diag.refined_lat, "k+", markersize=10, label="refined")
+        ax.plot(
+            storm["lon"] % 360.0, storm["lat"], "kx", markersize=8, label="AVNX guess"
+        )
+        ax.plot(
+            diag.refined_lon % 360.0,
+            diag.refined_lat,
+            "k+",
+            markersize=10,
+            label="refined",
+        )
         if not diag.skipped and np.any(diag.radii_km > 0):
             plon, plat = _polygon(diag.refined_lon, diag.refined_lat, diag.radii_km)
             ax.plot(plon, plat, color="lime", linewidth=1.2, label="vortex domain")
         ax.set_aspect("equal", adjustable="box")
 
     axes[0, 0].legend(loc="upper right", fontsize=8)
-    status = "skipped: " + diag.reason if diag.skipped else f"mean radius {float(np.mean(diag.radii_km)):.0f} km"
+    status = (
+        "skipped: " + diag.reason
+        if diag.skipped
+        else f"mean radius {float(np.mean(diag.radii_km)):.0f} km"
+    )
     fig.suptitle(
         f"GFS 0.25°  {LIVE_CYCLE}Z  WP{LIVE_STORM:02d}  tau {storm['tau']:03d}  "
         f"AVNX {storm['vmax']} kt at {storm['lat']:.1f}N {storm['lon']:.1f}E\n{status}",
@@ -373,7 +415,8 @@ def test_real_gfs_removes_20w_on_today_12z(tmp_path: Path) -> None:
     except Exception as exc:
         pytest.skip(f"Could not load GFS GRIB for 20W from S3: {exc}")
 
-    assert "wind_u" in ds and "wind_v" in ds
+    assert "wind_u" in ds
+    assert "wind_v" in ds
     guess = VortexGuess(
         longitude=storm["lon"],
         latitude=storm["lat"],
@@ -408,12 +451,15 @@ def test_real_gfs_removes_20w_on_today_12z(tmp_path: Path) -> None:
     )
     core = dist < 75.0
     far = dist > 600.0
-    assert np.any(core) and np.any(far)
+    assert np.any(core)
+    assert np.any(far)
     assert float(np.nanmean(s1[core])) < 0.85 * float(np.nanmean(s0[core]))
     assert float(np.nanmean(np.abs(s1[far] - s0[far]))) < 1.5
 
 
-def _snapshot_at_tau(tmp_path: Path, tau: int, storms: list, bbox: tuple, smoother=None) -> tuple:
+def _snapshot_at_tau(
+    tmp_path: Path, tau: int, storms: list, bbox: tuple, smoother=None
+) -> tuple:
     grib_path = tmp_path / f"gfs_wp20_f{tau:03d}.grib2"
     _download_gfs_from_s3(LIVE_YMD, LIVE_CC, tau, grib_path)
     ds = _subset_box(_open_gfs_grib(grib_path), *bbox)
@@ -447,7 +493,7 @@ def _pressure(ds: xr.Dataset) -> np.ndarray:
 
 
 def _mark_track(ax, tracks: dict, current: list, diags) -> None:
-    for name, fixes in tracks.items():
+    for _name, fixes in tracks.items():
         ax.plot(
             [fix["lon"] % 360.0 for fix in fixes],
             [fix["lat"] for fix in fixes],
@@ -486,9 +532,9 @@ def _write_forecast_montage(
     path: Path,
     focus: str,
 ) -> None:
-    import matplotlib
+    import matplotlib as mpl
 
-    matplotlib.use("Agg")
+    mpl.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.colors import Normalize
 
@@ -496,8 +542,9 @@ def _write_forecast_montage(
         arrays = [_speed(frame["original"]) for frame in frames]
         cmap = "YlOrRd"
         units = "m/s"
-        vmin, vmax = 0.0, float(
-            np.nanpercentile(np.concatenate([a.ravel() for a in arrays]), 99.0)
+        vmin, vmax = (
+            0.0,
+            float(np.nanpercentile(np.concatenate([a.ravel() for a in arrays]), 99.0)),
         )
         label = "10 m wind"
     else:
@@ -505,7 +552,9 @@ def _write_forecast_montage(
         cmap = "viridis_r"
         units = "mb"
         vmin = float(np.nanpercentile(np.concatenate([a.ravel() for a in arrays]), 1.0))
-        vmax = float(np.nanpercentile(np.concatenate([a.ravel() for a in arrays]), 99.0))
+        vmax = float(
+            np.nanpercentile(np.concatenate([a.ravel() for a in arrays]), 99.0)
+        )
         label = "MSLP"
 
     fig, axes = plt.subplots(4, 6, figsize=(22, 14.5), sharex=True, sharey=True)
@@ -569,7 +618,10 @@ def _write_forecast_montage(
 
 
 def _stack_field(frames: list, which: str, kind: str) -> np.ndarray:
-    arrays = [_speed(frame[which]) if kind == "wind" else _pressure(frame[which]) for frame in frames]
+    arrays = [
+        _speed(frame[which]) if kind == "wind" else _pressure(frame[which])
+        for frame in frames
+    ]
     return np.stack(arrays, axis=0)
 
 
@@ -597,9 +649,9 @@ def _draw_track_only(ax, tracks: dict, focus: str) -> None:
 def _write_extrema_plots(
     frames: list, tracks: dict, path: Path, focus: str, smoother: str = "three-point"
 ) -> None:
-    import matplotlib
+    import matplotlib as mpl
 
-    matplotlib.use("Agg")
+    mpl.use("Agg")
     import matplotlib.pyplot as plt
 
     lon2d, lat2d = _mesh(frames[0]["original"])
@@ -616,12 +668,52 @@ def _write_extrema_plots(
 
     fig, axes = plt.subplots(2, 3, figsize=(16.5, 10.2), sharex=True, sharey=True)
     panels = [
-        (axes[0, 0], wind0, f"10 m wind max-of-max (GFS)\npeak {np.nanmax(wind0):.1f} m/s", "YlOrRd", 0.0, wind_vmax, "m/s"),
-        (axes[0, 1], wind1, f"10 m wind max-of-max (removed)\npeak {np.nanmax(wind1):.1f} m/s", "YlOrRd", 0.0, wind_vmax, "m/s"),
-        (axes[0, 2], wind1 - wind0, "wind MOM after − before", "RdBu_r", -dw, dw, "m/s"),
-        (axes[1, 0], pres0, f"MSLP min-of-min (GFS)\nlowest {np.nanmin(pres0):.1f} mb", "viridis_r", p_vmin, p_vmax, "mb"),
-        (axes[1, 1], pres1, f"MSLP min-of-min (removed)\nlowest {np.nanmin(pres1):.1f} mb", "viridis_r", p_vmin, p_vmax, "mb"),
-        (axes[1, 2], pres1 - pres0, "MSLP MoM after − before", "RdBu_r", -dp, dp, "mb"),
+        (
+            axes[0, 0],
+            wind0,
+            f"10 m wind max-of-max (GFS)\npeak {np.nanmax(wind0):.1f} m/s",
+            "YlOrRd",
+            0.0,
+            wind_vmax,
+            "m/s",
+        ),
+        (
+            axes[0, 1],
+            wind1,
+            f"10 m wind max-of-max (removed)\npeak {np.nanmax(wind1):.1f} m/s",
+            "YlOrRd",
+            0.0,
+            wind_vmax,
+            "m/s",
+        ),
+        (
+            axes[0, 2],
+            wind1 - wind0,
+            "wind MOM after - before",
+            "RdBu_r",
+            -dw,
+            dw,
+            "m/s",
+        ),
+        (
+            axes[1, 0],
+            pres0,
+            f"MSLP min-of-min (GFS)\nlowest {np.nanmin(pres0):.1f} mb",
+            "viridis_r",
+            p_vmin,
+            p_vmax,
+            "mb",
+        ),
+        (
+            axes[1, 1],
+            pres1,
+            f"MSLP min-of-min (removed)\nlowest {np.nanmin(pres1):.1f} mb",
+            "viridis_r",
+            p_vmin,
+            p_vmax,
+            "mb",
+        ),
+        (axes[1, 2], pres1 - pres0, "MSLP MoM after - before", "RdBu_r", -dp, dp, "mb"),
     ]
     for ax, field, title, cmap, vmin, vmax, units in panels:
         mesh = ax.pcolormesh(
@@ -637,7 +729,7 @@ def _write_extrema_plots(
     last_tau = frames[-1]["tau"] if frames else 0
     fig.suptitle(
         f"GFS 0.25°  {LIVE_CYCLE}Z  {focus} window  all AVNX vortices  "
-        f"{smoother} smoother  extrema over +0–+{last_tau:03d} h (12 h steps)\n"
+        f"{smoother} smoother  extrema over +0-+{last_tau:03d} h (12 h steps)\n"
         f"White = {focus} AVNX; cyan = other GFS-tracked storms in the window",
         fontsize=13,
     )
@@ -758,7 +850,8 @@ def _assert_focus_removed(frames: list, focus: str) -> None:
                 haversine_km(other.refined_lon, other.refined_lat, lon2d, lat2d)
                 > other_outer
             )
-        assert np.any(core) and np.any(far)
+        assert np.any(core)
+        assert np.any(far)
         assert float(np.nanmean(s1[core])) < 0.85 * float(np.nanmean(s0[core])), (
             f"core wind not reduced at tau {storm['tau']:03d}"
         )
@@ -796,8 +889,12 @@ def test_real_gfs_removes_17w_through_forecast(tmp_path: Path) -> None:
     nine_path = PLOT_DIR / f"{stem}_extrema_5day_nine-point.png"
     _write_extrema_plots(frames, tracks, three_path, focus, smoother="three-point")
     frames_nine = _refilter_frames(frames, focus, "nine-point")
-    _write_extrema_plots(frames_nine, tracks, nine_path, focus, smoother="nine-point Δσ²")
-    _write_extrema_plots(frames, tracks, tmp_path / three_path.name, focus, smoother="three-point")
+    _write_extrema_plots(
+        frames_nine, tracks, nine_path, focus, smoother="nine-point Δσ²"
+    )
+    _write_extrema_plots(
+        frames, tracks, tmp_path / three_path.name, focus, smoother="three-point"
+    )
     _write_extrema_plots(
         frames_nine, tracks, tmp_path / nine_path.name, focus, smoother="nine-point Δσ²"
     )

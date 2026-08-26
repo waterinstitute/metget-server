@@ -38,7 +38,7 @@ Decomposition (Kurihara, Bender & Ross, MWR 1993; Kurihara et al., MWR 1995):
 The basic field is a smoother applied on the native grid.
 ``SMOOTHER`` at module top selects Kurihara 1993 three-point (zonal then
 meridional, K=0.5, 100 passes) or Winterbottom and Chassignet 2011 nine-point
-(simultaneous 3x3 box average, Δσ² stop in a 500 km box, 5–40 passes).
+(simultaneous 3x3 box average, Δσ² stop in a 500 km box, 5-40 passes).
 The vortex domain is a 24-sided polygon diagnosed from the disturbance
 tangential wind. Inside the polygon the remainder is interpolated from the
 boundary so the vortex-scale disturbance is removed; outside, the field is
@@ -51,7 +51,7 @@ fields) rather than 850 hPa.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Literal, Optional, Sequence, Tuple
+from typing import Literal, Sequence
 
 import numpy as np
 import xarray as xr
@@ -79,7 +79,7 @@ DEFAULT_SMOOTH_K = 0.5
 # Scale-separation kernel. "three-point" is Kurihara 1993 (zonal, then
 # meridional, fixed 100 passes). "nine-point" is Winterbottom and Chassignet
 # 2011 (3x3 mean in both directions at once) with Δσ² stopping in a 500 km
-# box around the vortex (5–40 passes). The rest of K95 is unchanged.
+# box around the vortex (5-40 passes). The rest of K95 is unchanged.
 SmootherKind = Literal["three-point", "nine-point"]
 SMOOTHER: SmootherKind = "three-point"
 NINE_POINT_MIN_PASSES = 5
@@ -107,15 +107,15 @@ class VortexRemovalDiagnostics:
 class VortexRemovalSummary:
     """Diagnostics for every storm processed on one snapshot."""
 
-    storms: List[VortexRemovalDiagnostics] = field(default_factory=list)
+    storms: list[VortexRemovalDiagnostics] = field(default_factory=list)
 
 
 def apply_vortex_removal(
     dataset: xr.Dataset,
     guesses: Sequence[VortexGuess],
     center_search_km: float = DEFAULT_SEARCH_KM,
-    smoother: Optional[str] = None,
-) -> Tuple[xr.Dataset, VortexRemovalSummary]:
+    smoother: str | None = None,
+) -> tuple[xr.Dataset, VortexRemovalSummary]:
     """
     Remove tropical-cyclone vortices from ``wind_u`` / ``wind_v`` / ``pressure``
     on the native source grid. Precipitation and other fields are left alone.
@@ -210,13 +210,13 @@ def remove_vortex(
     lat2d: np.ndarray,
     u: np.ndarray,
     v: np.ndarray,
-    p: Optional[np.ndarray],
+    p: np.ndarray | None,
     guess_lon: float,
     guess_lat: float,
     center_search_km: float = DEFAULT_SEARCH_KM,
     name: str = "",
-    smoother: Optional[str] = None,
-) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], VortexRemovalDiagnostics]:
+    smoother: str | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, VortexRemovalDiagnostics]:
     """
     Separate one vortex from U/V/MSLP. Returns new arrays (copies if skipped).
 
@@ -240,7 +240,9 @@ def remove_vortex(
     v_out = np.array(v, dtype=np.float64, copy=True)
     p_out = None if p is None else np.array(p, dtype=np.float64, copy=True)
 
-    refined = _refine_center(lon2d, lat2d, u_out, v_out, guess_lon, guess_lat, center_search_km)
+    refined = _refine_center(
+        lon2d, lat2d, u_out, v_out, guess_lon, guess_lat, center_search_km
+    )
     if refined is None:
         return (
             u_out,
@@ -268,7 +270,9 @@ def remove_vortex(
             np.hypot(u_out, v_out), wrap, lon2d, lat2d, clon, clat
         )
         logger.info(
-            "Nine-point Δσ² stopped after {} passes for {}", nine_passes, name or "storm"
+            "Nine-point Δσ² stopped after {} passes for {}",
+            nine_passes,
+            name or "storm",
         )
     u_basic = _smooth_field(
         u_out, wrap_zonal=wrap, npass=nine_passes, smoother=smoother
@@ -353,7 +357,7 @@ def remove_vortex(
 
 def _coordinates(
     dataset: xr.Dataset,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     lon = np.asarray(dataset["longitude"].values, dtype=np.float64)
     lat = np.asarray(dataset["latitude"].values, dtype=np.float64)
     if lon.ndim == 1 and lat.ndim == 1:
@@ -382,8 +386,8 @@ def _is_global_longitude(lon2d: np.ndarray) -> bool:
 def _smooth_field(
     field: np.ndarray,
     wrap_zonal: bool,
-    npass: Optional[int] = None,
-    smoother: Optional[str] = None,
+    npass: int | None = None,
+    smoother: str | None = None,
 ) -> np.ndarray:
     """Build the basic field by repeating the selected smoother."""
     kind = (smoother or SMOOTHER).lower()
@@ -474,7 +478,7 @@ def _refine_center(
     guess_lon: float,
     guess_lat: float,
     search_km: float,
-) -> Optional[Tuple[float, float]]:
+) -> tuple[float, float] | None:
     dist_km = _haversine_km(guess_lon, guess_lat, lon2d, lat2d)
     box = dist_km <= search_km
     if not np.any(box):
@@ -514,7 +518,7 @@ def _vortex_radii(
     v_dist: np.ndarray,
     clon: float,
     clat: float,
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """24-ray Kurihara radius where the disturbance vortex ends."""
     r_max_m = DEFAULT_MAX_RADIUS_KM * 1000.0
     n_sample = 80
@@ -535,8 +539,7 @@ def _vortex_radii(
 
     if peak_vt < MIN_CYCLONIC_VT:
         return None
-    radii = np.maximum(radii, DEFAULT_MIN_RADIUS_KM * 1000.0)
-    return radii
+    return np.maximum(radii, DEFAULT_MIN_RADIUS_KM * 1000.0)
 
 
 def _radius_along_ray(r: np.ndarray, vt: np.ndarray, dvt_dr: np.ndarray) -> float:
@@ -550,7 +553,9 @@ def _radius_along_ray(r: np.ndarray, vt: np.ndarray, dvt_dr: np.ndarray) -> floa
     return float(r[-1])
 
 
-def _cyclonic_vt(u: np.ndarray, v: np.ndarray, azimuth: float, clat: float) -> np.ndarray:
+def _cyclonic_vt(
+    u: np.ndarray, v: np.ndarray, azimuth: float, clat: float
+) -> np.ndarray:
     # Azimuth is from north; cyclonic NH is counterclockwise.
     vt_ccw = -u * np.cos(azimuth) + v * np.sin(azimuth)
     return vt_ccw if clat >= 0.0 else -vt_ccw
@@ -562,7 +567,7 @@ def _interior_weights(
     clon: float,
     clat: float,
     radii_m: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Polar weight r/R(θ) inside the 24-sided vortex polygon.
 
@@ -617,7 +622,7 @@ def _radius_at_azimuth(az_rad: np.ndarray, radii_m: np.ndarray) -> np.ndarray:
 
 def _destination(
     lat0: float, lon0: float, azimuth: float, distance_m: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     lat1 = np.deg2rad(lat0)
     lon1 = np.deg2rad(lon0)
     ang = distance_m / EARTH_RADIUS_M
@@ -649,12 +654,15 @@ def _haversine_km(
     rlat2 = np.deg2rad(lat2)
     dlat = rlat2 - rlat1
     dlon = np.deg2rad(_smallest_lon_diff(lon2, lon1))
-    a = np.sin(dlat / 2.0) ** 2 + np.cos(rlat1) * np.cos(rlat2) * np.sin(dlon / 2.0) ** 2
+    a = (
+        np.sin(dlat / 2.0) ** 2
+        + np.cos(rlat1) * np.cos(rlat2) * np.sin(dlon / 2.0) ** 2
+    )
     return (EARTH_RADIUS_M / 1000.0) * 2.0 * np.arcsin(np.sqrt(np.clip(a, 0.0, 1.0)))
 
 
 def _smallest_lon_diff(lon: np.ndarray, lon0: float) -> np.ndarray:
-    return (np.mod(lon - lon0 + 180.0, 360.0) - 180.0)
+    return np.mod(lon - lon0 + 180.0, 360.0) - 180.0
 
 
 def _bilinear(

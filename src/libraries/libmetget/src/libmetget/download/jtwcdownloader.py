@@ -119,8 +119,7 @@ class JtwcDownloader:
         """
         yy = year % 100
         return (
-            f"{JtwcDownloader.PRODUCTS_URL}/"
-            f"{basin.lower()}{storm:02d}{yy:02d}web.txt"
+            f"{JtwcDownloader.PRODUCTS_URL}/{basin.lower()}{storm:02d}{yy:02d}web.txt"
         )
 
     def download(self) -> int:
