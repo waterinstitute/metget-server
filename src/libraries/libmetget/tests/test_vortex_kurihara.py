@@ -14,7 +14,9 @@ from libmetget.build.fileobj import FileObj
 from libmetget.build.input import Input
 from libmetget.build.vortex.centers import (
     VortexGuess,
+    cycles_used_by_lookup,
     guesses_from_track_geojson,
+    missing_vortex_adeck_cycles,
     preferred_tech,
     resolve_vortex_guesses,
     techs_for_service,
@@ -69,6 +71,108 @@ def test_preferred_tech_is_avno_in_nhc_basins_and_avnx_in_jtwc() -> None:
     assert preferred_tech("WP") == "AVNX"
     assert preferred_tech("IO") == "AVNX"
     assert preferred_tech("SH") == "AVNX"
+
+
+def test_guesses_from_track_geojson_interpolates_between_6h_points() -> None:
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [-80.0, 25.0]},
+                "properties": {
+                    "forecast_hour": 0,
+                    "max_wind_speed_mph": 80.0,
+                },
+            },
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [-82.0, 27.0]},
+                "properties": {
+                    "forecast_hour": 6,
+                    "max_wind_speed_mph": 92.0,
+                },
+            },
+        ],
+    }
+    guesses = guesses_from_track_geojson(
+        geojson, 3, basin="AL", storm=9, year=2026, tech="AVNO"
+    )
+    assert len(guesses) == 1
+    assert guesses[0].longitude == pytest.approx(-81.0)
+    assert guesses[0].latitude == pytest.approx(26.0)
+    assert guesses[0].tau == 3
+
+
+def test_guesses_from_track_geojson_does_not_extrapolate_past_track() -> None:
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [-80.0, 25.0]},
+                "properties": {"forecast_hour": 0, "max_wind_speed_mph": 80.0},
+            },
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [-82.0, 27.0]},
+                "properties": {"forecast_hour": 6, "max_wind_speed_mph": 92.0},
+            },
+        ],
+    }
+    assert (
+        guesses_from_track_geojson(geojson, 12, basin="AL", storm=9, tech="AVNO") == []
+    )
+
+
+def test_nowcast_lookup_requires_every_analysis_cycle() -> None:
+    lookup = [
+        {"forecastcycle": datetime(2026, 8, 26, 0), "tau": 0},
+        {"forecastcycle": datetime(2026, 8, 26, 6), "tau": 0},
+        {"forecastcycle": datetime(2026, 8, 26, 12), "tau": 0},
+        {"forecastcycle": datetime(2026, 8, 26, 18), "tau": 0},
+    ]
+    assert cycles_used_by_lookup(lookup) == [
+        datetime(2026, 8, 26, 0),
+        datetime(2026, 8, 26, 6),
+        datetime(2026, 8, 26, 12),
+        datetime(2026, 8, 26, 18),
+    ]
+
+
+def test_multiple_forecast_lookup_keeps_each_cycle_that_supplied_a_file() -> None:
+    lookup = [
+        {"forecastcycle": datetime(2026, 8, 26, 0), "tau": 5},
+        {"forecastcycle": datetime(2026, 8, 26, 6), "tau": 0},
+        {"forecastcycle": datetime(2026, 8, 26, 6), "tau": 1},
+        {"forecastcycle": datetime(2026, 8, 26, 12), "tau": 0},
+    ]
+    assert cycles_used_by_lookup(lookup) == [
+        datetime(2026, 8, 26, 0),
+        datetime(2026, 8, 26, 6),
+        datetime(2026, 8, 26, 12),
+    ]
+
+
+def test_missing_vortex_adeck_cycles_lists_only_absent_cycles(monkeypatch) -> None:
+    present = {datetime(2026, 8, 26, 0), datetime(2026, 8, 26, 6)}
+
+    def fake_query(cycles, techs, storms):
+        assert tuple(techs) == ("AVNO", "AVNX")
+        return present & set(cycles)
+
+    monkeypatch.setattr(
+        "libmetget.build.vortex.centers._query_adeck_cycle_set", fake_query
+    )
+    missing = missing_vortex_adeck_cycles(
+        service="gfs-ncep",
+        cycles=[
+            datetime(2026, 8, 26, 0),
+            datetime(2026, 8, 26, 6),
+            datetime(2026, 8, 26, 12),
+        ],
+    )
+    assert missing == [datetime(2026, 8, 26, 12)]
 
 
 def test_guesses_from_track_geojson_selects_matching_tau() -> None:

@@ -118,17 +118,15 @@ def guess_from_geojson_feature(
     lon, lat = float(coords[0]), float(coords[1])
     vmax_mph = props.get("max_wind_speed_mph") or 0.0
     vmax_kt = float(vmax_mph) / 1.15078 if vmax_mph else 0.0
-    name = f"{basin}{int(storm):02d}" if basin else tech or "storm"
-    return VortexGuess(
+    return _guess(
         longitude=lon,
         latitude=lat,
-        name=name,
-        basin=str(basin).upper(),
-        storm=int(storm),
-        year=int(year) if year else 0,
-        tech=tech,
         vmax_kt=vmax_kt,
-        tau=int(tau),
+        basin=basin,
+        storm=storm,
+        year=year,
+        tech=tech,
+        tau=tau,
     )
 
 
@@ -141,15 +139,67 @@ def guesses_from_track_geojson(
     year: int = 0,
     tech: str = "",
 ) -> list[VortexGuess]:
-    """Extract the tau-matching feature from an a-deck FeatureCollection."""
-    guesses: list[VortexGuess] = []
-    for feature in geometry_data.get("features") or []:
-        guess = guess_from_geojson_feature(
-            feature, basin=basin, storm=storm, year=year, tech=tech, tau=tau
-        )
-        if guess is not None:
-            guesses.append(guess)
-    return guesses
+    """
+    Position on one a-deck track at ``tau``.
+
+    A-decks are typically 6-hourly while GFS files can be hourly. An exact
+    forecast-hour match is used when present; otherwise the position is
+    interpolated between the surrounding hours of this same cycle's track.
+    Positions are never taken from a different forecast cycle.
+    """
+    guess = _guess_along_track(
+        _track_points(geometry_data),
+        int(tau),
+        basin=basin,
+        storm=storm,
+        year=year,
+        tech=tech,
+    )
+    return [guess] if guess is not None else []
+
+
+def cycles_used_by_lookup(lookup: Sequence[dict[str, Any]]) -> list[datetime]:
+    """
+    Unique meteorological forecast cycles in a file list, first-seen order.
+
+    Nowcast selects the analysis (tau 0) from every cycle in the window, so
+    this is typically 00/06/12/18Z. Multiple-forecast mode picks the newest
+    cycle at each valid time (min tau), so several cycles appear. A single
+    forecast is usually one cycle. Vortex removal must have an a-deck for
+    each of these cycles, not "the latest a-deck in the window."
+    """
+    cycles: list[datetime] = []
+    seen: set[datetime] = set()
+    for item in lookup:
+        cycle = item.get("forecastcycle")
+        if cycle is None or cycle in seen:
+            continue
+        seen.add(cycle)
+        cycles.append(cycle)
+    return cycles
+
+
+def missing_vortex_adeck_cycles(
+    *,
+    service: str,
+    cycles: Sequence[datetime],
+    storms: Any = "auto-track",
+) -> list[datetime]:
+    """
+    Return forecast cycles that have no a-deck rows for ``service``.
+
+    A nowcast or multiple-forecast request fails unless every cycle that
+    the file list will actually use has been ingested. An empty result
+    means every requested cycle is present.
+    """
+    unique = [cycle for cycle in cycles if cycle is not None]
+    if not unique:
+        return []
+    techs = techs_for_service(service)
+    if not techs:
+        return list(unique)
+    present = _query_adeck_cycle_set(unique, techs, storms)
+    return [cycle for cycle in unique if cycle not in present]
 
 
 def resolve_vortex_guesses(
@@ -163,8 +213,10 @@ def resolve_vortex_guesses(
     """
     Resolve first-guess centers for one source file.
 
-    ``config["centers"]`` short-circuits the database (used by tests).
-    Otherwise rows are read from ``nhc_adeck`` at ``forecastcycle``.
+    The a-deck cycle is the meteorological file's ``forecastcycle``, matching
+    nowcast (each analysis cycle) and multiple-forecast (whichever cycle
+    supplied that snapshot) the same way. ``config["centers"]`` short-circuits
+    the database (used by tests).
     """
     if not config.get("enabled"):
         return []
@@ -215,6 +267,102 @@ def resolve_vortex_guesses(
             ",".join(techs),
         )
     return guesses
+
+
+def _guess(
+    *,
+    longitude: float,
+    latitude: float,
+    vmax_kt: float,
+    basin: str,
+    storm: int,
+    year: int,
+    tech: str,
+    tau: int,
+    name: str = "",
+) -> VortexGuess:
+    label = name or (f"{basin}{int(storm):02d}" if basin else tech or "storm")
+    return VortexGuess(
+        longitude=longitude,
+        latitude=latitude,
+        name=label,
+        basin=str(basin).upper(),
+        storm=int(storm) if storm else 0,
+        year=int(year) if year else 0,
+        tech=tech,
+        vmax_kt=vmax_kt,
+        tau=int(tau),
+    )
+
+
+def _track_points(
+    geometry_data: dict[str, Any],
+) -> list[tuple[int, float, float, float]]:
+    """Unique (forecast_hour, lon, lat, vmax_kt) points, sorted by hour."""
+    points: dict[int, tuple[int, float, float, float]] = {}
+    for feature in geometry_data.get("features") or []:
+        props = feature.get("properties") or {}
+        coords = (feature.get("geometry") or {}).get("coordinates")
+        if not coords or len(coords) < 2:
+            continue
+        hour = int(props.get("forecast_hour", -1))
+        if hour < 0 or hour in points:
+            continue
+        vmax_mph = props.get("max_wind_speed_mph") or 0.0
+        vmax_kt = float(vmax_mph) / 1.15078 if vmax_mph else 0.0
+        points[hour] = (hour, float(coords[0]), float(coords[1]), vmax_kt)
+    return [points[hour] for hour in sorted(points)]
+
+
+def _lon_lerp(lon0: float, lon1: float, weight: float) -> float:
+    """Linear interpolation in longitude that crosses the dateline."""
+    delta = ((lon1 - lon0 + 180.0) % 360.0) - 180.0
+    return ((lon0 + weight * delta + 180.0) % 360.0) - 180.0
+
+
+def _guess_along_track(
+    points: Sequence[tuple[int, float, float, float]],
+    tau: int,
+    *,
+    basin: str,
+    storm: int,
+    year: int,
+    tech: str,
+) -> VortexGuess | None:
+    if not points:
+        return None
+    by_hour = {hour: (lon, lat, vmax) for hour, lon, lat, vmax in points}
+    if tau in by_hour:
+        lon, lat, vmax = by_hour[tau]
+        return _guess(
+            longitude=lon,
+            latitude=lat,
+            vmax_kt=vmax,
+            basin=basin,
+            storm=storm,
+            year=year,
+            tech=tech,
+            tau=tau,
+        )
+    hours = [hour for hour, *_ in points]
+    if tau < hours[0] or tau > hours[-1]:
+        return None
+    for left, right in zip(points, points[1:]):
+        h0, lon0, lat0, vmax0 = left
+        h1, lon1, lat1, vmax1 = right
+        if h0 < tau < h1:
+            weight = (tau - h0) / (h1 - h0)
+            return _guess(
+                longitude=_lon_lerp(lon0, lon1, weight),
+                latitude=lat0 + weight * (lat1 - lat0),
+                vmax_kt=vmax0 + weight * (vmax1 - vmax0),
+                basin=basin,
+                storm=storm,
+                year=year,
+                tech=tech,
+                tau=tau,
+            )
+    return None
 
 
 def _guess_from_mapping(item: dict[str, Any], tau: int) -> VortexGuess:
@@ -280,6 +428,25 @@ def _in_bbox(
     ) <= guess.latitude <= (y1 + pad_deg)
 
 
+def _query_adeck_cycle_set(
+    cycles: Sequence[datetime],
+    techs: Iterable[str],
+    storms: Any,
+) -> set[datetime]:
+    """Forecast cycles in ``cycles`` that have at least one matching a-deck row."""
+    from ...database.database import Database  # noqa: PLC0415
+    from ...database.tables import NhcAdeck  # noqa: PLC0415
+
+    tech_list = [t.upper() for t in techs]
+    with Database() as db, db.session() as session:
+        query = session.query(NhcAdeck.forecastcycle).filter(
+            NhcAdeck.forecastcycle.in_(list(cycles)),
+            NhcAdeck.model.in_(tech_list),
+        )
+        query = _apply_adeck_storm_filter(query, storms, NhcAdeck)
+        return {row.forecastcycle for row in query.distinct().all()}
+
+
 def _query_adeck_rows(
     forecastcycle: datetime,
     techs: Iterable[str],
@@ -295,24 +462,31 @@ def _query_adeck_rows(
             NhcAdeck.forecastcycle == forecastcycle,
             NhcAdeck.model.in_(tech_list),
         )
-        if storms not in (None, "auto-track", "auto"):
-            pairs = []
-            for item in storms:
-                pairs.append(
-                    (
-                        str(item["basin"]).upper(),
-                        int(item["storm"]),
-                        int(item.get("year") or item.get("storm_year") or 0),
-                    )
-                )
-            if pairs:
-                from sqlalchemy import or_  # noqa: PLC0415
-
-                clauses = []
-                for basin, storm, year in pairs:
-                    clause = (NhcAdeck.basin == basin) & (NhcAdeck.storm == storm)
-                    if year:
-                        clause = clause & (NhcAdeck.storm_year == year)
-                    clauses.append(clause)
-                query = query.filter(or_(*clauses))
+        query = _apply_adeck_storm_filter(query, storms, NhcAdeck)
         return query.all()
+
+
+def _apply_adeck_storm_filter(query: Any, storms: Any, nhc_adeck: Any) -> Any:
+    """Restrict an a-deck query to an explicit storm list. Auto-track is unfiltered."""
+    if storms in (None, "auto-track", "auto"):
+        return query
+    pairs = []
+    for item in storms:
+        pairs.append(
+            (
+                str(item["basin"]).upper(),
+                int(item["storm"]),
+                int(item.get("year") or item.get("storm_year") or 0),
+            )
+        )
+    if not pairs:
+        return query
+    from sqlalchemy import or_  # noqa: PLC0415
+
+    clauses = []
+    for basin, storm, year in pairs:
+        clause = (nhc_adeck.basin == basin) & (nhc_adeck.storm == storm)
+        if year:
+            clause = clause & (nhc_adeck.storm_year == year)
+        clauses.append(clause)
+    return query.filter(or_(*clauses))

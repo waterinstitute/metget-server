@@ -26,12 +26,19 @@
 # Organization: The Water Institute
 #
 ###################################################################################################
-from .centers import VortexGuess, resolve_vortex_guesses
+from .centers import (
+    VortexGuess,
+    cycles_used_by_lookup,
+    missing_vortex_adeck_cycles,
+    resolve_vortex_guesses,
+)
 from .kurihara import apply_vortex_removal, remove_vortex
 
 __all__ = [
     "VortexGuess",
     "apply_vortex_removal",
+    "cycles_used_by_lookup",
+    "missing_vortex_adeck_cycles",
     "remove_vortex",
     "resolve_vortex_guesses",
 ]
