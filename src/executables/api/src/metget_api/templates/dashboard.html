@@ -1493,7 +1493,7 @@
     </div>
 
     <script>
-        const MODELS = ['nhc', 'gfs', 'rrfs', 'hrrr', 'wpc', 'hafsa', 'hafsb', 'hwrf', 'coamps', 'nam'];
+        const MODELS = ['nhc', 'jtwc', 'gfs', 'rrfs', 'hrrr', 'wpc', 'hafsa', 'hafsb', 'hwrf', 'coamps', 'nam'];
         const MODEL_DISPLAY_NAMES = {
             'gfs': 'GFS',
             'nam': 'NAM',
@@ -1504,14 +1504,18 @@
             'hrrr': 'HRRR',
             'wpc': 'WPC',
             'coamps': 'COAMPS-TC',
-            'nhc': 'NHC'
+            'nhc': 'NHC',
+            'jtwc': 'JTWC'
         };
 
         // Storm-based models have different data structure with storm names
-        const STORM_BASED_MODELS = ['hwrf', 'hafsa', 'hafsb', 'coamps', 'nhc'];
+        const STORM_BASED_MODELS = ['hwrf', 'hafsa', 'hafsb', 'coamps', 'nhc', 'jtwc'];
+
+        // Official best-track / forecast sources (NHC: AL/EP/CP; JTWC: WP/IO/SH)
+        const TRACK_SOURCE_MODELS = ['nhc', 'jtwc'];
 
         // Models that support basin filtering (COAMPS doesn't have basins)
-        const BASIN_FILTERABLE_MODELS = ['hwrf', 'hafsa', 'hafsb', 'nhc'];
+        const BASIN_FILTERABLE_MODELS = ['hwrf', 'hafsa', 'hafsb', 'nhc', 'jtwc'];
 
         // Basin letter to full name mapping
         const BASIN_NAMES = {
@@ -1531,7 +1535,7 @@
             'ep': 'Eastern Pacific',
             'cp': 'Central Pacific',
             'wp': 'Western Pacific',
-            'io': 'Indian Ocean',
+            'io': 'North Indian Ocean',
             'sh': 'Southern Hemisphere'
         };
 
@@ -1619,8 +1623,8 @@
                 return [];
             }
 
-            // Special handling for NHC data
-            if (model === 'nhc') {
+            // Official track sources (NHC / JTWC) carry basin on each storm
+            if (TRACK_SOURCE_MODELS.includes(model)) {
                 for (const [year, yearData] of Object.entries(data)) {
                     if (yearData && typeof yearData === 'object') {
                         for (const [stormName, stormData] of Object.entries(yearData)) {
@@ -2027,8 +2031,8 @@
                 return 'error';
             }
 
-            // Special handling for NHC - simpler status logic
-            if (model === 'nhc') {
+            // Official track sources (NHC / JTWC) - simpler status logic
+            if (TRACK_SOURCE_MODELS.includes(model)) {
                 // If we have any storm data, mark as active (normal)
                 const allStorms = getAllStormsFromYearData(data);
                 return allStorms.length > 0 ? 'active' : 'error';
@@ -2093,8 +2097,8 @@
         }
 
         function getStatusText(status, model, data) {
-            // Special handling for NHC status text
-            if (model === 'nhc') {
+            // Official track sources (NHC / JTWC) status text
+            if (TRACK_SOURCE_MODELS.includes(model)) {
                 if (status === 'active') {
                     const allStorms = getAllStormsFromYearData(data);
                     const stormCount = allStorms.length;
@@ -2213,8 +2217,8 @@
 
             // Handle storm-based models
             if (STORM_BASED_MODELS.includes(model) && data) {
-                // Special simplified layout for NHC (no metrics)
-                if (model === 'nhc') {
+                // Special simplified layout for official tracks (no metrics)
+                if (TRACK_SOURCE_MODELS.includes(model)) {
                     card.innerHTML = `
                         <div class="card-header">
                             <div class="card-title">
@@ -2446,7 +2450,7 @@
 
             // Determine default selection: Atlantic if available, otherwise All Basins
             let hasAtlantic, atlanticCode;
-            if (model === 'nhc') {
+            if (TRACK_SOURCE_MODELS.includes(model)) {
                 hasAtlantic = sortedBasins.includes('al');
                 atlanticCode = 'al';
             } else {
@@ -2470,7 +2474,7 @@
             sortedBasins.forEach(basinCode => {
                 // Use appropriate basin names based on model
                 let basinName;
-                if (model === 'nhc') {
+                if (TRACK_SOURCE_MODELS.includes(model)) {
                     basinName = NHC_BASIN_NAMES[basinCode] || basinCode.toUpperCase();
                 } else {
                     basinName = BASIN_NAMES[basinCode] || basinCode;
@@ -2489,7 +2493,7 @@
 
             // Apply default filter immediately
             if (defaultBasin !== 'all') {
-                const basinName = model === 'nhc' ?
+                const basinName = TRACK_SOURCE_MODELS.includes(model) ?
                     (NHC_BASIN_NAMES[defaultBasin] || defaultBasin) :
                     (BASIN_NAMES[defaultBasin] || defaultBasin);
                 selectBasin(model, data, defaultBasin);
@@ -2656,8 +2660,8 @@
             const containerId = `${model}-chart-container`;
             const container = document.getElementById(containerId);
 
-            // Special handling for NHC - create storm list instead of commit graph
-            if (model === 'nhc') {
+            // Official track sources (NHC / JTWC) - storm list instead of commit graph
+            if (TRACK_SOURCE_MODELS.includes(model)) {
                 createNHCStormList(container, data, selectedBasin);
                 return;
             }
@@ -2842,7 +2846,7 @@
             }
 
             if (!data) {
-                container.innerHTML = '<div class="error">No NHC data available</div>';
+                container.innerHTML = '<div class="error">No storm-track data available</div>';
                 return;
             }
 
@@ -3002,12 +3006,11 @@
                     if (index !== -1) {
                         let data = modelResults[index];
 
-                        // Special processing for NHC data
-                        if (model === 'nhc') {
-                            const originalData = data;
+                        // Official track sources (NHC / JTWC) share the same status shape
+                        if (TRACK_SOURCE_MODELS.includes(model)) {
                             data = processNHCData(data);
 
-                            // If no processed data, still show the NHC card with error state
+                            // If no processed data, still show the card with error state
                             if (!data) {
                                 data = null; // This will trigger error state in createModelCard
                             }
@@ -3016,11 +3019,11 @@
                         const card = createModelCard(model, data);
                         newContent.appendChild(card);
 
-                        // Create chart after card is in DOM (skip for NHC as it uses storm list format)
-                        if (model !== 'nhc') {
+                        // Skip charts for official tracks; they use a storm list
+                        if (!TRACK_SOURCE_MODELS.includes(model)) {
                             setTimeout(() => createChart(model, data), 100);
                         } else if (data) {
-                            // For NHC, setup basin selector and create storm list
+                            // Basin selector + storm list (WP/IO/SH for JTWC, AL/EP/CP for NHC)
                             setTimeout(() => {
                                 if (BASIN_FILTERABLE_MODELS.includes(model)) {
                                     setupBasinSelector(model, data);

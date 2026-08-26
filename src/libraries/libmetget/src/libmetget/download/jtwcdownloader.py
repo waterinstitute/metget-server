@@ -107,6 +107,22 @@ class JtwcDownloader:
     def mettype(self) -> str:
         return self.__mettype
 
+    @staticmethod
+    def warning_url(basin: str, storm: int, year: int) -> str:
+        """
+        JTWC warning bulletin URL for a storm.
+
+        The products site names files ``{basin}{NN}{yy}web.txt`` using the ATCF basin
+        identifier (``wp``, ``io``, ``sh``), not the single-letter designator in the
+        SUBJ line. Example: WP 09 in 2026 is ``wp0926web.txt``; IO 01 in 2024 is
+        ``io0124web.txt``; SH 15 in 2024 is ``sh1524web.txt``.
+        """
+        yy = year % 100
+        return (
+            f"{JtwcDownloader.PRODUCTS_URL}/"
+            f"{basin.lower()}{storm:02d}{yy:02d}web.txt"
+        )
+
     def download(self) -> int:
         n = 0
         if self.__use_besttrack:
@@ -387,8 +403,7 @@ class JtwcDownloader:
         if key in self.__warning_cache:
             return self.__warning_cache[key]
 
-        yy = self.__year % 100
-        url = f"{self.PRODUCTS_URL}/{basin}{storm:02d}{yy:02d}web.txt"
+        url = self.warning_url(basin, storm, self.__year)
         try:
             response = requests.get(url, timeout=30)
         except requests.RequestException as e:

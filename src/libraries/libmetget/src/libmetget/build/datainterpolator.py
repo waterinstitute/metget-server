@@ -76,6 +76,8 @@ class DataInterpolator:
         self.__backfill_flag = backfill_flag
         self.__domain_level = domain_level
         self.__triangulation = triangulation
+        self.__vortex_removal: dict = {"enabled": False}
+        self.__vortex_service: str = ""
 
     def grid(self) -> OutputGrid:
         """
@@ -106,6 +108,18 @@ class DataInterpolator:
 
         """
         self.__triangulation = t
+
+    def set_vortex_removal(self, config: dict, service: str = "") -> None:
+        """
+        Enable Kurihara vortex removal on the native source grid.
+
+        Args:
+            config: Domain ``remove_vortices`` options.
+            service: Meteorological service name (e.g. ``gfs-ncep``).
+
+        """
+        self.__vortex_removal = config or {"enabled": False}
+        self.__vortex_service = service
 
     def x(self) -> np.ndarray:
         """
@@ -508,7 +522,7 @@ class DataInterpolator:
         """
         datasets = []
         for fn, ft in file_list.files():
-            interp_data = self.__open_dataset(fn, ft, variable_type)
+            interp_data = self.__open_dataset(fn, ft, variable_type, file_list)
             datasets.append(interp_data)
 
         return datasets
@@ -518,6 +532,7 @@ class DataInterpolator:
         filename: str,
         file_type: MetFileAttributes,
         variable_type: VariableType,
+        file_obj: FileObj,
     ) -> InterpData:
         """
         Open the dataset using xarray.
@@ -536,6 +551,7 @@ class DataInterpolator:
                 filename,
                 file_type,
                 variable_type,
+                file_obj,
             )
         elif file_type.file_format() == MetFileFormat.COAMPS_TC:
             interp_data = self.__xr_open_coamps_netcdf(
@@ -628,6 +644,7 @@ class DataInterpolator:
         filename: str,
         file_type: MetFileAttributes,
         variable_type: VariableType,
+        file_obj: FileObj,
     ) -> InterpData:
         """
         Open the grib file using xarray. Only read the specified variable.
@@ -673,6 +690,8 @@ class DataInterpolator:
         if "lon" in dataset.variables:
             dataset = dataset.rename_vars({"lon": "longitude", "lat": "latitude"})
 
+        dataset = self.__apply_vortex_removal(dataset, file_obj, variable_type)
+
         var_name = str(file_type.selected_variables(variable_type)[0])
         poly, edge_indexes = DataInterpolator.__generate_dataset_polygon(
             dataset,
@@ -691,6 +710,68 @@ class DataInterpolator:
             polygon=poly,
             edge_index=edge_indexes,
         )
+
+    def __apply_vortex_removal(
+        self,
+        dataset: xr.Dataset,
+        file_obj: FileObj,
+        variable_type: VariableType,
+    ) -> xr.Dataset:
+        """
+        Run Kurihara separation on the native GRIB grid before interpolation.
+
+        Every vortex the source model is tracking at this file's cycle and tau
+        is removed when ``storms`` is ``auto-track``. Tracker techs are chosen
+        from the service (AVNO/AVNX for GFS and for CAM models without their
+        own a-deck, NAM for NAM, HFSA for HAFS-A, and so on). Restricted to
+        wind/pressure. Precipitation is not filtered. Disabled unless the
+        domain requested ``remove_vortices``.
+        """
+        if dataset is None or not self.__vortex_removal.get("enabled"):
+            return dataset
+        if variable_type not in (
+            VariableType.WIND_PRESSURE,
+            VariableType.WIND,
+            VariableType.ALL_VARIABLES,
+        ):
+            return dataset
+        if "wind_u" not in dataset or "wind_v" not in dataset:
+            return dataset
+
+        squeezed = dataset.squeeze(drop=True)
+        bbox = (
+            float(self.__grid.x_lower_left()),
+            float(self.__grid.y_lower_left()),
+            float(self.__grid.x_upper_right()),
+            float(self.__grid.y_upper_right()),
+        )
+        from .vortex.centers import resolve_vortex_guesses
+        from .vortex.kurihara import apply_vortex_removal
+
+        guesses = resolve_vortex_guesses(
+            service=self.__vortex_service,
+            forecastcycle=file_obj.forecastcycle(),
+            tau=file_obj.tau(),
+            config=self.__vortex_removal,
+            domain_bbox=bbox,
+        )
+        if not guesses:
+            return dataset
+
+        filtered, _summary = apply_vortex_removal(
+            squeezed,
+            guesses,
+            center_search_km=float(
+                self.__vortex_removal.get("center_search_km", 200.0)
+            ),
+        )
+        # Restore any singleton dims cfgrib had attached (time, step, ...).
+        for name in dataset.data_vars:
+            if name in filtered:
+                dataset[name] = dataset[name].copy(
+                    data=np.reshape(np.asarray(filtered[name].values), dataset[name].shape)
+                )
+        return dataset
 
     @staticmethod
     def __normalize_longitude(dataset: xr.Dataset) -> None:

@@ -191,7 +191,7 @@ definitions:
                 type: object
               nhc:
                 description: |
-                  NHC track file data
+                  NHC track file data (AL/EP/CP)
                 properties:
                   best_track:
                     description: |
@@ -202,6 +202,23 @@ definitions:
                   forecast:
                     description: |
                       NHC forecast track advisories
+                    items:
+                      $ref: '#/definitions/nhcforecast'
+                    type: array
+                type: object
+              jtwc:
+                description: |
+                  JTWC track file data (WP/IO/SH)
+                properties:
+                  best_track:
+                    description: |
+                      JTWC best track advisories
+                    items:
+                      $ref: '#/definitions/nhcforecast'
+                    type: array
+                  forecast:
+                    description: |
+                      JTWC forecast track advisories
                     items:
                       $ref: '#/definitions/nhcforecast'
                     type: array
@@ -405,7 +422,7 @@ definitions:
         type: array
       basin_abbreviation:
         description: |
-          abbreviation for the basin code used by NHC
+          ATCF basin code. NHC uses al/ep/cp; JTWC uses wp/io/sh.
         type: string
       basin_string:
         description: |

@@ -82,6 +82,7 @@ class Input:
                 Use(int), lambda n: n > 1990
             ),
             Optional("tau"): And(Use(int), lambda n: n >= 0),
+            Optional("remove_vortices"): Or(bool, dict),
         }
     )
 

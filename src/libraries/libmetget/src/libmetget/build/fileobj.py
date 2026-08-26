@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from ..sources.metfileattributes import MetFileAttributes
 
@@ -14,6 +14,8 @@ class FileObj:
         filename: Union[str, list[str]],
         file_type: Union[MetFileAttributes, list[MetFileAttributes]],
         time: datetime,
+        forecastcycle: Optional[datetime] = None,
+        tau: Optional[int] = None,
     ) -> None:
         """
         Constructor.
@@ -21,7 +23,9 @@ class FileObj:
         Args:
             filename (str): The filename of the file
             file_type (MetFileAttributes): The file type
-            time (datetime): The time of the file
+            time (datetime): The valid time of the file
+            forecastcycle (datetime): The model cycle this file belongs to
+            tau (int): Forecast hour of this file relative to forecastcycle
 
         Returns:
             None
@@ -48,6 +52,32 @@ class FileObj:
             raise ValueError(msg)
 
         self.__time = time
+        self.__forecastcycle = forecastcycle
+        self.__tau = tau
+        if self.__tau is None and self.__forecastcycle is not None:
+            self.__tau = int(
+                round((self.__time - self.__forecastcycle).total_seconds() / 3600.0)
+            )
+
+    def forecastcycle(self) -> Optional[datetime]:
+        """
+        Get the model cycle of the file.
+
+        Returns:
+            datetime: The cycle, or None if it was not provided
+
+        """
+        return self.__forecastcycle
+
+    def tau(self) -> Optional[int]:
+        """
+        Get the forecast hour of the file.
+
+        Returns:
+            int: The tau, or None if cycle/tau were not provided
+
+        """
+        return self.__tau
 
     def file(self, index: int) -> Tuple[str, MetFileAttributes]:
         """

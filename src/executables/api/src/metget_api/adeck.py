@@ -62,11 +62,11 @@ class ADeck:
             # A value of None signals the helper methods to return data for
             # every basin (no basin filter is applied to the query).
             query_basin = None
-        elif basin in ["AL", "EP", "CP", "WP", "IO", "SH"]:
+        elif basin in ["AL", "EP", "CP", "WP", "IO", "SH", "LS"]:
             query_basin = basin
         else:
             return {
-                "message": "Basin must be 'AL', 'EP', 'CP', 'WP', 'IO', 'SH', or 'ALL'"
+                "message": "Basin must be 'AL', 'EP', 'CP', 'WP', 'IO', 'SH', 'LS', or 'ALL'"
             }, 400
 
         if isinstance(storm, str) and storm.lower() == "all":

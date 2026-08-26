@@ -154,7 +154,7 @@ components:
               properties:
                 nhc:
                   description: |
-                    NHC track file data
+                    NHC track file data (AL/EP/CP)
                   type: object
                   properties:
                     forecast:
@@ -167,6 +167,23 @@ components:
                       type: array
                       description: |
                         NHC best track advisories
+                      items:
+                        $ref: '#/components/schemas/nhcforecast'
+                jtwc:
+                  description: |
+                    JTWC track file data (WP/IO/SH)
+                  type: object
+                  properties:
+                    forecast:
+                      type: array
+                      description: |
+                        JTWC forecast track advisories
+                      items:
+                        $ref: '#/components/schemas/nhcforecast'
+                    best_track:
+                      type: array
+                      description: |
+                        JTWC best track advisories
                       items:
                         $ref: '#/components/schemas/nhcforecast'
                 hwrf:
@@ -483,7 +500,7 @@ components:
         basin_abbreviation:
           type: string
           description: |
-            abbreviation for the basin code used by NHC
+            ATCF basin code. NHC uses al/ep/cp; JTWC uses wp/io/sh.
         basin_string:
           type: string
           description: |
