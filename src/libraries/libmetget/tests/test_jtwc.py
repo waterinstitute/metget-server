@@ -103,6 +103,29 @@ def test_southern_hemisphere_position_is_negative() -> None:
     assert lon == pytest.approx(95.0)
 
 
+@pytest.mark.parametrize("designator,header", [("A", "WTIO21"), ("B", "WTIO31")])
+def test_north_indian_ocean_designators_map_to_io(
+    designator: str, header: str
+) -> None:
+    # A = Arabian Sea, B = Bay of Bengal; both are the North Indian Ocean basin.
+    text = (
+        f"{header} PGTW 061500\n"
+        f"SUBJ/TROPICAL CYCLONE 01{designator} (REMAL) WARNING NR 001//\n"
+        "RMKS/\n"
+        "   WARNING POSITION:\n"
+        "   061200Z --- NEAR 16.2N 088.5E\n"
+        "   MAX SUSTAINED WINDS - 045 KT, GUSTS 055 KT\n"
+        "REMARKS:\n"
+        "06MAY26. MINIMUM CENTRAL PRESSURE AT 061200Z IS 990 MB.\n"
+    )
+    w = JtwcWarning(text)
+    assert w.basin() == "io"
+    assert w.storm_number() == 1
+    lon, lat = w.forecast_data()[0].storm_center()
+    assert lat == pytest.approx(16.2)
+    assert lon == pytest.approx(88.5)
+
+
 # --- shared ATCF machinery -----------------------------------------------------------------------
 def test_forecast_atcf_round_trips(
     tmp_path: pathlib.Path, warning: JtwcWarning
@@ -280,15 +303,41 @@ def test_adeck_url_routing_by_basin() -> None:
     assert nhc_gz is True
     assert nhc_url.endswith("aal052026.dat.gz")
 
+    ep_url, ep_gz = ADeckStorms._ADeckStorms__generate_url("EP", 2026, 9)
+    assert ep_gz is True
+    assert ep_url.endswith("aep092026.dat.gz")
+
     jtwc_url, jtwc_gz = ADeckStorms._ADeckStorms__generate_url("WP", 2026, 9)
     assert jtwc_gz is False
     assert jtwc_url.endswith("awp092026.dat")
     assert "adecks_open" in jtwc_url
 
+    io_url, io_gz = ADeckStorms._ADeckStorms__generate_url("IO", 2026, 3)
+    assert io_gz is False
+    assert io_url.endswith("aio032026.dat")
+
+    sh_url, sh_gz = ADeckStorms._ADeckStorms__generate_url("SH", 2026, 31)
+    assert sh_gz is False
+    assert sh_url.endswith("ash312026.dat")
+
+    ls_url, ls_gz = ADeckStorms._ADeckStorms__generate_url("LS", 2026, 1)
+    assert ls_gz is False
+    assert ls_url.endswith("als012026.dat")
+
 
 def test_adeck_url_rejects_unknown_basin() -> None:
     with pytest.raises(ValueError):
         ADeckStorms._ADeckStorms__generate_url("ZZ", 2026, 1)
+
+
+def test_warning_url_covers_wp_io_sh() -> None:
+    wp = jtwcdownloader.JtwcDownloader.warning_url("wp", 9, 2026)
+    io = jtwcdownloader.JtwcDownloader.warning_url("IO", 1, 2024)
+    sh = jtwcdownloader.JtwcDownloader.warning_url("sh", 15, 2024)
+    assert wp.endswith("wp0926web.txt")
+    assert io.endswith("io0124web.txt")
+    assert sh.endswith("sh1524web.txt")
+    assert wp.startswith(jtwcdownloader.JtwcDownloader.PRODUCTS_URL)
 
 
 def test_atcf_int_tolerates_blank_and_bad_values() -> None:
@@ -383,6 +432,23 @@ def _make_downloader(
     # Pin the year so the fixtures/paths are deterministic regardless of the machine clock.
     dl._JtwcDownloader__year = 2026
     return dl
+
+
+def test_active_storms_discovers_wp_io_sh(monkeypatch, tmp_path) -> None:
+    index = """
+    href="bwp092026.dat"
+    href="bio012026.dat"
+    href="bsh152026.dat"
+    href="bal012026.dat"
+    href="bwp092025.dat"
+    """
+
+    def fake_get(url, timeout=30):
+        return _FakeResponse(200, index)
+
+    dl = _make_downloader(monkeypatch, tmp_path, _FakeMetdb(), fake_get)
+    storms = dl._JtwcDownloader__active_storms()
+    assert storms == {("wp", 9), ("io", 1), ("sh", 15)}
 
 
 def _run_besttrack(monkeypatch, tmp_path, metdb, bdeck_text, warning_text):

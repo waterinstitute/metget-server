@@ -116,12 +116,14 @@ class Domain:
             return
 
         self.__storm = None
+        self.__remove_vortices = {"enabled": False}
         self.__get_storm()
         self.__get_basin()
         self.__get_advisory()
         self.__get_tau()
         self.__get_storm_year()
         self.__get_ensemble_member()
+        self.__get_remove_vortices()
 
     def storm(self) -> str:
         """
@@ -188,6 +190,17 @@ class Domain:
 
         """
         return self.__storm_year
+
+    def remove_vortices(self) -> dict:
+        """
+        Returns the vortex-removal options for this domain.
+
+        Returns:
+            A dict with at least ``enabled`` (bool). Empty/disabled when the
+            request did not ask for Kurihara filtering.
+
+        """
+        return self.__remove_vortices
 
     def name(self) -> str:
         """
@@ -422,3 +435,43 @@ class Domain:
                 self.__valid = False
         else:
             self.__ensemble_member = None
+
+    def __get_remove_vortices(self) -> None:
+        """
+        Parse optional Kurihara vortex-removal options.
+
+        A bare ``true`` enables auto-track of every vortex the source model
+        is tracking. GFS uses AVNO/AVNX, NAM uses NAM, HAFS/HWRF/COAMPS use
+        their own a-deck techs. HRRR/RRFS have no published tracker, so GFS
+        AVNO/AVNX is the first guess and the center is refined on the native
+        grid. The request does not name a track source. Precipitation is
+        never filtered; the interpolator only applies this to wind_u /
+        wind_v / pressure.
+        """
+        raw = self.__json.get("remove_vortices")
+        if raw is None:
+            self.__remove_vortices = {"enabled": False}
+            return
+        if isinstance(raw, bool):
+            self.__remove_vortices = {
+                "enabled": raw,
+                "storms": "auto-track",
+                "center_search_km": 200.0,
+            }
+            return
+        if not isinstance(raw, dict):
+            logger.error(
+                f"Domain {self.__domain_level} invalid because remove_vortices "
+                "must be a boolean or an object"
+            )
+            self.__valid = False
+            self.__remove_vortices = {"enabled": False}
+            return
+
+        storms = raw.get("storms", "auto-track")
+        self.__remove_vortices = {
+            "enabled": bool(raw.get("enabled", True)),
+            "storms": storms,
+            "center_search_km": float(raw.get("center_search_km", 200.0)),
+            "centers": raw.get("centers"),
+        }

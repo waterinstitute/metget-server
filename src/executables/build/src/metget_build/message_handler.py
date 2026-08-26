@@ -32,7 +32,7 @@ import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from os.path import exists
-from typing import Generator, List, Tuple, Union
+from typing import Generator, List, Optional, Tuple, Union
 
 from libmetget.build.domain import Domain
 from libmetget.build.fileobj import FileObj
@@ -540,7 +540,11 @@ class MessageHandler:
 
     @staticmethod
     def __generate_file_obj(  # noqa: PLR0912
-        filename: Union[str, list], service: str, time: datetime
+        filename: Union[str, list],
+        service: str,
+        time: datetime,
+        forecastcycle: Optional[datetime] = None,
+        tau: Optional[int] = None,
     ) -> FileObj:
         """
         Generates the file object.
@@ -582,8 +586,16 @@ class MessageHandler:
             file_type_list = []
             for _ in filename:
                 file_type_list.append(file_type)
-            return FileObj(filename, file_type_list, time)
-        return FileObj(filename, file_type, time)
+            return FileObj(
+                filename,
+                file_type_list,
+                time,
+                forecastcycle=forecastcycle,
+                tau=tau,
+            )
+        return FileObj(
+            filename, file_type, time, forecastcycle=forecastcycle, tau=tau
+        )
 
     @staticmethod
     def __interpolate_wind_fields(
@@ -690,6 +702,8 @@ class MessageHandler:
             backfill=input_data.backfill(),
             domain_level=input_data.domain(domain_index).domain_level(),
             epsg=input_data.epsg(),
+            remove_vortices=input_data.domain(domain_index).remove_vortices(),
+            vortex_service=input_data.domain(domain_index).service(),
         )
 
         logger.debug(f"Opening the output file(s) for domain {domain_index + 1:d}")
@@ -790,11 +804,14 @@ class MessageHandler:
         )
 
         MessageHandler.__print_file_status(current_file, next_time)
+        next_entry = domain_data[domain_index][index]
         meteo_obj.set_next_file(
             MessageHandler.__generate_file_obj(
                 current_file,
                 input_data.domain(domain_index).service(),
                 next_time,
+                forecastcycle=next_entry.get("forecastcycle"),
+                tau=next_entry.get("tau"),
             )
         )
 
@@ -924,9 +941,14 @@ class MessageHandler:
         )
 
         MessageHandler.__print_file_status(current_file, current_time)
+        first_entry = domain_data[domain_index][0]
         meteo_object.set_next_file(
             MessageHandler.__generate_file_obj(
-                current_file, input_data.domain(domain_index).service(), current_time
+                current_file,
+                input_data.domain(domain_index).service(),
+                current_time,
+                forecastcycle=first_entry.get("forecastcycle"),
+                tau=first_entry.get("tau"),
             )
         )
 
@@ -943,9 +965,14 @@ class MessageHandler:
             output_obj,
         )
 
+        next_entry = domain_data[domain_index][index]
         meteo_object.set_next_file(
             MessageHandler.__generate_file_obj(
-                current_file, input_data.domain(domain_index).service(), next_time
+                current_file,
+                input_data.domain(domain_index).service(),
+                next_time,
+                forecastcycle=next_entry.get("forecastcycle"),
+                tau=next_entry.get("tau"),
             )
         )
         MessageHandler.__print_file_status(current_file, next_time)
@@ -1288,6 +1315,8 @@ class MessageHandler:
                         "time": item["forecasttime"],
                         "filepath": local_file_list,
                         "is_local": is_local,
+                        "forecastcycle": item.get("forecastcycle"),
+                        "tau": item.get("tau"),
                     }
                 )
             elif not do_download:
@@ -1296,6 +1325,8 @@ class MessageHandler:
                         "time": item["forecasttime"],
                         "filepath": item["filepath"],
                         "is_local": False,
+                        "forecastcycle": item.get("forecastcycle"),
+                        "tau": item.get("tau"),
                     }
                 )
             else:
@@ -1308,6 +1339,8 @@ class MessageHandler:
                             "time": item["forecasttime"],
                             "filepath": local_file,
                             "is_local": True,
+                            "forecastcycle": item.get("forecastcycle"),
+                            "tau": item.get("tau"),
                         }
                     )
 

@@ -17,17 +17,21 @@ from libmetget.download.adeck import (
 
 class ADeckDownloader:
     """
-    Downloads A-Deck tracks from the NHC website (Atlantic / East / Central Pacific) and the UCAR
-    Tropical Cyclone Guidance Project repository (JTWC: Western Pacific / North Indian / Southern
-    Hemisphere) and stores them in the database.
+    Downloads A-Deck tracks from every published basin and stores them in the database.
+
+    Storms are discovered from the NHC ``aid_public`` (AL/EP/CP) and UCAR ``adecks_open``
+    (AL/EP/CP plus JTWC WP/IO/SH, and LS when present) directory listings rather than by
+    probing a fixed storm-number range, so Western Pacific and Southern Hemisphere seasons
+    that exceed 30 storms are not truncated.
     """
 
     MODEL_NAMES: ClassVar = None
     NHC_BASINS: ClassVar = ["AL", "EP", "CP"]
-    JTWC_BASINS: ClassVar = ["WP", "IO", "SH"]
+    JTWC_BASINS: ClassVar = ["WP", "IO", "SH", "LS"]
     BASINS: ClassVar = NHC_BASINS + JTWC_BASINS
-    # Southern Hemisphere seasons can run well past storm 30, so probe a wider range than the NHC.
-    STORM_IDS: ClassVar = list(range(1, 41)) + list(range(90, 100))
+    # Fallback probe only if both directory listings fail. Southern Hemisphere and Western
+    # Pacific seasons routinely exceed 30 storms, so this range is wider than the NHC's.
+    STORM_IDS: ClassVar = list(range(1, 51)) + list(range(90, 100))
 
     @classmethod
     def get_model_names(cls) -> ADeckNames:
@@ -213,40 +217,57 @@ class ADeckDownloader:
 
         db_tracks = self.__get_tracks_currently_in_db()
 
-        for basin in ADeckDownloader.BASINS:
-            for storm in ADeckDownloader.STORM_IDS:
-                this_storm_track_count = 0
-                try:
-                    logger.info(f"Looking for {basin}{storm:02d}")
-                    deck = ADeckStorms().download_storm(basin, current_year, storm)
+        storms = ADeckStorms.list_available_storms(current_year)
+        if storms:
+            basins_found = sorted({basin for basin, _storm in storms})
+            logger.info(
+                f"Discovered {len(storms)} a-deck(s) for {current_year} "
+                f"in basins {', '.join(basins_found)}"
+            )
+        else:
+            logger.warning(
+                "A-deck directory listings were empty; falling back to probing "
+                f"storms 1-50 and 90-99 in {', '.join(ADeckDownloader.BASINS)}"
+            )
+            storms = [
+                (basin, storm)
+                for basin in ADeckDownloader.BASINS
+                for storm in ADeckDownloader.STORM_IDS
+            ]
 
-                    logger.info(
-                        f"Checking database for {basin}{storm:02d} available cycles"
-                    )
-                    for model in deck:
-                        for cycle in deck[model].cycles():
-                            track = deck[model].track(cycle)
-                            added = self.__db_add_track(
-                                db_tracks,
-                                model,
-                                current_year,
-                                basin,
-                                storm,
-                                cycle,
-                                track,
-                            )
-                            if added:
-                                track_count += 1
-                                this_storm_track_count += 1
-                except ADeckDownloaderException:
-                    continue
-                except requests.RequestException as e:
-                    logger.warning(
-                        f"Skipping {basin}{storm:02d} due to a connection error: {e}"
-                    )
-                    continue
+        for basin, storm in storms:
+            this_storm_track_count = 0
+            try:
+                logger.info(f"Looking for {basin}{storm:02d}")
+                deck = ADeckStorms().download_storm(basin, current_year, storm)
 
-                if this_storm_track_count > 0:
-                    self.__session.commit()
+                logger.info(
+                    f"Checking database for {basin}{storm:02d} available cycles"
+                )
+                for model in deck:
+                    for cycle in deck[model].cycles():
+                        track = deck[model].track(cycle)
+                        added = self.__db_add_track(
+                            db_tracks,
+                            model,
+                            current_year,
+                            basin,
+                            storm,
+                            cycle,
+                            track,
+                        )
+                        if added:
+                            track_count += 1
+                            this_storm_track_count += 1
+            except ADeckDownloaderException:
+                continue
+            except requests.RequestException as e:
+                logger.warning(
+                    f"Skipping {basin}{storm:02d} due to a connection error: {e}"
+                )
+                continue
+
+            if this_storm_track_count > 0:
+                self.__session.commit()
 
         return track_count

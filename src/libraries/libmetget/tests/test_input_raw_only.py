@@ -71,6 +71,33 @@ def test_gridded_service_unaffected_by_raw_only_rule() -> None:
     assert result.valid(), str(result.error())
 
 
+@pytest.mark.parametrize("basin", ["wp", "io", "sh"])
+def test_jtwc_accepts_all_jtwc_basins(basin: str) -> None:
+    domain = {
+        **BASE_DOMAIN,
+        "service": "jtwc",
+        "storm": "01",
+        "basin": basin,
+        "advisory": 1,
+        "storm_year": 2026,
+    }
+    result = Input({**BASE_REQUEST, "format": "raw", "domains": [domain]})
+    assert result.valid(), str(result.error())
+
+
+def test_jtwc_rejects_nhc_basin() -> None:
+    domain = {
+        **BASE_DOMAIN,
+        "service": "jtwc",
+        "storm": "01",
+        "basin": "al",
+        "advisory": 1,
+        "storm_year": 2026,
+    }
+    result = Input({**BASE_REQUEST, "format": "raw", "domains": [domain]})
+    assert not result.valid()
+
+
 def test_rtofs_cannot_be_mixed_with_other_services() -> None:
     rtofs_domain = {**BASE_DOMAIN, "service": "rtofs"}
     gfs_domain = {**BASE_DOMAIN, "name": "d2", "service": "gfs-ncep"}

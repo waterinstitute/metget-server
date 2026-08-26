@@ -29,12 +29,14 @@
 
 import gzip
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import ClassVar, Dict, List, Optional, Tuple
+from typing import ClassVar, Dict, List, Optional, Set, Tuple
 
 import requests
 from geojson import Feature, FeatureCollection, Point
+from loguru import logger
 
 KT_TO_MPH = 1.15078
 
@@ -341,7 +343,15 @@ class ADeckStorms:
         "https://hurricanes.ral.ucar.edu/repository/data/adecks_open"
     )
     NHC_BASINS: ClassVar = ["al", "ep", "cp"]
-    JTWC_BASINS: ClassVar = ["wp", "io", "sh"]
+    # ls is the rare South Atlantic / "South Atlantic and Indian Ocean" invest basin some
+    # ATCF feeds (and DeepMind) carry. UCAR publishes it alongside the JTWC basins.
+    JTWC_BASINS: ClassVar = ["wp", "io", "sh", "ls"]
+    ALL_BASINS: ClassVar = NHC_BASINS + JTWC_BASINS
+    # a{basin}{storm}{year}.dat[.gz] as published by NHC aid_public and UCAR adecks_open.
+    _ADECK_FILENAME_RE: ClassVar = re.compile(
+        r"a(al|ep|cp|wp|io|sh|ls)(\d{2})(\d{4})\.dat(?:\.gz)?",
+        re.IGNORECASE,
+    )
 
     @staticmethod
     def __generate_url(basin: str, year: int, storm: int) -> Tuple[str, bool]:
@@ -366,7 +376,13 @@ class ADeckStorms:
             )
 
         if basin_lc in ADeckStorms.JTWC_BASINS:
-            # The UCAR real-time repository only carries the current season's a-decks.
+            # Current-season files live in the flat UCAR directory; prior years are under
+            # adecks_open/{year}/.
+            if year != datetime.now().year:
+                return (
+                    f"{ADeckStorms.UCAR_ADECK_URL}/{year:4d}/a{basin_lc}{storm:02d}{year:4d}.dat",
+                    False,
+                )
             return (
                 f"{ADeckStorms.UCAR_ADECK_URL}/a{basin_lc}{storm:02d}{year:4d}.dat",
                 False,
@@ -374,6 +390,71 @@ class ADeckStorms:
 
         msg = "Invalid basin."
         raise ValueError(msg)
+
+    @staticmethod
+    def __ucar_url(basin: str, year: int, storm: int) -> str:
+        """Uncompressed UCAR mirror, used as a fallback for NHC basins and for listing."""
+        basin_lc = basin.lower()
+        if year != datetime.now().year:
+            return (
+                f"{ADeckStorms.UCAR_ADECK_URL}/{year:4d}/"
+                f"a{basin_lc}{storm:02d}{year:4d}.dat"
+            )
+        return f"{ADeckStorms.UCAR_ADECK_URL}/a{basin_lc}{storm:02d}{year:4d}.dat"
+
+    @staticmethod
+    def _storms_from_index(html: str, year: int) -> Set[Tuple[str, int]]:
+        """
+        Parse an NHC or UCAR directory listing for a-deck files of ``year``.
+
+        Returns:
+            Set of (basin-uppercase, storm-number) pairs. Files whose embedded year
+            does not match ``year`` (UCAR's flat dir can contain the next SH season)
+            are ignored.
+        """
+        storms: Set[Tuple[str, int]] = set()
+        for match in ADeckStorms._ADECK_FILENAME_RE.finditer(html):
+            if int(match.group(3)) != year:
+                continue
+            storms.add((match.group(1).upper(), int(match.group(2))))
+        return storms
+
+    @staticmethod
+    def list_available_storms(year: int) -> List[Tuple[str, int]]:
+        """
+        Discover every a-deck currently published for ``year``, across all basins.
+
+        NHC ``aid_public`` only lists Atlantic / East Pacific / Central Pacific.
+        UCAR ``adecks_open`` lists those plus JTWC Western Pacific / North Indian /
+        Southern Hemisphere (and occasional LS). The union is what MetGet stores.
+        """
+        storms: Set[Tuple[str, int]] = set()
+        sources = [
+            (f"{ADeckStorms.BASE_URL}/", "NHC aid_public"),
+            (f"{ADeckStorms.UCAR_ADECK_URL}/", "UCAR adecks_open"),
+        ]
+        if year != datetime.now().year:
+            sources = [
+                (f"{ADeckStorms.BASE_URL_ARCHIVE}/{year:4d}/", "NHC archive"),
+                (f"{ADeckStorms.UCAR_ADECK_URL}/{year:4d}/", "UCAR archive"),
+            ]
+
+        for url, label in sources:
+            try:
+                response = requests.get(url, timeout=30)
+            except requests.RequestException as e:
+                logger.warning(f"Could not list a-decks at {label} ({url}): {e}")
+                continue
+            if response.status_code != 200:
+                logger.warning(
+                    f"{label} listing returned status {response.status_code} for {url}"
+                )
+                continue
+            found = ADeckStorms._storms_from_index(response.text, year)
+            logger.info(f"{label} listed {len(found)} a-deck(s) for {year}")
+            storms.update(found)
+
+        return sorted(storms)
 
     def download_storm(self, basin: str, year: int, storm: int) -> Dict[str, ModelDeck]:
         """
@@ -390,6 +471,11 @@ class ADeckStorms:
         """
         url, is_gzipped = self.__generate_url(basin, year, storm)
         response = requests.get(url, timeout=30)
+        if response.status_code != 200 and basin.lower() in ADeckStorms.NHC_BASINS:
+            # UCAR mirrors NHC-basin a-decks as uncompressed files; use that if NHC 404s.
+            url = ADeckStorms.__ucar_url(basin, year, storm)
+            is_gzipped = False
+            response = requests.get(url, timeout=30)
         if response.status_code != 200:
             msg = "Failed to download the A-Deck file."
             raise ADeckDownloaderException(msg)

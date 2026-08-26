@@ -111,11 +111,12 @@ def test_get_rejects_invalid_basin(patch_db: PatchDb) -> None:
     assert "ALL" in message["message"]
 
 
-def test_get_accepts_jtwc_basin(patch_db: PatchDb) -> None:
-    # WP is a valid JTWC basin and must pass basin validation (i.e. it must not be rejected with
-    # the "Basin must be ..." 400 error that only unknown basins receive).
+@pytest.mark.parametrize("basin", ["WP", "IO", "SH"])
+def test_get_accepts_jtwc_basins(patch_db: PatchDb, basin: str) -> None:
+    # WP/IO/SH are valid JTWC basins and must pass basin validation (i.e. they must
+    # not be rejected with the "Basin must be ..." 400 that only unknown basins receive).
     patch_db([])
-    message, status = ADeck.get("2026", "WP", "OFCL", "all", CYCLE)
+    message, status = ADeck.get("2026", basin, "OFCL", "all", CYCLE)
     if status == 400 and isinstance(message, dict):
         assert "Basin must be" not in message.get("message", "")
 
