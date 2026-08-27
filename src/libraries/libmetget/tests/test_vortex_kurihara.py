@@ -22,11 +22,18 @@ from libmetget.build.vortex.centers import (
     techs_for_service,
 )
 from libmetget.build.vortex.kurihara import (
+    DEFAULT_MIN_RADIUS_KM,
     NINE_POINT_MAX_PASSES,
     NINE_POINT_MIN_PASSES,
     _adaptive_nine_passes,
+    _azimuth_from_north,
+    _harmonic_fill,
+    _interior_weights,
+    _lon_periodic,
     _nine_point,
+    _remainder_from_boundary,
     _smooth_field,
+    _vortex_radii,
     apply_vortex_removal,
     remove_vortex,
 )
@@ -387,3 +394,150 @@ def test_nine_point_adaptive_stops_between_min_and_max() -> None:
     field = 20.0 * np.exp(-((dist / 80.0) ** 2))
     used = _adaptive_nine_passes(field, False, lon2d, lat2d, clon, clat)
     assert NINE_POINT_MIN_PASSES <= used <= NINE_POINT_MAX_PASSES
+
+
+LEGACY_MIN_RADIUS_KM = 350.0
+
+
+def _annulus_mean_abs_delta(
+    lon2d, lat2d, field0, field1, clon, clat, inner_km, outer_km
+) -> float:
+    dist = haversine_km(clon, clat, lon2d, lat2d)
+    ring = (dist >= inner_km) & (dist < outer_km)
+    assert np.any(ring), f"empty annulus {inner_km:.0f}-{outer_km:.0f} km"
+    return float(np.mean(np.abs(field1[ring] - field0[ring])))
+
+
+def test_compact_disturbance_floor_does_not_override_vt_diagnosis() -> None:
+    """A ~180 km gale envelope must not be forced out to the old 350 km circle."""
+    clon, clat = -80.0, 25.0
+    _lon, _lat, lon2d, lat2d, u, v, _p = _rankine_field(
+        clon=clon, clat=clat, vmax=15.0, rmax_km=30.0, background_u=0.0
+    )
+    lon_p = _lon_periodic(lon2d)
+    diagnosed = _vortex_radii(lon_p, lat2d, u, v, clon, clat, min_radius_km=0.0)
+    floored = _vortex_radii(
+        lon_p, lat2d, u, v, clon, clat, min_radius_km=DEFAULT_MIN_RADIUS_KM
+    )
+    legacy = _vortex_radii(
+        lon_p, lat2d, u, v, clon, clat, min_radius_km=LEGACY_MIN_RADIUS_KM
+    )
+    assert diagnosed is not None
+    assert floored is not None
+    assert legacy is not None
+    mean_diag = float(np.mean(diagnosed) / 1000.0)
+    assert 80.0 < mean_diag < LEGACY_MIN_RADIUS_KM
+    assert float(np.mean(floored) / 1000.0) == pytest.approx(mean_diag, abs=1.0)
+    assert float(np.min(legacy) / 1000.0) == pytest.approx(LEGACY_MIN_RADIUS_KM)
+    assert DEFAULT_MIN_RADIUS_KM < LEGACY_MIN_RADIUS_KM
+
+
+def test_compact_rankine_grid_scale_floor_over_removes_less_than_350km() -> None:
+    clon, clat = -80.0, 25.0
+    background_u = 5.0
+    _lon, _lat, lon2d, lat2d, u, v, p = _rankine_field(
+        clon=clon,
+        clat=clat,
+        vmax=15.0,
+        rmax_km=30.0,
+        background_u=background_u,
+        dp=12.0,
+    )
+    speed0 = np.hypot(u, v)
+    dist = haversine_km(clon, clat, lon2d, lat2d)
+
+    u_new, v_new, _p_new, diag_new = remove_vortex(
+        lon2d,
+        lat2d,
+        u,
+        v,
+        p,
+        clon,
+        clat,
+        name="compact",
+        min_radius_km=DEFAULT_MIN_RADIUS_KM,
+    )
+    u_old, v_old, _p_old, diag_old = remove_vortex(
+        lon2d,
+        lat2d,
+        u,
+        v,
+        p,
+        clon,
+        clat,
+        name="compact",
+        min_radius_km=LEGACY_MIN_RADIUS_KM,
+    )
+    assert not diag_new.skipped, diag_new.reason
+    assert not diag_old.skipped, diag_old.reason
+
+    mean_new = float(np.mean(diag_new.radii_km))
+    mean_old = float(np.mean(diag_old.radii_km))
+    assert mean_new < mean_old - 20.0
+    assert mean_old == pytest.approx(LEGACY_MIN_RADIUS_KM, abs=1.0)
+
+    speed_new = np.hypot(u_new, v_new)
+    speed_old = np.hypot(u_old, v_old)
+    core = dist < 40.0
+    assert float(np.mean(speed_new[core])) < 0.55 * float(np.mean(speed0[core]))
+    # Core removal must not regress vs the oversized hole.
+    assert float(np.mean(speed_new[core])) <= float(np.mean(speed_old[core])) + 0.5
+
+    inner = max(mean_new, DEFAULT_MIN_RADIUS_KM)
+    overcut_new = _annulus_mean_abs_delta(
+        lon2d, lat2d, speed0, speed_new, clon, clat, inner, mean_old
+    )
+    overcut_old = _annulus_mean_abs_delta(
+        lon2d, lat2d, speed0, speed_old, clon, clat, inner, mean_old
+    )
+    assert overcut_new < 0.65 * overcut_old
+
+
+def test_strong_rankine_floor_is_a_noop_when_diagnosis_exceeds_350km() -> None:
+    clon, clat = -80.0, 25.0
+    _lon, _lat, lon2d, lat2d, u, v, p = _rankine_field(clon=clon, clat=clat)
+    _u_new, _v_new, _p_new, diag_new = remove_vortex(
+        lon2d,
+        lat2d,
+        u,
+        v,
+        p,
+        clon,
+        clat,
+        name="strong",
+        min_radius_km=DEFAULT_MIN_RADIUS_KM,
+    )
+    _u_old, _v_old, _p_old, diag_old = remove_vortex(
+        lon2d,
+        lat2d,
+        u,
+        v,
+        p,
+        clon,
+        clat,
+        name="strong",
+        min_radius_km=LEGACY_MIN_RADIUS_KM,
+    )
+    assert not diag_new.skipped
+    assert not diag_old.skipped
+    assert float(np.min(diag_new.radii_km)) > LEGACY_MIN_RADIUS_KM
+    assert diag_new.radii_km == pytest.approx(diag_old.radii_km)
+
+
+def test_laplace_fill_does_not_streak_rim_harmonics() -> None:
+    """Appendix B keeps rim harmonics along every radius; Laplace damps them."""
+    clon, clat = -80.0, 25.0
+    _lon, _lat, lon2d, lat2d, _u, _v, _p = _rankine_field(clon=clon, clat=clat)
+    lon_p = _lon_periodic(lon2d)
+    radii_m = np.full(24, 400_000.0)
+    mask, weight = _interior_weights(lon_p, lat2d, clon, clat, radii_m)
+    az = _azimuth_from_north(clon, clat, lon_p, lat2d)
+    field = np.sin(8.0 * az)
+    k95 = _remainder_from_boundary(
+        lon_p, lat2d, field, clon, clat, radii_m, mask, weight
+    )
+    laplace = _harmonic_fill(field, mask, wrap_zonal=False)
+    dist = haversine_km(clon, clat, lon_p, lat2d)
+    mid = mask & (dist > 150.0) & (dist < 250.0)
+    assert float(np.std(k95[mid])) > 0.2
+    assert float(np.std(laplace[mid])) < 0.25 * float(np.std(k95[mid]))

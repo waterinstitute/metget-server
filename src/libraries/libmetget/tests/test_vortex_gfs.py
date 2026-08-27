@@ -6,7 +6,9 @@
 # position as AVNX; TCGP a-decks keep AVNX in JTWC basins (NHC would call the
 # same tracker AVNO).
 ###################################################################################################
+import gzip
 from pathlib import Path
+from typing import NamedTuple
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
@@ -19,8 +21,9 @@ from botocore.config import Config
 from libmetget.build.s3gribio import S3GribIO
 from libmetget.build.vortex.centers import VortexGuess, preferred_tech
 from libmetget.build.vortex.kurihara import (
+    DEFAULT_MIN_RADIUS_KM,
     N_RAYS,
-    RAY_DEGREES,
+    _azimuth_from_north,
     _destination,
     apply_vortex_removal,
 )
@@ -68,12 +71,12 @@ def _atcf_latlon(lat_s: str, lon_s: str) -> tuple:
     return lat, lon
 
 
-def _parse_avnx_fixes(text: str) -> dict:
-    """AVNX fixes this cycle: (basin, storm) -> {tau: fix}. First isotach line wins."""
+def _parse_tech_fixes(text: str, tech: str) -> dict:
+    """Fixes this cycle for one ATCF tech: (basin, storm) -> {tau: fix}."""
     by_storm: dict = {}
     for line in text.splitlines():
         parts = [p.strip() for p in line.split(",")]
-        if len(parts) < 8 or parts[4] != "AVNX":
+        if len(parts) < 8 or parts[4] != tech:
             continue
         if parts[2] != LIVE_CYCLE:
             continue
@@ -96,6 +99,11 @@ def _parse_avnx_fixes(text: str) -> dict:
             "name": f"{basin}{number:02d}",
         }
     return by_storm
+
+
+def _parse_avnx_fixes(text: str) -> dict:
+    """AVNX fixes this cycle: (basin, storm) -> {tau: fix}. First isotach line wins."""
+    return _parse_tech_fixes(text, "AVNX")
 
 
 def _parse_storm_fixes(text: str, basin: str, number: int) -> dict:
@@ -139,6 +147,19 @@ def _wp20_forecast_fixes() -> list:
         msg = f"GFS AVNX tracker missing WP20 at tau {missing} for {LIVE_CYCLE}"
         raise AssertionError(msg)
     return [by_tau[tau] for tau in LIVE_TAUS]
+
+
+def _nhc_avno_forecast(*storms: tuple[str, int]) -> dict:
+    """NHC a-deck AVNO for this GFS cycle (same track source as the MetGet e2e)."""
+    merged: dict = {}
+    for basin, number in storms:
+        url = (
+            "https://ftp.nhc.noaa.gov/atcf/aid_public/"
+            f"a{basin.lower()}{number:02d}{LIVE_YMD[:4]}.dat.gz"
+        )
+        text = gzip.decompress(_fetch(url)).decode("utf-8", errors="replace")
+        merged.update(_parse_tech_fixes(text, "AVNO"))
+    return merged
 
 
 def _all_avnx_forecast() -> dict:
@@ -288,8 +309,9 @@ def _polygon(clon: float, clat: float, radii_km: np.ndarray):
     lons = []
     lats = []
     clon_p = clon % 360.0
-    for i in range(N_RAYS):
-        az = np.deg2rad(i * RAY_DEGREES)
+    n = int(np.asarray(radii_km).size)
+    for i in range(n):
+        az = np.deg2rad(i * (360.0 / n))
         plat, plon = _destination(clat, clon_p, az, np.array([radii_km[i] * 1000.0]))
         lons.append(float(plon[0]))
         lats.append(float(plat[0]))
@@ -821,9 +843,9 @@ def _assert_focus_removed(frames: list, focus: str) -> None:
         assert diag is not None, f"no {focus} diagnostic at tau {storm['tau']:03d}"
         if storm["vmax"] < 25:
             continue
-        assert not diag.skipped, (
-            f"GFS vortex skipped for {focus} at tau {storm['tau']:03d}: {diag.reason}"
-        )
+        assert (
+            not diag.skipped
+        ), f"GFS vortex skipped for {focus} at tau {storm['tau']:03d}: {diag.reason}"
         offset = float(
             haversine_km(
                 storm["lon"],
@@ -832,9 +854,9 @@ def _assert_focus_removed(frames: list, focus: str) -> None:
                 np.array(diag.refined_lat),
             )
         )
-        assert offset < 250.0, (
-            f"refined center {offset:.0f} km from AVNX at tau {storm['tau']:03d}"
-        )
+        assert (
+            offset < 250.0
+        ), f"refined center {offset:.0f} km from AVNX at tau {storm['tau']:03d}"
         lon2d, lat2d = _mesh(frame["original"])
         dist = haversine_km(diag.refined_lon, diag.refined_lat, lon2d, lat2d)
         s0 = _speed(frame["original"])
@@ -852,13 +874,13 @@ def _assert_focus_removed(frames: list, focus: str) -> None:
             )
         assert np.any(core)
         assert np.any(far)
-        assert float(np.nanmean(s1[core])) < 0.85 * float(np.nanmean(s0[core])), (
-            f"core wind not reduced at tau {storm['tau']:03d}"
-        )
+        assert float(np.nanmean(s1[core])) < 0.85 * float(
+            np.nanmean(s0[core])
+        ), f"core wind not reduced at tau {storm['tau']:03d}"
         if np.any(far):
-            assert float(np.nanmean(np.abs(s1[far] - s0[far]))) < 1.5, (
-                f"far-field wind changed at tau {storm['tau']:03d}"
-            )
+            assert (
+                float(np.nanmean(np.abs(s1[far] - s0[far]))) < 1.5
+            ), f"far-field wind changed at tau {storm['tau']:03d}"
         names = {s["name"] for s in frame["storms"]}
         assert focus in names
 
@@ -916,3 +938,869 @@ def test_real_gfs_removes_17w_through_forecast(tmp_path: Path) -> None:
     print(
         f"17W extrema nine-point  wind {n0:.1f}->{n1:.1f} m/s  MSLP {np0:.1f}->{np1:.1f} mb"
     )
+
+
+LEGACY_MIN_RADIUS_KM = 350.0
+# EP09 and WP20 were the weak/asymmetric cases; WP17 is the 70 kt typhoon.
+LIVE_FLOOR_STORMS = (("EP", 9), ("WP", 20), ("WP", 17))
+
+
+def _annulus_mean_abs(lon2d, lat2d, s0, s1, clon, clat, inner_km, outer_km) -> float:
+    dist = haversine_km(clon, clat, lon2d, lat2d)
+    ring = (dist >= inner_km) & (dist < outer_km) & np.isfinite(s0) & np.isfinite(s1)
+    if not np.any(ring):
+        return 0.0
+    return float(np.nanmean(np.abs(s1[ring] - s0[ring])))
+
+
+def _spoke_std(lon2d, lat2d, s0, s1, clon, clat, inner_km, outer_km) -> float:
+    """Azimuthal std of wind change in an annulus; spokes raise this."""
+    dist = haversine_km(clon, clat, lon2d, lat2d)
+    az = _azimuth_from_north(clon, clat, lon2d, lat2d)
+    ring = (dist >= inner_km) & (dist < outer_km) & np.isfinite(s0) & np.isfinite(s1)
+    if not np.any(ring):
+        return 0.0
+    delta = s1 - s0
+    means = []
+    width = 2.0 * np.pi / N_RAYS
+    for i in range(N_RAYS):
+        a0 = i * width
+        sel = ring & (az >= a0) & (az < a0 + width)
+        if np.any(sel):
+            means.append(float(np.nanmean(delta[sel])))
+    if len(means) < N_RAYS // 2:
+        return 0.0
+    return float(np.std(means))
+
+
+def _filter_one(ds: xr.Dataset, storm: dict, min_radius_km: float):
+    guess = _guess_from_storm(storm)
+    filtered, summary = apply_vortex_removal(
+        ds, [guess], center_search_km=250.0, min_radius_km=min_radius_km
+    )
+    return filtered, summary.storms[0]
+
+
+def _floor_comparison(ds: xr.Dataset, storm: dict) -> dict:
+    new_ds, diag_new = _filter_one(ds, storm, DEFAULT_MIN_RADIUS_KM)
+    old_ds, diag_old = _filter_one(ds, storm, LEGACY_MIN_RADIUS_KM)
+    lon2d, lat2d = _mesh(ds)
+    s0 = _speed(ds)
+    s_new = _speed(new_ds)
+    s_old = _speed(old_ds)
+    clon = diag_new.refined_lon
+    clat = diag_new.refined_lat
+    dist = haversine_km(clon, clat, lon2d, lat2d)
+    core = dist < 75.0
+    far = dist > 700.0
+    mean_new = float(np.mean(diag_new.radii_km))
+    mean_old = float(np.mean(diag_old.radii_km))
+    inner = max(mean_new, DEFAULT_MIN_RADIUS_KM)
+    return {
+        "storm": storm,
+        "original": ds,
+        "new": new_ds,
+        "old": old_ds,
+        "diag_new": diag_new,
+        "diag_old": diag_old,
+        "mean_new": mean_new,
+        "mean_old": mean_old,
+        "shrink_km": mean_old - mean_new,
+        "core0": float(np.nanmean(s0[core])),
+        "core_new": float(np.nanmean(s_new[core])),
+        "core_old": float(np.nanmean(s_old[core])),
+        "far_new": float(np.nanmean(np.abs(s_new[far] - s0[far])))
+        if np.any(far)
+        else 0.0,
+        "far_old": float(np.nanmean(np.abs(s_old[far] - s0[far])))
+        if np.any(far)
+        else 0.0,
+        "overcut_new": _annulus_mean_abs(
+            lon2d, lat2d, s0, s_new, clon, clat, inner, mean_old
+        ),
+        "overcut_old": _annulus_mean_abs(
+            lon2d, lat2d, s0, s_old, clon, clat, inner, mean_old
+        ),
+        "spoke_new": _spoke_std(lon2d, lat2d, s0, s_new, clon, clat, inner, mean_old),
+        "spoke_old": _spoke_std(lon2d, lat2d, s0, s_old, clon, clat, inner, mean_old),
+    }
+
+
+def _write_floor_comparison_plot(rows: list, path: Path) -> None:
+    import matplotlib as mpl
+
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(
+        len(rows), 2, figsize=(11.5, 4.2 * len(rows)), constrained_layout=True
+    )
+    if len(rows) == 1:
+        axes = np.array([axes])
+    for ax_row, row in zip(axes, rows):
+        lon2d, lat2d = _mesh(row["original"])
+        s0 = _speed(row["original"])
+        delta_old = _speed(row["old"]) - s0
+        delta_new = _speed(row["new"]) - s0
+        lim = max(
+            1.0,
+            float(np.nanpercentile(np.abs(delta_old), 99.0)),
+            float(np.nanpercentile(np.abs(delta_new), 99.0)),
+        )
+        storm = row["storm"]
+        for ax, delta, diag, title in (
+            (
+                ax_row[0],
+                delta_old,
+                row["diag_old"],
+                f"{storm['name']} tau {storm['tau']:03d}  350 km floor  "
+                f"mean R {row['mean_old']:.0f} km",
+            ),
+            (
+                ax_row[1],
+                delta_new,
+                row["diag_new"],
+                f"{storm['name']} tau {storm['tau']:03d}  "
+                f"{DEFAULT_MIN_RADIUS_KM:.0f} km floor  "
+                f"mean R {row['mean_new']:.0f} km",
+            ),
+        ):
+            mesh = ax.pcolormesh(
+                lon2d, lat2d, delta, cmap="RdBu_r", vmin=-lim, vmax=lim, shading="auto"
+            )
+            fig.colorbar(mesh, ax=ax, shrink=0.82, label="m/s")
+            ax.set_title(title, fontsize=10)
+            ax.plot(storm["lon"] % 360.0, storm["lat"], "kx", markersize=7)
+            if not diag.skipped and np.any(diag.radii_km > 0):
+                plon, plat = _polygon(diag.refined_lon, diag.refined_lat, diag.radii_km)
+                ax.plot(plon, plat, color="lime", linewidth=1.1)
+            ax.set_aspect("equal", adjustable="box")
+    fig.suptitle(
+        f"GFS 0.25°  {LIVE_CYCLE}Z  wind after-before  "
+        "smaller floor should cut less environment",
+        fontsize=12,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+
+
+def _assert_floor_row(row: dict) -> None:
+    storm = row["storm"]
+    label = f"{storm['name']} tau {storm['tau']:03d}"
+    print(
+        f"{label}  R {row['mean_old']:.0f}->{row['mean_new']:.0f} km  "
+        f"core {row['core0']:.1f}->{row['core_new']:.1f} "
+        f"(350km {row['core_old']:.1f}) m/s  "
+        f"overcut {row['overcut_old']:.2f}->{row['overcut_new']:.2f}  "
+        f"spokes {row['spoke_old']:.2f}->{row['spoke_new']:.2f}  "
+        f"shrink={row['shrink_km']:.0f} km"
+    )
+    assert not row[
+        "diag_new"
+    ].skipped, f"{label} skipped with grid-scale floor: {row['diag_new'].reason}"
+    assert not row["diag_old"].skipped, f"{label} skipped with 350 km floor"
+    assert row["far_new"] < 1.5, f"{label} far-field wind changed with grid-scale floor"
+    # Weak remnants (EP09 +48 h here) have almost no core left to remove.
+    if storm["tau"] == 0 or (storm["vmax"] >= 30 and row["core0"] >= 8.0):
+        assert (
+            row["core_new"] < 0.90 * row["core0"]
+        ), f"{label} core wind not reduced with grid-scale floor"
+    shrink = row["shrink_km"]
+    if shrink < 10.0:
+        assert row["mean_new"] == pytest.approx(
+            row["mean_old"], abs=5.0
+        ), f"{label} radii diverged without a binding floor"
+        return
+    if shrink < 40.0:
+        # A few short rays were floored; the hole is not a 350 km circle.
+        assert (
+            row["overcut_new"] <= row["overcut_old"] * 1.10
+        ), f"{label} slight floor change increased annulus rewrite"
+        return
+    assert row["overcut_new"] < 0.90 * row["overcut_old"], (
+        f"{label} annulus overcut {row['overcut_new']:.2f} "
+        f"not below 90% of {row['overcut_old']:.2f} m/s"
+    )
+
+
+def test_real_gfs_grid_scale_floor_is_better_for_wp20_wp17_ep09(tmp_path: Path) -> None:
+    taus = (0, 24, 48)
+    try:
+        by_storm = _all_avnx_forecast()
+        natives = {}
+        for tau in taus:
+            grib_path = tmp_path / f"gfs_floor_f{tau:03d}.grib2"
+            _download_gfs_from_s3(LIVE_YMD, LIVE_CC, tau, grib_path)
+            natives[tau] = _open_gfs_grib(grib_path)
+    except (HTTPError, URLError, TimeoutError) as exc:
+        pytest.skip(f"Could not fetch GFS tracker or GRIB: {exc}")
+    except Exception as extra:
+        pytest.skip(f"Could not load GFS snapshots for floor comparison: {extra}")
+
+    rows = []
+    bound = []
+    for basin, number in LIVE_FLOOR_STORMS:
+        fixes = by_storm.get((basin, number), {})
+        for tau in taus:
+            if tau not in fixes:
+                if tau == 0:
+                    msg = f"GFS AVNX tracker has no {basin}{number:02d} at tau 0"
+                    raise AssertionError(msg)
+                continue
+            storm = fixes[tau]
+            ds = _subset_around(natives[tau], storm["lon"], storm["lat"], WINDOW_DEG)
+            row = _floor_comparison(ds, storm)
+            if row["diag_new"].skipped and tau != 0:
+                continue
+            _assert_floor_row(row)
+            if tau == 0:
+                rows.append(row)
+            if row["shrink_km"] >= 40.0:
+                bound.append(f"{storm['name']}+{tau:03d}")
+
+    plot_path = PLOT_DIR / f"floor_compare_{LIVE_CYCLE}_ep09_wp20_wp17.png"
+    _write_floor_comparison_plot(rows, plot_path)
+    _write_floor_comparison_plot(rows, tmp_path / plot_path.name)
+    assert (
+        bound
+    ), "expected at least one of EP09/WP20/WP17 to be inflated by the 350 km floor"
+    bound_names = {name.split("+")[0] for name in bound}
+    assert bound_names == {
+        "EP09",
+        "WP20",
+        "WP17",
+    }, f"floor did not shrink the hole on every storm: {bound}"
+    names = {row["storm"]["name"] for row in rows}
+    assert names == {"EP09", "WP20", "WP17"}
+
+
+# Same Eastern Pacific box as the 26 Aug 2026 MetGet e2e (control vs --remove-vortices).
+EP_E2E_BBOX = (230.0, 255.0, 5.0, 26.0)  # -130 to -105, 5 to 26
+EP_E2E_TAUS = (0, 36, 72)
+EP_E2E_SERIES = list(range(0, 73, 12))
+E2E_PLOT_DIR = Path("/Users/zcobell/Documents/code/metget/artifacts/vortex_live/plots")
+
+
+class EpColorScale(NamedTuple):
+    """Shared color limits for the Eastern Pacific gallery."""
+
+    wind_max: float
+    mslp_min: float
+    mslp_max: float
+    dwind: float
+    dmslp: float
+
+
+def _nice_ceil(value: float, step: float = 5.0) -> float:
+    return float(np.ceil(max(value, step) / step) * step)
+
+
+def _nice_floor(value: float, step: float = 5.0) -> float:
+    return float(np.floor(value / step) * step)
+
+
+def _ep_color_scale(pairs: list) -> EpColorScale:
+    """One scale from every control/removed pair so hours are comparable."""
+    wind_max = 1.0
+    mslp_min = np.inf
+    mslp_max = -np.inf
+    dwind = 1.0
+    dmslp = 1.0
+    for original, filtered in pairs:
+        s0 = _speed(original)
+        s1 = _speed(filtered)
+        p0 = _pressure(original)
+        p1 = _pressure(filtered)
+        wind_max = max(wind_max, float(np.nanmax(s0)), float(np.nanmax(s1)))
+        mslp_min = min(mslp_min, float(np.nanmin(p0)), float(np.nanmin(p1)))
+        mslp_max = max(mslp_max, float(np.nanmax(p0)), float(np.nanmax(p1)))
+        dwind = max(dwind, float(np.nanmax(np.abs(s1 - s0))))
+        dmslp = max(dmslp, float(np.nanmax(np.abs(p1 - p0))))
+    return EpColorScale(
+        wind_max=_nice_ceil(wind_max),
+        mslp_min=_nice_floor(mslp_min),
+        mslp_max=_nice_ceil(mslp_max),
+        dwind=_nice_ceil(dwind),
+        dmslp=_nice_ceil(dmslp),
+    )
+
+
+def _ep_pcolor(ax, lon2d, lat2d, field, cmap, vmin, vmax, storms, diags):
+    mesh = ax.pcolormesh(
+        lon2d, lat2d, field, cmap=cmap, vmin=vmin, vmax=vmax, shading="auto"
+    )
+    ax.set_xlabel("longitude")
+    ax.set_ylabel("latitude")
+    _mark_ep_e2e(ax, storms, diags)
+    ax.set_xlim(-130.0, -105.0)
+    ax.set_ylim(5.0, 26.0)
+    ax.set_aspect("equal", adjustable="box")
+    return mesh
+
+
+def _lon180(lon: np.ndarray) -> np.ndarray:
+    arr = np.asarray(lon)
+    return np.where(arr > 180.0, arr - 360.0, arr)
+
+
+def _ep_snapshot(
+    tmp_path: Path,
+    tau: int,
+    by_storm: dict,
+    min_radius_km: float,
+    n_rays: int | None = None,
+    n_rim_samples: int | None = None,
+    remainder: str | None = None,
+):
+    grib_path = tmp_path / f"gfs_ep_e2e_f{tau:03d}.grib2"
+    if not grib_path.exists():
+        _download_gfs_from_s3(LIVE_YMD, LIVE_CC, tau, grib_path)
+    ds = _subset_box(_open_gfs_grib(grib_path), *EP_E2E_BBOX)
+    storms = [
+        storm
+        for storm in _fixes_at_tau(by_storm, tau)
+        if _in_bbox(storm, EP_E2E_BBOX, pad=1.5)
+    ]
+    guesses = [_guess_from_storm(storm) for storm in storms]
+    if not guesses:
+        msg = f"No GFS-tracked vortices in the EP e2e box at tau {tau:03d}"
+        raise AssertionError(msg)
+    filtered, summary = apply_vortex_removal(
+        ds,
+        guesses,
+        center_search_km=250.0,
+        min_radius_km=min_radius_km,
+        n_rays=n_rays,
+        n_rim_samples=n_rim_samples,
+        remainder=remainder,
+    )
+    return ds, filtered, storms, summary
+
+
+def _mark_ep_e2e(ax, storms: list, diags) -> None:
+    for storm in storms:
+        lon = storm["lon"] % 360.0
+        if lon > 180.0:
+            lon -= 360.0
+        if storm["name"] == "EP93":
+            ax.plot(
+                lon,
+                storm["lat"],
+                "o",
+                color="white",
+                markeredgecolor="black",
+                markersize=8,
+                zorder=5,
+                label="EP93",
+            )
+        elif storm["name"] == "EP09":
+            ax.plot(
+                lon,
+                storm["lat"],
+                "s",
+                color="cyan",
+                markeredgecolor="black",
+                markersize=7,
+                zorder=5,
+                label="EP09",
+            )
+        else:
+            ax.plot(lon, storm["lat"], "x", color="0.2", markersize=6, zorder=5)
+    for diag in diags:
+        if diag.skipped or not np.any(diag.radii_km > 0):
+            continue
+        plon, plat = _polygon(diag.refined_lon, diag.refined_lat, diag.radii_km)
+        ax.plot(_lon180(np.array(plon)), plat, color="lime", linewidth=1.1, zorder=4)
+
+
+def _write_ep_control_vs_removed(
+    original: xr.Dataset,
+    filtered: xr.Dataset,
+    storms: list,
+    diags,
+    tau: int,
+    min_radius_km: float,
+    path: Path,
+    scale: EpColorScale,
+    method_label: str | None = None,
+) -> None:
+    import matplotlib as mpl
+
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+
+    lon2d, lat2d = _mesh(original)
+    lon2d = _lon180(lon2d)
+    s0 = _speed(original)
+    s1 = _speed(filtered)
+    p0 = _pressure(original)
+    p1 = _pressure(filtered)
+    names = " / ".join(sorted({storm["name"] for storm in storms})) or "none"
+    fig, axes = plt.subplots(2, 3, figsize=(15.5, 9.2), constrained_layout=True)
+    wind_gfs = _ep_pcolor(
+        axes[0, 0], lon2d, lat2d, s0, "YlOrRd", 0.0, scale.wind_max, storms, diags
+    )
+    _ep_pcolor(
+        axes[0, 1], lon2d, lat2d, s1, "YlOrRd", 0.0, scale.wind_max, storms, diags
+    )
+    wind_d = _ep_pcolor(
+        axes[0, 2],
+        lon2d,
+        lat2d,
+        s1 - s0,
+        "RdBu_r",
+        -scale.dwind,
+        scale.dwind,
+        storms,
+        diags,
+    )
+    mslp_gfs = _ep_pcolor(
+        axes[1, 0],
+        lon2d,
+        lat2d,
+        p0,
+        "viridis_r",
+        scale.mslp_min,
+        scale.mslp_max,
+        storms,
+        diags,
+    )
+    _ep_pcolor(
+        axes[1, 1],
+        lon2d,
+        lat2d,
+        p1,
+        "viridis_r",
+        scale.mslp_min,
+        scale.mslp_max,
+        storms,
+        diags,
+    )
+    mslp_d = _ep_pcolor(
+        axes[1, 2],
+        lon2d,
+        lat2d,
+        p1 - p0,
+        "RdBu_r",
+        -scale.dmslp,
+        scale.dmslp,
+        storms,
+        diags,
+    )
+    axes[0, 0].set_title(
+        f"10 m wind GFS  min/max {np.nanmin(s0):.1f} / {np.nanmax(s0):.1f} m/s",
+        fontsize=9,
+    )
+    axes[0, 1].set_title(
+        f"10 m wind removed  min/max {np.nanmin(s1):.1f} / {np.nanmax(s1):.1f} m/s",
+        fontsize=9,
+    )
+    axes[0, 2].set_title(
+        "10 m wind after - before  "
+        f"min/max {np.nanmin(s1 - s0):.1f} / {np.nanmax(s1 - s0):.1f}",
+        fontsize=9,
+    )
+    axes[1, 0].set_title(
+        f"MSLP GFS  min/max {np.nanmin(p0):.1f} / {np.nanmax(p0):.1f} mb",
+        fontsize=9,
+    )
+    axes[1, 1].set_title(
+        f"MSLP removed  min/max {np.nanmin(p1):.1f} / {np.nanmax(p1):.1f} mb",
+        fontsize=9,
+    )
+    axes[1, 2].set_title(
+        "MSLP after - before  "
+        f"min/max {np.nanmin(p1 - p0):.1f} / {np.nanmax(p1 - p0):.1f}",
+        fontsize=9,
+    )
+    fig.colorbar(wind_gfs, ax=[axes[0, 0], axes[0, 1]], shrink=0.82, label="m/s")
+    fig.colorbar(wind_d, ax=axes[0, 2], shrink=0.82, label="m/s")
+    fig.colorbar(mslp_gfs, ax=[axes[1, 0], axes[1, 1]], shrink=0.82, label="mb")
+    fig.colorbar(mslp_d, ax=axes[1, 2], shrink=0.82, label="mb")
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        axes[0, 0].legend(handles, labels, loc="upper right", fontsize=8)
+    method = (
+        method_label
+        if method_label is not None
+        else f"{min_radius_km:.0f} km floor vs control"
+    )
+    fig.suptitle(
+        f"GFS 0.25°  {LIVE_YMD[:4]}-{LIVE_YMD[4:6]}-{LIVE_YMD[6:]} {LIVE_CC}Z  "
+        f"+{tau:03d} h  Eastern Pacific {names}  {method}",
+        fontsize=12,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+
+
+def _write_ep_increments(
+    original: xr.Dataset,
+    filtered: xr.Dataset,
+    storms: list,
+    diags,
+    tau: int,
+    path: Path,
+    scale: EpColorScale,
+) -> None:
+    import matplotlib as mpl
+
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+
+    lon2d, lat2d = _mesh(original)
+    lon2d = _lon180(lon2d)
+    ds = _speed(filtered) - _speed(original)
+    dp = _pressure(filtered) - _pressure(original)
+    fig, axes = plt.subplots(1, 2, figsize=(12.2, 5.2), constrained_layout=True)
+    wind_m = _ep_pcolor(
+        axes[0], lon2d, lat2d, ds, "RdBu_r", -scale.dwind, scale.dwind, storms, diags
+    )
+    mslp_m = _ep_pcolor(
+        axes[1], lon2d, lat2d, dp, "RdBu_r", -scale.dmslp, scale.dmslp, storms, diags
+    )
+    axes[0].set_title(
+        "10 m wind after - before  "
+        f"min/max {np.nanmin(ds):.1f} / {np.nanmax(ds):.1f}",
+        fontsize=10,
+    )
+    axes[1].set_title(
+        f"MSLP after - before  min/max {np.nanmin(dp):.1f} / {np.nanmax(dp):.1f}",
+        fontsize=10,
+    )
+    fig.colorbar(wind_m, ax=axes[0], shrink=0.82, label="m/s")
+    fig.colorbar(mslp_m, ax=axes[1], shrink=0.82, label="mb")
+    names = " / ".join(sorted({storm["name"] for storm in storms})) or "none"
+    fig.suptitle(
+        f"GFS 0.25°  {LIVE_YMD[:4]}-{LIVE_YMD[4:6]}-{LIVE_YMD[6:]} {LIVE_CC}Z  "
+        f"+{tau:03d} h  Eastern Pacific {names}  Laplace fill increments",
+        fontsize=12,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+
+
+def _publish_ep_plot(path: Path, tmp_path: Path | None = None) -> None:
+    data = path.read_bytes()
+    (PLOT_DIR / path.name).write_bytes(data)
+    if tmp_path is not None:
+        (tmp_path / path.name).write_bytes(data)
+
+
+def _write_ep_floor_delta_plot(
+    rows: list,
+    path: Path,
+    scale: EpColorScale,
+    left_title: str = "350 km floor",
+    right_title: str | None = None,
+    subtitle: str | None = None,
+) -> None:
+    import matplotlib as mpl
+
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(
+        len(rows), 2, figsize=(12.2, 4.0 * len(rows)), constrained_layout=True
+    )
+    if len(rows) == 1:
+        axes = np.array([axes])
+    mesh = None
+    for ax_row, row in zip(axes, rows):
+        lon2d, lat2d = _mesh(row["original"])
+        lon2d = _lon180(lon2d)
+        s0 = _speed(row["original"])
+        delta_old = _speed(row["old"]) - s0
+        delta_new = _speed(row["new"]) - s0
+        tau = row["tau"]
+        right = right_title or f"{DEFAULT_MIN_RADIUS_KM:.0f} km floor"
+        for ax, delta, diags, title in (
+            (ax_row[0], delta_old, row["diags_old"], f"+{tau:03d} h  {left_title}"),
+            (ax_row[1], delta_new, row["diags_new"], f"+{tau:03d} h  {right}"),
+        ):
+            mesh = _ep_pcolor(
+                ax,
+                lon2d,
+                lat2d,
+                delta,
+                "RdBu_r",
+                -scale.dwind,
+                scale.dwind,
+                row["storms"],
+                diags,
+            )
+            ax.set_title(title, fontsize=10)
+    fig.colorbar(mesh, ax=axes, shrink=0.72, label="m/s")
+    fig.suptitle(
+        subtitle
+        or (
+            f"GFS 0.25°  {LIVE_CYCLE}Z  Eastern Pacific  10 m wind after-before  "
+            "350 km floor vs 125 km floor"
+        ),
+        fontsize=12,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+
+
+def _write_ep_timeseries(
+    series: list,
+    path: Path,
+    old_label: str = "350 km floor",
+    new_label: str | None = None,
+    subtitle: str | None = None,
+    include_old: bool = True,
+) -> None:
+    import matplotlib as mpl
+
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+
+    hours = [row["tau"] for row in series]
+    fig, axes = plt.subplots(
+        2, 1, figsize=(9.5, 7.2), sharex=True, constrained_layout=True
+    )
+    axes[0].plot(
+        hours, [row["p0"] for row in series], "o-", color="black", label="GFS (control)"
+    )
+    if include_old:
+        axes[0].plot(
+            hours,
+            [row["p_old"] for row in series],
+            "s--",
+            color="0.45",
+            label=old_label,
+        )
+    axes[0].plot(
+        hours,
+        [row["p_new"] for row in series],
+        "s-",
+        color="C0",
+        label=new_label or f"{DEFAULT_MIN_RADIUS_KM:.0f} km floor",
+    )
+    axes[0].set_ylabel("Domain-min MSLP (mb)")
+    axes[0].grid(True, alpha=0.3)
+    axes[0].legend(loc="best", fontsize=9)
+    axes[1].plot(
+        hours, [row["s0"] for row in series], "o-", color="black", label="GFS (control)"
+    )
+    if include_old:
+        axes[1].plot(
+            hours,
+            [row["s_old"] for row in series],
+            "s--",
+            color="0.45",
+            label=old_label,
+        )
+    axes[1].plot(
+        hours,
+        [row["s_new"] for row in series],
+        "s-",
+        color="C0",
+        label=new_label or f"{DEFAULT_MIN_RADIUS_KM:.0f} km floor",
+    )
+    axes[1].set_ylabel("Domain-max 10 m wind (m/s)")
+    axes[1].set_xlabel("Forecast hour")
+    axes[1].grid(True, alpha=0.3)
+    fig.suptitle(
+        subtitle
+        or (
+            f"GFS {LIVE_CYCLE}Z eastern Pacific box (-130 to -105, 5 to 26)\n"
+            "control vs 350 km floor vs 125 km floor"
+        ),
+        fontsize=12,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+
+
+def _write_ep_e2e_tau_plots(
+    tmp_path: Path,
+    tau: int,
+    original,
+    new_ds,
+    old_ds,
+    storms: list,
+    summary_new,
+    summary_old,
+    scale: EpColorScale,
+    k95=None,
+) -> dict:
+    for min_radius, filtered, diags, tag in (
+        (DEFAULT_MIN_RADIUS_KM, new_ds, summary_new.storms, "floor125"),
+        (LEGACY_MIN_RADIUS_KM, old_ds, summary_old.storms, "floor350"),
+    ):
+        name = f"ep93_tau{tau:03d}_control_vs_removed_{tag}.png"
+        path = E2E_PLOT_DIR / name
+        _write_ep_control_vs_removed(
+            original, filtered, storms, diags, tau, min_radius, path, scale
+        )
+        _publish_ep_plot(path, tmp_path)
+    canon = E2E_PLOT_DIR / f"ep93_tau{tau:03d}_control_vs_removed.png"
+    _write_ep_control_vs_removed(
+        original,
+        new_ds,
+        storms,
+        summary_new.storms,
+        tau,
+        DEFAULT_MIN_RADIUS_KM,
+        canon,
+        scale,
+        method_label="Laplace fill vs control",
+    )
+    _publish_ep_plot(canon, tmp_path)
+    inc = E2E_PLOT_DIR / f"ep93_tau{tau:03d}_increments.png"
+    _write_ep_increments(original, new_ds, storms, summary_new.storms, tau, inc, scale)
+    _publish_ep_plot(inc, tmp_path)
+    if k95 is not None:
+        ds_k95, sum_k95 = k95
+        ray_name = f"ep93_tau000_k95_vs_laplace_{LIVE_CYCLE}.png"
+        _write_ep_floor_delta_plot(
+            [
+                {
+                    "tau": 0,
+                    "original": original,
+                    "old": ds_k95,
+                    "new": new_ds,
+                    "storms": storms,
+                    "diags_old": sum_k95.storms,
+                    "diags_new": summary_new.storms,
+                }
+            ],
+            E2E_PLOT_DIR / ray_name,
+            scale,
+            left_title="K95 rim x r/R",
+            right_title="Laplace fill",
+            subtitle=(
+                f"GFS 0.25°  {LIVE_CYCLE}Z  Eastern Pacific  "
+                "10 m wind after-before  Appendix B vs Laplace remainder"
+            ),
+        )
+        _publish_ep_plot(E2E_PLOT_DIR / ray_name)
+    return {
+        "tau": tau,
+        "original": original,
+        "old": old_ds,
+        "new": new_ds,
+        "storms": storms,
+        "diags_old": summary_old.storms,
+        "diags_new": summary_new.storms,
+    }
+
+
+def test_real_gfs_ep93_eastpac_plots_match_e2e_hours(tmp_path: Path) -> None:
+    try:
+        by_storm = _nhc_avno_forecast(("EP", 93), ("EP", 9))
+        for tau in EP_E2E_SERIES:
+            _download_gfs_from_s3(
+                LIVE_YMD, LIVE_CC, tau, tmp_path / f"gfs_ep_e2e_f{tau:03d}.grib2"
+            )
+    except (HTTPError, URLError, TimeoutError) as extra:
+        pytest.skip(f"Could not fetch GFS tracker or GRIB: {extra}")
+    except Exception as extra:
+        pytest.skip(f"Could not load GFS snapshots for EP93 e2e plots: {extra}")
+
+    ep93 = by_storm.get(("EP", 93), {})
+    missing = [tau for tau in EP_E2E_TAUS if tau not in ep93]
+    if missing:
+        msg = f"GFS AVNX tracker missing EP93 at tau {missing}"
+        raise AssertionError(msg)
+
+    E2E_PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    snaps = []
+    for tau in EP_E2E_SERIES:
+        original, new_ds, storms, summary_new = _ep_snapshot(
+            tmp_path, tau, by_storm, DEFAULT_MIN_RADIUS_KM
+        )
+        _original, old_ds, _storms, summary_old = _ep_snapshot(
+            tmp_path, tau, by_storm, LEGACY_MIN_RADIUS_KM
+        )
+        names = {storm["name"] for storm in storms}
+        assert "EP93" in names, f"EP93 not in the e2e box at tau {tau:03d}"
+        snaps.append(
+            {
+                "tau": tau,
+                "original": original,
+                "new_ds": new_ds,
+                "old_ds": old_ds,
+                "storms": storms,
+                "summary_new": summary_new,
+                "summary_old": summary_old,
+                "names": names,
+            }
+        )
+    _o, ds_k95, _s_k95, sum_k95 = _ep_snapshot(
+        tmp_path, 0, by_storm, DEFAULT_MIN_RADIUS_KM, remainder="k95"
+    )
+    pairs = []
+    for snap in snaps:
+        pairs.append((snap["original"], snap["new_ds"]))
+        pairs.append((snap["original"], snap["old_ds"]))
+    pairs.append((snaps[0]["original"], ds_k95))
+    scale = _ep_color_scale(pairs)
+
+    delta_rows = []
+    series = []
+    for snap in snaps:
+        tau = snap["tau"]
+        if tau in EP_E2E_TAUS:
+            k95 = (ds_k95, sum_k95) if tau == 0 else None
+            delta_rows.append(
+                _write_ep_e2e_tau_plots(
+                    tmp_path,
+                    tau,
+                    snap["original"],
+                    snap["new_ds"],
+                    snap["old_ds"],
+                    snap["storms"],
+                    snap["summary_new"],
+                    snap["summary_old"],
+                    scale,
+                    k95=k95,
+                )
+            )
+        series.append(
+            {
+                "tau": tau,
+                "p0": float(np.nanmin(_pressure(snap["original"]))),
+                "p_old": float(np.nanmin(_pressure(snap["old_ds"]))),
+                "p_new": float(np.nanmin(_pressure(snap["new_ds"]))),
+                "s0": float(np.nanmax(_speed(snap["original"]))),
+                "s_old": float(np.nanmax(_speed(snap["old_ds"]))),
+                "s_new": float(np.nanmax(_speed(snap["new_ds"]))),
+            }
+        )
+        print(
+            f"EP box tau {tau:03d}  storms {sorted(snap['names'])}  "
+            f"MSLP {series[-1]['p0']:.1f}->{series[-1]['p_new']:.1f} "
+            f"(350km {series[-1]['p_old']:.1f})  "
+            f"wind {series[-1]['s0']:.1f}->{series[-1]['s_new']:.1f} "
+            f"(350km {series[-1]['s_old']:.1f})"
+        )
+
+    delta_name = f"ep93_floor350_vs_125_{LIVE_CYCLE}.png"
+    _write_ep_floor_delta_plot(delta_rows, E2E_PLOT_DIR / delta_name, scale)
+    _publish_ep_plot(E2E_PLOT_DIR / delta_name)
+    ts_name = "ep93_timeseries_min_mslp_max_wind_floor125.png"
+    _write_ep_timeseries(series, E2E_PLOT_DIR / ts_name)
+    _publish_ep_plot(E2E_PLOT_DIR / ts_name)
+    ts_canon = E2E_PLOT_DIR / "ep93_timeseries_min_mslp_max_wind.png"
+    _write_ep_timeseries(
+        series,
+        ts_canon,
+        new_label="Laplace fill",
+        include_old=False,
+        subtitle=(
+            f"GFS {LIVE_CYCLE}Z eastern Pacific box (-130 to -105, 5 to 26)\n"
+            "control vs Laplace fill"
+        ),
+    )
+    _publish_ep_plot(ts_canon)
+    assert series[-1]["p_new"] > series[-1]["p0"] + 5.0
+    assert series[-1]["s_new"] < 0.85 * series[-1]["s0"]

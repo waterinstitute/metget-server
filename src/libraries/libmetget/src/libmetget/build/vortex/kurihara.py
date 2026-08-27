@@ -40,9 +40,12 @@ The basic field is a smoother applied on the native grid.
 meridional, K=0.5, 100 passes) or Winterbottom and Chassignet 2011 nine-point
 (simultaneous 3x3 box average, Δσ² stop in a 500 km box, 5-40 passes).
 The vortex domain is a 24-sided polygon diagnosed from the disturbance
-tangential wind. Inside the polygon the remainder is interpolated from the
-boundary so the vortex-scale disturbance is removed; outside, the field is
-unchanged.
+tangential wind (Kurihara 1995). Inside the polygon the remainder is a
+harmonic extension of the disturbance from the mask perimeter (Laplace
+equation, Dirichlet on the rim). Kurihara 1995 Appendix B (rim * r/R)
+is opt-in via ``REMAINDER = "k95"``; that fill is radially separable and
+makes a starburst whenever the rim is asymmetric. Outside the polygon
+the field is unchanged.
 
 MetGet v1 diagnoses the domain from 10 m wind (the archived GFS surface
 fields) rather than 850 hPa.
@@ -56,12 +59,20 @@ from typing import Literal, Sequence
 import numpy as np
 import xarray as xr
 from loguru import logger
+from scipy.ndimage import binary_erosion
+from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import spsolve
 
 from .centers import VortexGuess
 
 EARTH_RADIUS_M = 6371000.0
+# Domain diagnosis. K95 used 24; more than that follows 10 m noise into a
+# jagged snowflake. Azimuthal smoothing of the 24 radii is applied below.
 N_RAYS = 24
 RAY_DEGREES = 360.0 / N_RAYS
+# Remainder fill samples along the interpolated R(θ) curve. 72 keeps arc
+# spacing near one GFS 0.25 deg cell at a 400 km rim.
+N_RIM_SAMPLES = 72
 # On 10 m wind (not 850 hPa). Original Kurihara 1995 used 6 and 3 m/s at 850 hPa.
 # Lower cutoffs so the 10 m gale envelope is inside the polygon, not left as a
 # residual wind maximum around a too-small hole.
@@ -70,7 +81,10 @@ VT_VERY_WEAK_MS = 1.0
 DVT_DR_LIMIT = 4.0e-6
 DEFAULT_SEARCH_KM = 200.0
 DEFAULT_MAX_RADIUS_KM = 1500.0
-DEFAULT_MIN_RADIUS_KM = 350.0
+# Floor is a few GFS 0.25 deg cells so a noisy ray cannot collapse to a point.
+# 350 km forced weak/asymmetric storms into a large circle whose rim sat in
+# the environment; the 24-ray remainder then pulled that flow inward.
+DEFAULT_MIN_RADIUS_KM = 125.0
 # 11 passes on 0.25° GFS leaves ~half of a 500 km cyclone in the "basic" field.
 # 100 passes puts that scale into the disturbance so the environment is the
 # background, not a ghost vortex. Response is [cos(k Δx)]^n for three-point.
@@ -86,6 +100,11 @@ NINE_POINT_MIN_PASSES = 5
 NINE_POINT_MAX_PASSES = 40
 NINE_POINT_VAR_BOX_KM = 500.0
 NINE_POINT_VAR_REL = 1.0e-3
+# Interior reconstruction. "k95" is Appendix B (rim * r/R) and makes a
+# starburst whenever the rim is asymmetric. "laplace" is the harmonic
+# extension of the disturbance from the polygon boundary.
+RemainderKind = Literal["k95", "laplace"]
+REMAINDER: RemainderKind = "laplace"
 MIN_CYCLONIC_VT = 8.0
 
 
@@ -115,6 +134,10 @@ def apply_vortex_removal(
     guesses: Sequence[VortexGuess],
     center_search_km: float = DEFAULT_SEARCH_KM,
     smoother: str | None = None,
+    min_radius_km: float | None = None,
+    n_rays: int | None = None,
+    n_rim_samples: int | None = None,
+    remainder: str | None = None,
 ) -> tuple[xr.Dataset, VortexRemovalSummary]:
     """
     Remove tropical-cyclone vortices from ``wind_u`` / ``wind_v`` / ``pressure``
@@ -125,6 +148,11 @@ def apply_vortex_removal(
         guesses: First-guess centers (model a-deck positions).
         center_search_km: Local refine radius around each guess.
         smoother: ``three-point`` or ``nine-point``. Default is module ``SMOOTHER``.
+        min_radius_km: Per-ray floor in km. Default is ``DEFAULT_MIN_RADIUS_KM``.
+        n_rays: Polygon sides for domain diagnosis. Default is ``N_RAYS``.
+        n_rim_samples: Remainder samples along R(θ) for ``k95``. Default is
+            ``N_RIM_SAMPLES``.
+        remainder: ``laplace`` (default) or ``k95`` Appendix B.
 
     Returns:
         The filtered dataset and per-storm diagnostics.
@@ -161,6 +189,10 @@ def apply_vortex_removal(
             center_search_km=center_search_km,
             name=guess.name or guess.tech,
             smoother=smoother,
+            min_radius_km=min_radius_km,
+            n_rays=n_rays,
+            n_rim_samples=n_rim_samples,
+            remainder=remainder,
         )
         summary.storms.append(diag)
         distance_km = _haversine_km(
@@ -216,6 +248,10 @@ def remove_vortex(
     center_search_km: float = DEFAULT_SEARCH_KM,
     name: str = "",
     smoother: str | None = None,
+    min_radius_km: float | None = None,
+    n_rays: int | None = None,
+    n_rim_samples: int | None = None,
+    remainder: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, VortexRemovalDiagnostics]:
     """
     Separate one vortex from U/V/MSLP. Returns new arrays (copies if skipped).
@@ -231,6 +267,11 @@ def remove_vortex(
         center_search_km: Refine box half-width.
         name: Storm identifier for logs/diagnostics.
         smoother: ``three-point`` or ``nine-point``. Default is module ``SMOOTHER``.
+        min_radius_km: Per-ray floor in km. Default is ``DEFAULT_MIN_RADIUS_KM``.
+        n_rays: Polygon sides for domain diagnosis. Default is ``N_RAYS``.
+        n_rim_samples: Remainder samples along R(θ) for ``k95``. Default is
+            ``N_RIM_SAMPLES``.
+        remainder: ``laplace`` (default) or ``k95`` Appendix B.
 
     Returns:
         Filtered u, v, p and diagnostics for this storm.
@@ -239,6 +280,9 @@ def remove_vortex(
     u_out = np.array(u, dtype=np.float64, copy=True)
     v_out = np.array(v, dtype=np.float64, copy=True)
     p_out = None if p is None else np.array(p, dtype=np.float64, copy=True)
+    rays = N_RAYS if n_rays is None else n_rays
+    n_rim = N_RIM_SAMPLES if n_rim_samples is None else n_rim_samples
+    kind_rem = (remainder or REMAINDER).lower()
 
     refined = _refine_center(
         lon2d, lat2d, u_out, v_out, guess_lon, guess_lat, center_search_km
@@ -254,7 +298,7 @@ def remove_vortex(
                 guess_lat=guess_lat,
                 refined_lon=guess_lon,
                 refined_lat=guess_lat,
-                radii_km=np.zeros(N_RAYS),
+                radii_km=np.zeros(rays),
                 skipped=True,
                 reason="no cyclonic circulation in search box",
             ),
@@ -289,7 +333,16 @@ def remove_vortex(
         )
         p_dist = p_out - p_basic
 
-    radii_m = _vortex_radii(lon_p, lat2d, u_dist, v_dist, clon, clat)
+    radii_m = _vortex_radii(
+        lon_p,
+        lat2d,
+        u_dist,
+        v_dist,
+        clon,
+        clat,
+        min_radius_km=min_radius_km,
+        n_rays=rays,
+    )
     if radii_m is None:
         return (
             u_out,
@@ -301,12 +354,13 @@ def remove_vortex(
                 guess_lat=guess_lat,
                 refined_lon=clon,
                 refined_lat=clat,
-                radii_km=np.zeros(N_RAYS),
+                radii_km=np.zeros(rays),
                 skipped=True,
                 reason="disturbance wind is not a closed cyclonic vortex",
             ),
         )
 
+    radii_m = _smooth_radii_azimuth(radii_m)
     mask, weight = _interior_weights(lon_p, lat2d, clon, clat, radii_m)
     if not np.any(mask):
         return (
@@ -325,18 +379,28 @@ def remove_vortex(
             ),
         )
 
-    u_rem = _remainder_from_boundary(
-        lon_p, lat2d, u_dist, clon, clat, radii_m, mask, weight
-    )
-    v_rem = _remainder_from_boundary(
-        lon_p, lat2d, v_dist, clon, clat, radii_m, mask, weight
-    )
+    if kind_rem == "laplace":
+        u_rem = _harmonic_fill(u_dist, mask, wrap)
+        v_rem = _harmonic_fill(v_dist, mask, wrap)
+    elif kind_rem == "k95":
+        u_rem = _remainder_from_boundary(
+            lon_p, lat2d, u_dist, clon, clat, radii_m, mask, weight, n_rim=n_rim
+        )
+        v_rem = _remainder_from_boundary(
+            lon_p, lat2d, v_dist, clon, clat, radii_m, mask, weight, n_rim=n_rim
+        )
+    else:
+        msg = f"Unknown remainder {kind_rem!r}; use 'laplace' or 'k95'"
+        raise ValueError(msg)
     u_out[mask] = u_basic[mask] + u_rem[mask]
     v_out[mask] = v_basic[mask] + v_rem[mask]
     if p_out is not None and p_basic is not None and p_dist is not None:
-        p_rem = _remainder_from_boundary(
-            lon_p, lat2d, p_dist, clon, clat, radii_m, mask, weight
-        )
+        if kind_rem == "laplace":
+            p_rem = _harmonic_fill(p_dist, mask, wrap)
+        else:
+            p_rem = _remainder_from_boundary(
+                lon_p, lat2d, p_dist, clon, clat, radii_m, mask, weight, n_rim=n_rim
+            )
         p_out[mask] = p_basic[mask] + p_rem[mask]
 
     return (
@@ -518,16 +582,23 @@ def _vortex_radii(
     v_dist: np.ndarray,
     clon: float,
     clat: float,
+    min_radius_km: float | None = None,
+    n_rays: int | None = None,
 ) -> np.ndarray | None:
-    """24-ray Kurihara radius where the disturbance vortex ends."""
+    """Diagnose the radius where the disturbance vortex ends along each ray."""
     r_max_m = DEFAULT_MAX_RADIUS_KM * 1000.0
+    floor_m = (
+        DEFAULT_MIN_RADIUS_KM if min_radius_km is None else min_radius_km
+    ) * 1000.0
+    rays = N_RAYS if n_rays is None else n_rays
     n_sample = 80
-    radii = np.empty(N_RAYS, dtype=np.float64)
+    radii = np.empty(rays, dtype=np.float64)
     peak_vt = 0.0
     clon_p = clon % 360.0
+    step = 2.0 * np.pi / rays
 
-    for i in range(N_RAYS):
-        az = np.deg2rad(i * RAY_DEGREES)
+    for i in range(rays):
+        az = i * step
         r = np.linspace(0.0, r_max_m, n_sample)
         plat, plon = _destination(clat, clon_p, az, r)
         u_s = _bilinear(lon2d, lat2d, u_dist, plon, plat)
@@ -539,7 +610,15 @@ def _vortex_radii(
 
     if peak_vt < MIN_CYCLONIC_VT:
         return None
-    return np.maximum(radii, DEFAULT_MIN_RADIUS_KM * 1000.0)
+    return np.maximum(radii, floor_m)
+
+
+def _smooth_radii_azimuth(radii: np.ndarray, passes: int = 2) -> np.ndarray:
+    """3-point wrap-around mean so a noisy ray cannot spike the polygon."""
+    out = np.array(radii, dtype=np.float64, copy=True)
+    for _ in range(passes):
+        out = 0.25 * np.roll(out, 1) + 0.5 * out + 0.25 * np.roll(out, -1)
+    return out
 
 
 def _radius_along_ray(r: np.ndarray, vt: np.ndarray, dvt_dr: np.ndarray) -> float:
@@ -569,7 +648,7 @@ def _interior_weights(
     radii_m: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Polar weight r/R(θ) inside the 24-sided vortex polygon.
+    Polar weight r/R(θ) inside the vortex polygon.
 
     Weight is 0 at the center (remainder vanishes) and 1 at the diagnosed
     boundary, matching Kurihara 1995 Appendix B's interior reconstruction
@@ -583,6 +662,63 @@ def _interior_weights(
     return mask, weight
 
 
+def _harmonic_fill(field: np.ndarray, mask: np.ndarray, wrap_zonal: bool) -> np.ndarray:
+    """
+    Harmonic extension of ``field`` into the mask interior.
+
+    Pixels on the mask perimeter keep their original values (Dirichlet).
+    Interior pixels solve the 5-point Laplace equation so the fill has no
+    preferred radial direction. Jacobi from the vortex itself does not
+    converge on a 400 km hole; this is a direct sparse solve.
+    """
+    out = np.array(field, dtype=np.float64, copy=True)
+    interior = binary_erosion(mask, iterations=1, border_value=0)
+    if not np.any(interior):
+        return out
+    ny, nx = out.shape
+    ys, xs = np.nonzero(interior)
+    n = int(ys.size)
+    index = np.full((ny, nx), -1, dtype=np.int32)
+    index[ys, xs] = np.arange(n, dtype=np.int32)
+    rows: list[int] = []
+    cols: list[int] = []
+    data: list[float] = []
+    rhs = np.zeros(n, dtype=np.float64)
+    neighbors = ((0, -1), (0, 1), (-1, 0), (1, 0))
+    for k in range(n):
+        y = int(ys[k])
+        x = int(xs[k])
+        diag = 0
+        for dy, dx in neighbors:
+            i = y + dy
+            j = x + dx
+            if wrap_zonal:
+                j %= nx
+            elif j < 0 or j >= nx:
+                continue
+            if i < 0 or i >= ny:
+                continue
+            diag += 1
+            if interior[i, j]:
+                rows.append(k)
+                cols.append(int(index[i, j]))
+                data.append(-1.0)
+            else:
+                bval = float(out[i, j])
+                rhs[k] += 0.0 if not np.isfinite(bval) else bval
+        if diag == 0:
+            rows.append(k)
+            cols.append(k)
+            data.append(1.0)
+            continue
+        rows.append(k)
+        cols.append(k)
+        data.append(float(diag))
+    matrix = coo_matrix((data, (rows, cols)), shape=(n, n)).tocsr()
+    out[ys, xs] = spsolve(matrix, rhs)
+    return out
+
+
 def _remainder_from_boundary(
     lon2d: np.ndarray,
     lat2d: np.ndarray,
@@ -592,18 +728,21 @@ def _remainder_from_boundary(
     radii_m: np.ndarray,
     mask: np.ndarray,
     weight: np.ndarray,
+    n_rim: int | None = None,
 ) -> np.ndarray:
     """
-    Reconstruct the non-hurricane remainder inside the vortex from the 24
-    boundary values (Kurihara 1995 Appendix B). The remainder matches the
-    disturbance at the rim and goes to zero at the center, so the vortex-scale
-    interior is discarded.
+    Reconstruct the non-hurricane remainder inside the vortex from samples
+    along R(θ) (Kurihara 1995 Appendix B). Diagnosis may use 24 rays; the
+    rim is resampled more densely so the fill does not form 15-degree wedges.
     """
-    boundary = np.empty(N_RAYS, dtype=np.float64)
+    n = N_RIM_SAMPLES if n_rim is None else n_rim
+    boundary = np.empty(n, dtype=np.float64)
     clon_p = clon % 360.0
-    for i in range(N_RAYS):
-        az = np.deg2rad(i * RAY_DEGREES)
-        plat, plon = _destination(clat, clon_p, az, np.array([radii_m[i]]))
+    step = 2.0 * np.pi / n
+    for i in range(n):
+        az = i * step
+        r = float(_radius_at_azimuth(np.array([az]), radii_m)[0])
+        plat, plon = _destination(clat, clon_p, az, np.array([r]))
         sampled = _bilinear(lon2d, lat2d, disturbance, plon, plat)
         boundary[i] = 0.0 if not np.isfinite(sampled[0]) else float(sampled[0])
 
@@ -615,7 +754,8 @@ def _remainder_from_boundary(
 
 
 def _radius_at_azimuth(az_rad: np.ndarray, radii_m: np.ndarray) -> np.ndarray:
-    angles = np.linspace(0.0, 2.0 * np.pi, N_RAYS, endpoint=False)
+    n = int(radii_m.size)
+    angles = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
     az = np.mod(az_rad, 2.0 * np.pi)
     return np.interp(az, np.append(angles, 2.0 * np.pi), np.append(radii_m, radii_m[0]))
 
