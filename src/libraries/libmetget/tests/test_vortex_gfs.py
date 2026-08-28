@@ -843,9 +843,9 @@ def _assert_focus_removed(frames: list, focus: str) -> None:
         assert diag is not None, f"no {focus} diagnostic at tau {storm['tau']:03d}"
         if storm["vmax"] < 25:
             continue
-        assert (
-            not diag.skipped
-        ), f"GFS vortex skipped for {focus} at tau {storm['tau']:03d}: {diag.reason}"
+        assert not diag.skipped, (
+            f"GFS vortex skipped for {focus} at tau {storm['tau']:03d}: {diag.reason}"
+        )
         offset = float(
             haversine_km(
                 storm["lon"],
@@ -854,9 +854,9 @@ def _assert_focus_removed(frames: list, focus: str) -> None:
                 np.array(diag.refined_lat),
             )
         )
-        assert (
-            offset < 250.0
-        ), f"refined center {offset:.0f} km from AVNX at tau {storm['tau']:03d}"
+        assert offset < 250.0, (
+            f"refined center {offset:.0f} km from AVNX at tau {storm['tau']:03d}"
+        )
         lon2d, lat2d = _mesh(frame["original"])
         dist = haversine_km(diag.refined_lon, diag.refined_lat, lon2d, lat2d)
         s0 = _speed(frame["original"])
@@ -874,13 +874,13 @@ def _assert_focus_removed(frames: list, focus: str) -> None:
             )
         assert np.any(core)
         assert np.any(far)
-        assert float(np.nanmean(s1[core])) < 0.85 * float(
-            np.nanmean(s0[core])
-        ), f"core wind not reduced at tau {storm['tau']:03d}"
+        assert float(np.nanmean(s1[core])) < 0.85 * float(np.nanmean(s0[core])), (
+            f"core wind not reduced at tau {storm['tau']:03d}"
+        )
         if np.any(far):
-            assert (
-                float(np.nanmean(np.abs(s1[far] - s0[far]))) < 1.5
-            ), f"far-field wind changed at tau {storm['tau']:03d}"
+            assert float(np.nanmean(np.abs(s1[far] - s0[far]))) < 1.5, (
+                f"far-field wind changed at tau {storm['tau']:03d}"
+            )
         names = {s["name"] for s in frame["storms"]}
         assert focus in names
 
@@ -1096,27 +1096,27 @@ def _assert_floor_row(row: dict) -> None:
         f"spokes {row['spoke_old']:.2f}->{row['spoke_new']:.2f}  "
         f"shrink={row['shrink_km']:.0f} km"
     )
-    assert not row[
-        "diag_new"
-    ].skipped, f"{label} skipped with grid-scale floor: {row['diag_new'].reason}"
+    assert not row["diag_new"].skipped, (
+        f"{label} skipped with grid-scale floor: {row['diag_new'].reason}"
+    )
     assert not row["diag_old"].skipped, f"{label} skipped with 350 km floor"
     assert row["far_new"] < 1.5, f"{label} far-field wind changed with grid-scale floor"
     # Weak remnants (EP09 +48 h here) have almost no core left to remove.
     if storm["tau"] == 0 or (storm["vmax"] >= 30 and row["core0"] >= 8.0):
-        assert (
-            row["core_new"] < 0.90 * row["core0"]
-        ), f"{label} core wind not reduced with grid-scale floor"
+        assert row["core_new"] < 0.90 * row["core0"], (
+            f"{label} core wind not reduced with grid-scale floor"
+        )
     shrink = row["shrink_km"]
     if shrink < 10.0:
-        assert row["mean_new"] == pytest.approx(
-            row["mean_old"], abs=5.0
-        ), f"{label} radii diverged without a binding floor"
+        assert row["mean_new"] == pytest.approx(row["mean_old"], abs=5.0), (
+            f"{label} radii diverged without a binding floor"
+        )
         return
     if shrink < 40.0:
         # A few short rays were floored; the hole is not a 350 km circle.
-        assert (
-            row["overcut_new"] <= row["overcut_old"] * 1.10
-        ), f"{label} slight floor change increased annulus rewrite"
+        assert row["overcut_new"] <= row["overcut_old"] * 1.10, (
+            f"{label} slight floor change increased annulus rewrite"
+        )
         return
     assert row["overcut_new"] < 0.90 * row["overcut_old"], (
         f"{label} annulus overcut {row['overcut_new']:.2f} "
@@ -1162,9 +1162,9 @@ def test_real_gfs_grid_scale_floor_is_better_for_wp20_wp17_ep09(tmp_path: Path) 
     plot_path = PLOT_DIR / f"floor_compare_{LIVE_CYCLE}_ep09_wp20_wp17.png"
     _write_floor_comparison_plot(rows, plot_path)
     _write_floor_comparison_plot(rows, tmp_path / plot_path.name)
-    assert (
-        bound
-    ), "expected at least one of EP09/WP20/WP17 to be inflated by the 350 km floor"
+    assert bound, (
+        "expected at least one of EP09/WP20/WP17 to be inflated by the 350 km floor"
+    )
     bound_names = {name.split("+")[0] for name in bound}
     assert bound_names == {
         "EP09",
@@ -1462,8 +1462,7 @@ def _write_ep_increments(
         axes[1], lon2d, lat2d, dp, "RdBu_r", -scale.dmslp, scale.dmslp, storms, diags
     )
     axes[0].set_title(
-        "10 m wind after - before  "
-        f"min/max {np.nanmin(ds):.1f} / {np.nanmax(ds):.1f}",
+        f"10 m wind after - before  min/max {np.nanmin(ds):.1f} / {np.nanmax(ds):.1f}",
         fontsize=10,
     )
     axes[1].set_title(
