@@ -764,6 +764,7 @@ class DataInterpolator:
             center_search_km=float(
                 self.__vortex_removal.get("center_search_km", 200.0)
             ),
+            bbox=bbox,
         )
         # Restore any singleton dims cfgrib had attached (time, step, ...).
         for name in dataset.data_vars:

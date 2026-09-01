@@ -27,12 +27,14 @@ from libmetget.build.vortex.kurihara import (
     NINE_POINT_MIN_PASSES,
     _adaptive_nine_passes,
     _azimuth_from_north,
+    _grid_window,
     _harmonic_fill,
     _interior_weights,
     _lon_periodic,
     _nine_point,
     _remainder_from_boundary,
     _smooth_field,
+    _three_point,
     _vortex_radii,
     apply_vortex_removal,
     remove_vortex,
@@ -356,6 +358,48 @@ def test_apply_vortex_removal_writes_standard_variable_names() -> None:
     ) < float(np.mean(np.hypot(u[core], v[core])))
 
 
+def test_apply_vortex_removal_bbox_still_writes_back() -> None:
+    clon, clat = -80.0, 25.0
+    lon, lat, lon2d, lat2d, u, v, p = _rankine_field(clon=clon, clat=clat)
+    ds = xr.Dataset(
+        {
+            "wind_u": (("latitude", "longitude"), u),
+            "wind_v": (("latitude", "longitude"), v),
+            "pressure": (("latitude", "longitude"), p),
+        },
+        coords={"latitude": lat, "longitude": lon},
+    )
+    out, summary = apply_vortex_removal(
+        ds,
+        [VortexGuess(longitude=clon, latitude=clat, name="AL01", vmax_kt=80)],
+        bbox=(clon - 4.0, clat - 4.0, clon + 4.0, clat + 4.0),
+    )
+    assert not summary.storms[0].skipped
+    dist = haversine_km(clon, clat, lon2d, lat2d)
+    core = dist < 40.0
+    assert float(
+        np.mean(np.hypot(out["wind_u"].values[core], out["wind_v"].values[core]))
+    ) < float(np.mean(np.hypot(u[core], v[core])))
+
+
+def test_grid_window_crops_global_grid_to_bbox_plus_halo() -> None:
+    lat = np.linspace(90.0, -90.0, 721)
+    lon = np.linspace(0.0, 359.75, 1440)
+    lon2d, lat2d = np.meshgrid(lon, lat)
+    guess = VortexGuess(longitude=-80.0, latitude=25.0, name="AL01", vmax_kt=80)
+    window = _grid_window(
+        lon2d,
+        lat2d,
+        [guess],
+        bbox=(-90.0, 10.0, -70.0, 30.0),
+        halo=10,
+        wrap_full=True,
+    )
+    assert window.i1 - window.i0 < 721
+    assert window.js.size < 1440
+    assert window.js.size > 10
+
+
 def test_nine_point_spreads_a_spike_over_the_3x3_neighborhood() -> None:
     field = np.zeros((5, 5), dtype=np.float64)
     field[2, 2] = 9.0
@@ -382,6 +426,21 @@ def test_smooth_field_switch_selects_nine_point() -> None:
     assert np.allclose(one_pass[1:4, 1:4], 1.0)
     with pytest.raises(ValueError, match="Unknown SMOOTHER"):
         _smooth_field(field, wrap_zonal=False, npass=1, smoother="eleven-point")
+
+
+def test_three_point_convolve_matches_iterated_interior() -> None:
+    rng = np.random.default_rng(0)
+    field = rng.normal(size=(41, 41))
+    npass = 8
+    iterated = np.array(field, dtype=np.float64, copy=True)
+    for _ in range(npass):
+        iterated = _three_point(iterated, axis=1, k=0.5, periodic=False)
+        iterated = _three_point(iterated, axis=0, k=0.5, periodic=False)
+    convolved = _smooth_field(
+        field, wrap_zonal=False, npass=npass, smoother="three-point"
+    )
+    core = (slice(npass, -npass), slice(npass, -npass))
+    assert convolved[core] == pytest.approx(iterated[core], abs=1.0e-9)
 
 
 def test_nine_point_adaptive_stops_between_min_and_max() -> None:
